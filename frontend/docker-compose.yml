@@ -1,9 +1,11 @@
 # Frontend-only stack (no backend). Build + run with:
 #   docker compose up --build
-# Then open http://localhost:3000 — you land on /login.
+# Then open http://localhost:3000.
 #
-# When a backend exists, set NEXT_PUBLIC_API_BASE_URL below (it is baked in at
-# BUILD time, so change it and rebuild with `docker compose up --build`).
+# NEXT_PUBLIC_* values are inlined at BUILD time, so change them here and rebuild
+# (`docker compose up --build`):
+#   NEXT_PUBLIC_API_BASE_URL     point the app at a backend (empty = none)
+#   NEXT_PUBLIC_DEV_BYPASS_AUTH  "1" = skip login + show the UI without a backend
 services:
   frontend:
     build:
@@ -11,7 +13,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ""
-    image: pipeshub-frontend
+        NEXT_PUBLIC_DEV_BYPASS_AUTH: "1"
+    image: frontend
     ports:
       - "3000:3000"
     restart: unless-stopped
