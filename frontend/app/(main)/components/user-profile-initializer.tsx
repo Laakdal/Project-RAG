@@ -15,6 +15,7 @@
 import { useEffect } from 'react';
 import { useInitializeUserProfile } from '@/lib/hooks/use-initialize-user-profile';
 import { getUserIdFromToken } from '@/lib/utils/jwt';
+import { DEV_BYPASS_AUTH } from '@/lib/dev/dev-bypass';
 
 const LOG = '[user-initializer]';
 
@@ -29,6 +30,8 @@ export function UserProfileInitializer() {
   } = useInitializeUserProfile();
 
   useEffect(() => {
+    // DEV bypass: profile is seeded in user-store; skip API init entirely.
+    if (DEV_BYPASS_AUTH) return;
     // Wait for the auth store to rehydrate from localStorage
     if (!isHydrated) {
       console.debug(LOG, 'Waiting for auth store to hydrate…');
