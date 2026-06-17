@@ -9,7 +9,7 @@ import { Flex, Text } from '@radix-ui/themes';
 function LogoFallback(props: { style?: React.CSSProperties }) {
   return (
     <img
-      src="/logo/pipes-hub.svg"
+      src="/icon.png"
       alt=""
       style={{ width: 48, height: 48, ...props.style }}
     />
