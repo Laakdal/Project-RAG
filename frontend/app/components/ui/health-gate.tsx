@@ -20,6 +20,7 @@ import {
 } from '@/lib/store/services-health-store';
 import { toast } from '@/lib/store/toast-store';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
+import { DEV_BYPASS_AUTH } from '@/lib/dev/dev-bypass';
 
 const CRITICAL_APP_SERVICES = new Set(['query', 'connector']);
 const NON_CRITICAL_TOAST_INTERVAL = 60 * 60 * 1000; // 1 hour
@@ -121,6 +122,11 @@ function BackendUnavailableScreen() {
  * they need are down.
  */
 export function HealthGate({ children }: { children: React.ReactNode }) {
+  // DEV bypass: skip the backend-reachability gate (build-time constant, so the
+  // branch is stable across renders).
+  if (DEV_BYPASS_AUTH) return <>{children}</>;
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const router = useRouter();
   const isAdmin = useUserStore(selectIsAdmin);
 
