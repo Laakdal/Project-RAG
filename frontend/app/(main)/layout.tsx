@@ -23,7 +23,6 @@ import { useMobileSidebarStore } from "@/lib/store/mobile-sidebar-store"
 import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import { AuthGuard } from '@/app/components/ui/auth-guard'
-import { HealthGate } from '@/app/components/ui/health-gate'
 import { AuthHydrator } from '@/lib/store/auth-hydrator'
 import { useUserStore, selectIsProfileInitialized } from '@/lib/store/user-store'
 import { FullNameDialog } from './components/full-name-dialog'
@@ -91,15 +90,11 @@ export default function RootLayout({
             </div>
             <ServerUrlGuard>
               <AuthGuard>
-                <HealthGate>
-                  <AppLayout sidebar={sidebar}>
-                    {children}
-                  </AppLayout>
-                </HealthGate>
+                <AppLayout sidebar={sidebar}>
+                  {children}
+                </AppLayout>
               </AuthGuard>
             </ServerUrlGuard>
-            {/* ToastContainer must live outside HealthGate so toasts render
-                during the blocking health-check loading screen too. */}
             <ToastContainer />
           </ThemeProvider>
         </I18nextProvider>
