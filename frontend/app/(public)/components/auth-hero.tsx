@@ -128,13 +128,13 @@ export default function AuthHero({ splitLayout }: AuthHeroProps) {
             gap: '14px',
           }}
         >
-          {/* Pipeshub logo mark */}
+          {/* Logo mark */}
           <Image
-            src="/login-page-assets/pipeshub/white-square.svg"
+            src="/logo.png"
             alt=""
             width={33}
             height={33}
-            style={{ flexShrink: 0, opacity: 0.9 }}
+            style={{ flexShrink: 0, opacity: 0.9, borderRadius: 6, objectFit: 'cover' }}
           />
 
           {/* Search text */}
@@ -208,23 +208,6 @@ export default function AuthHero({ splitLayout }: AuthHeroProps) {
         ))}
       </Flex>
 
-      {/* ── Pipeshub wordmark — bottom right ─────────────────────── */}
-      <Box
-        style={{
-          position: 'absolute',
-          bottom: '32px',
-          right: '32px',
-          zIndex: 1,
-        }}
-      >
-        <Image
-          src="/login-page-assets/pipeshub/white-horizontal.svg"
-          alt="Pipeshub"
-          width={170}
-          height={45}
-          style={{ opacity: 0.95 }}
-        />
-      </Box>
     </Box>
   );
 }
