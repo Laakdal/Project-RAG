@@ -8,7 +8,6 @@ import type { OrgInfo } from './types';
 import { POPUP_WIDTH } from './types';
 import { Divider } from './menu-item';
 import { SettingsSection } from './settings-section';
-import { ExternalLinksSection } from './external-links-section';
 import { AppearancePanel } from './appearance-panel';
 
 // ============================================
@@ -122,12 +121,7 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
 
       <Divider />
 
-      {/* ── Section 2: External Links ── */}
-      <ExternalLinksSection />
-
-      <Divider />
-
-      {/* ── Section 3: Current Organisation ── */}
+      {/* ── Section 2: Current Organisation ── */}
       {org && (
         <Flex direction="column" gap="3">
           {/* Org badge */}
