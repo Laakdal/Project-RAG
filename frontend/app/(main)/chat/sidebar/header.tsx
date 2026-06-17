@@ -9,7 +9,6 @@ import { useUserStore } from '@/lib/store/user-store';
 import { useSidebarWidthStore } from '@/lib/store/sidebar-width-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { toast } from '@/lib/store/toast-store';
-import { PipesHubIcon } from '@/app/components/ui';
 
 /**
  * Sidebar header — logo, user avatar, and a desktop collapse button.
@@ -35,7 +34,13 @@ export function ChatSidebarHeader() {
 
   return (
     <Flex align="center" justify="between" gap="2" style={{ height: '100%', padding: 'var(--space-4)' }}>
-      <PipesHubIcon size={HEADER_ELEMENT_SIZE} color="var(--accent-11)" />
+      <img
+        src="/logo.png"
+        alt=""
+        width={HEADER_ELEMENT_SIZE}
+        height={HEADER_ELEMENT_SIZE}
+        style={{ borderRadius: 'var(--radius-2)', flexShrink: 0, objectFit: 'cover' }}
+      />
       <Flex align="center" gap="2">
         {isMobile ? (
           <IconButton
