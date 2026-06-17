@@ -107,10 +107,19 @@ frontend → n8n webhook → embed question → Qdrant search (library + this ch
 
 Each phase ends with "app still boots / works" before the next. All on a **new git branch**.
 
-- **Phase 0 — Branch.** Create `simplify` branch; commit current state.
-- **Phase 1 — Strip cruft (no behavior change to what remains).** Remove electron, extra
-  languages, onboarding/surveys/tours, notifications, dropped workspace pages, agents/toolsets,
-  connectors UI, sign-up/reset. Fix sidebar/nav. Verify it still boots to `/login`.
+- **Phase 0 — Branch.** ✅ Done. Baseline committed on `master`; work on `simplify` branch.
+- **Phase 1 — Strip cruft (no behavior change to what remains).** ⏳ In progress.
+  Discovery showed `chat` is deeply coupled to agents/connectors, and electron↔connectors,
+  so those removals were **re-sequenced** into the chat/auth rewiring phases (where that code
+  is rewritten anyway). Phase 1 does only the chat-independent removals.
+  - ✅ Removed onboarding wizard, user-background survey, product tours (+ layout gate).
+  - ✅ Trimmed i18n to English only (dropped de/es/hi/en-IN).
+  - ✅ Removed isolated admin pages: prompts, bots, mail, developer-settings, labs,
+    archived-chats; trimmed workspace nav to **general, users, teams, profile**.
+  - ↪️ **Deferred to Phase 2/3** (code-coupled): electron, agents, toolsets, connectors,
+    notifications, sign-up/reset, and `ai-models`/`services` (linked from chat/health-gate;
+    already dropped from nav).
+  - Each step verified with a green `next build` and committed separately.
 - **Phase 2 — Rewire to n8n + Postgres auth.** Point the API layer at n8n webhooks; implement
   admin-created-account login against the Postgres `users` table.
 - **Phase 3 — Wire the kept features.** Chat (stream from n8n), per-chat attachments, Collections
