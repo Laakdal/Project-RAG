@@ -21,6 +21,7 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { DEV_BYPASS_AUTH, DEV_FAKE_PROFILE } from '@/lib/dev/dev-bypass';
 
 // ============================================================
 // Types
@@ -183,6 +184,14 @@ export const useUserStore = create<UserProfileStore>()(
 // ============================================================
 // Selectors (stable references — use in components)
 // ============================================================
+
+// DEV bypass: seed a fake profile so the FullNameDialog / admin nav resolve
+// without a backend. The UserProfileInitializer is short-circuited in this mode
+// so it won't overwrite this seed with an error state.
+if (typeof window !== 'undefined' && DEV_BYPASS_AUTH) {
+  useUserStore.getState().setProfile({ ...DEV_FAKE_PROFILE });
+  useUserStore.getState().setInitialized(true);
+}
 
 export const selectProfile = (s: UserProfileStore) => s.profile;
 export const selectIsAdmin = (s: UserProfileStore) => s.profile?.isAdmin ?? null;
