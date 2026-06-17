@@ -24,8 +24,6 @@ import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import { AuthGuard } from '@/app/components/ui/auth-guard'
 import { AuthHydrator } from '@/lib/store/auth-hydrator'
-import { useUserStore, selectIsProfileInitialized } from '@/lib/store/user-store'
-import { FullNameDialog } from './components/full-name-dialog'
 import { ServerUrlGuard } from '@/app/components/electron/server-url-setup'
 import { NotificationProvider } from './notifications/websocket-manager'
 import { NotificationsPanel } from './notifications/panel'
@@ -117,19 +115,6 @@ function AppLayout({
   const sidebarWidth = useSidebarWidthStore((s) => s.sidebarWidth)
   const isNavCollapsed = useSidebarWidthStore((s) => s.isNavCollapsed)
   const setNavCollapsed = useSidebarWidthStore((s) => s.setNavCollapsed)
-
-  // ── Full-name guard ────────────────────────────────────────────────────────
-  const profile = useUserStore((s) => s.profile)
-  const isProfileInitialized = useUserStore(selectIsProfileInitialized)
-  const updateProfile = useUserStore((s) => s.updateProfile)
-
-  const showFullNameDialog =
-    isProfileInitialized && (!profile?.fullName || profile.fullName.trim() === '')
-
-  const handleFullNameSuccess = (savedFullName: string) => {
-    updateProfile({ fullName: savedFullName })
-  }
-  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <SWRConfig
@@ -230,12 +215,6 @@ function AppLayout({
         </Flex>
 
         <UploadProgressTracker key="upload-progress-tracker" />
-        {/* Full-name guard — blocks access until the user sets their full name */}
-        <FullNameDialog
-          key="full-name-dialog"
-          open={showFullNameDialog}
-          onSuccess={handleFullNameSuccess}
-        />
       </Flex>
     </SWRConfig>
   )
