@@ -9,10 +9,6 @@
  */
 export const SUPPORTED_LANGUAGES = {
   'en-US': { value: 'en-US', menuName: 'English (US)' },
-  'de-DE': { value: 'de-DE', menuName: 'Deutsch (Deutschland)' },
-  'es-ES': { value: 'es-ES', menuName: 'Español (España)' },
-  'en-IN': { value: 'en-IN', menuName: 'English (India)' },
-  'hi-IN': { value: 'hi-IN', menuName: 'हिन्दी (भारत)' },
 } as const;
 
 /** Union type of all supported language codes, e.g. 'en-US' | 'de-DE' */
