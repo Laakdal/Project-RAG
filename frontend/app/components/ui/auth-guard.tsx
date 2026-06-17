@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Flex } from '@radix-ui/themes';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { LottieLoader } from './lottie-loader';
-import { getOrgExists } from '@/lib/api/org-exists-public';
 import { DEV_BYPASS_AUTH } from '@/lib/dev/dev-bypass';
 
 export function LoadingScreen() {
@@ -36,19 +35,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (DEV_BYPASS_AUTH) return;
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      let cancelled = false;
-      void getOrgExists()
-        .then((response) => {
-          if (cancelled) return;
-          router.replace(response.exists === false ? '/sign-up' : '/login');
-        })
-        .catch(() => {
-          if (cancelled) return;
-          router.replace('/login');
-        });
-      return () => {
-        cancelled = true;
-      };
+      router.replace('/login');
     }
   }, [isHydrated, isAuthenticated, router]);
 
