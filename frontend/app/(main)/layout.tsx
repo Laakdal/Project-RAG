@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import "../globals.css"
 import 'react-pdf-highlighter/dist/esm/style/PdfHighlighter.css';
 import 'react-pdf-highlighter/dist/esm/style/Highlight.css';
@@ -20,11 +19,6 @@ import { I18nextProvider, useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n/config'
 import { useLanguageStore } from '@/lib/store/language-store'
 import { UserProfileInitializer } from './components/user-profile-initializer'
-import { UserBackgroundSurvey } from "./components/surveys/user-background"
-import { OnboardingTour } from "./components/tours/onboarding"
-import { useOnboardingStore } from "./onboarding/store"
-import { getOnboardingStatus } from "./onboarding/api"
-import { useAuthStore } from "@/lib/store/auth-store"
 import { useMobileSidebarStore } from "@/lib/store/mobile-sidebar-store"
 import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
@@ -123,10 +117,6 @@ function AppLayout({
   children: React.ReactNode
   sidebar: React.ReactNode
 }) {
-  const router = useRouter()
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const isHydrated = useAuthStore((s) => s.isHydrated)
-  const setOnboardingActive = useOnboardingStore((s) => s.setOnboardingActive)
   const openMobileSidebar = useMobileSidebarStore((s) => s.open)
   const isMobile = useIsMobile()
   const sidebarWidth = useSidebarWidthStore((s) => s.sidebarWidth)
@@ -144,32 +134,6 @@ function AppLayout({
   const handleFullNameSuccess = (savedFullName: string) => {
     updateProfile({ fullName: savedFullName })
   }
-  // ──────────────────────────────────────────────────────────────────────────
-
-  // ── Onboarding gate ────────────────────────────────────────────────────────
-  useEffect(() => {
-    // 0. Already on the onboarding page — bail out to prevent an infinite redirect loop
-    if (window.location.pathname.startsWith('/onboarding')) {
-      return
-    }
-
-    // 1. Not yet hydrated or not authenticated — too early to check
-    if (!isHydrated || !isAuthenticated) {
-      return
-    }
-
-    // 2. Call the API and decide
-    getOnboardingStatus()
-      .then(({ status }) => {
-        if (status === 'notConfigured') {
-          setOnboardingActive(true)
-          router.replace('/onboarding')
-        }
-      })
-      .catch(() => {
-        // If the check fails (network, permissions) proceed normally — don't block the app
-      })
-  }, [isHydrated, isAuthenticated])
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
@@ -277,17 +241,6 @@ function AppLayout({
           open={showFullNameDialog}
           onSuccess={handleFullNameSuccess}
         />
-        {/* User background survey — shown once after login/onboarding */}
-        <UserBackgroundSurvey key="user-background-survey" />
-        {/* Onboarding tour card — bottom-left corner, guides new users through first steps.
-             Currently gated by the NEXT_PUBLIC_ONBOARDING_TOUR_ACTIVE env var.
-             TODO: replace the env-var flag with an API call (similar to the onboarding flow above):
-               1. Call getTourStatus() on mount.
-               2. Mount <OnboardingTour /> when the response status is 'active' or 'completed'.
-               3. Omit it entirely when status is 'hidden' (user has dismissed). */}
-        {process.env.NEXT_PUBLIC_ONBOARDING_TOUR_ACTIVE === 'true' ? (
-          <OnboardingTour key="onboarding-tour" />
-        ) : null}
       </Flex>
     </SWRConfig>
   )
