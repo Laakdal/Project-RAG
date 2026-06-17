@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Flex } from '@radix-ui/themes';
@@ -11,7 +11,6 @@ import { WorkspaceSidebarItem } from './sidebar-item';
 import { SectionHeader } from './section-header';
 import { CollapsibleSection } from './collapsible-section';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
-import { YourConnectorsIcon } from '@/app/components/ui/your-connectors-icon';
 
 // ========================================
 // Route constants (labels resolved at render via i18n)
@@ -22,40 +21,19 @@ interface NavItem {
   labelKey: string;
   route: string;
   adminOnly?: boolean;
-  customIcon?: ReactNode;
 }
 
 const OVERVIEW_ITEMS: NavItem[] = [
   { icon: 'business', labelKey: 'workspace.sidebar.nav.general', route: '/workspace/general' },
-  { icon: 'science', labelKey: 'workspace.sidebar.nav.labs', route: '/workspace/labs', adminOnly: true },
-];
-const DEVELOPER_SETTINGS_ITEMS: NavItem[] = [
-  { icon: 'code', labelKey: 'workspace.sidebar.nav.oauth2', route: '/workspace/developer-settings/oauth2' },
 ];
 
 const PEOPLE_SUB_ITEMS = [
   { labelKey: 'workspace.sidebar.nav.users', route: '/workspace/users', adminOnly: true },
-  { labelKey: 'workspace.sidebar.nav.groups', route: '/workspace/groups', adminOnly: true },
   { labelKey: 'workspace.sidebar.nav.teams', route: '/workspace/teams' },
-];
-
-const WORKSPACE_ITEMS: NavItem[] = [
-  { icon: 'security', labelKey: 'workspace.sidebar.nav.authentication', route: '/workspace/authentication', adminOnly: true },
-  { icon: 'hub', labelKey: 'workspace.sidebar.nav.connectors', route: '/workspace/connectors/team', adminOnly: true },
-  { icon: 'bolt', labelKey: 'workspace.sidebar.nav.actions', route: '/workspace/actions/team', adminOnly: true },
-  { icon: 'support_agent', labelKey: 'workspace.sidebar.nav.bots', route: '/workspace/bots', adminOnly: true },
-  { icon: 'manage_accounts', labelKey: 'workspace.sidebar.nav.services', route: '/workspace/services', adminOnly: true },
-  { icon: 'smart_toy', labelKey: 'workspace.sidebar.nav.aiModels', route: '/workspace/ai-models', adminOnly: true },
-  { icon: 'mail', labelKey: 'workspace.sidebar.nav.mail', route: '/workspace/mail', adminOnly: true },
-  { icon: 'edit_note', labelKey: 'workspace.sidebar.nav.prompts', route: '/workspace/prompts', adminOnly: true },
-  { icon: 'travel_explore', labelKey: 'workspace.sidebar.nav.webSearch', route: '/workspace/web-search', adminOnly: true },
 ];
 
 const PERSONAL_ITEMS: NavItem[] = [
   { icon: 'person', labelKey: 'workspace.sidebar.nav.profile', route: '/workspace/profile' },
-  { icon: '', labelKey: 'workspace.sidebar.nav.yourConnectors', route: '/workspace/connectors/personal', customIcon: <YourConnectorsIcon size={ICON_SIZE_DEFAULT} color="var(--slate-11)" /> },
-  { icon: 'bolt', labelKey: 'workspace.sidebar.nav.yourActions', route: '/workspace/actions/personal' },
-  { icon: 'archive', labelKey: 'workspace.sidebar.nav.archivedChats', route: '/workspace/archived-chats' },
 ];
 
 const PEOPLE_ROUTES = PEOPLE_SUB_ITEMS.map((item) => item.route);
@@ -86,11 +64,8 @@ export default function WorkspaceSidebar() {
 
   const allRoutes = [
     ...OVERVIEW_ITEMS.map((item) => item.route),
-    ...(isAdmin ? WORKSPACE_ITEMS.map((item) => item.route) : []),
-    ...DEVELOPER_SETTINGS_ITEMS.map((item) => item.route),
     ...PERSONAL_ITEMS.map((item) => item.route),
     ...PEOPLE_SUB_ITEMS.map((item) => item.route),
-    '/workspace/actions',
   ];
 
   const isActive = (route: string) => {
@@ -107,7 +82,6 @@ export default function WorkspaceSidebar() {
   const isPeopleChildActive = PEOPLE_ROUTES.some((route) => pathname.startsWith(route));
 
   const visibleOverviewItems = OVERVIEW_ITEMS.filter((item) => isAdmin || !item.adminOnly);
-  const visibleWorkspaceItems = WORKSPACE_ITEMS.filter((item) => isAdmin || !item.adminOnly);
   const visiblePeopleItems = PEOPLE_SUB_ITEMS.filter((item) => isAdmin || !item.adminOnly);
 
   return (
@@ -155,41 +129,13 @@ export default function WorkspaceSidebar() {
           )}
         </Flex>
 
-        {/* ── Workspace section ── */}
-        {isAdmin && (
-          <Flex direction="column" gap="1">
-            <SectionHeader title={t('workspace.sidebar.sections.workspace')} />
-            {visibleWorkspaceItems.map((item) => (
-              <WorkspaceSidebarItem
-                key={item.route}
-                icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-                label={t(item.labelKey)}
-                href={`${item.route}/`}
-                isActive={isActive(item.route)}
-              />
-            ))}
-          </Flex>
-        )}
-        <Flex direction="column" gap="1">
-          <SectionHeader title={t('workspace.sidebar.sections.developerSettings')} />
-          {DEVELOPER_SETTINGS_ITEMS.map((item) => (
-            <WorkspaceSidebarItem
-              key={item.route}
-              icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-              label={t(item.labelKey)}
-              href={`${item.route}/`}
-              isActive={isActive(item.route)}
-            />
-          ))}
-        </Flex>
-
         {/* ── Personal section ── */}
         <Flex direction="column" gap="1">
           <SectionHeader title={t('workspace.sidebar.sections.personal')} />
           {PERSONAL_ITEMS.map((item) => (
             <WorkspaceSidebarItem
               key={item.route}
-              icon={item.customIcon ?? <MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
+              icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
               label={t(item.labelKey)}
               href={`${item.route}/`}
               isActive={isActive(item.route)}
