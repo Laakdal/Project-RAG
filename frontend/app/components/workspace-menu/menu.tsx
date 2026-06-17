@@ -9,7 +9,6 @@ import { POPUP_WIDTH } from './types';
 import { Divider } from './menu-item';
 import { SettingsSection } from './settings-section';
 import { ExternalLinksSection } from './external-links-section';
-import { LanguagePanel } from './language-panel';
 import { AppearancePanel } from './appearance-panel';
 
 // ============================================
@@ -17,7 +16,7 @@ import { AppearancePanel } from './appearance-panel';
 // ============================================
 
 /** Which sub-panel is currently open (at most one) */
-type ActiveSubPanel = null | 'appearance' | 'language';
+type ActiveSubPanel = null | 'appearance';
 
 interface WorkspaceMenuProps {
   /** Whether the popup is visible */
@@ -85,7 +84,7 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
 
   const orgLogoUrl = org?.logoUrl ?? null;
 
-  const togglePanel = (panel: 'appearance' | 'language') => {
+  const togglePanel = (panel: 'appearance') => {
     setActivePanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -115,8 +114,6 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
         onWorkspaceSettings={onClose}
         onAppearanceToggle={() => togglePanel('appearance')}
         isAppearanceActive={activePanel === 'appearance'}
-        onLanguageToggle={() => togglePanel('language')}
-        isLanguageActive={activePanel === 'language'}
         onLogout={() => {
           onClose();
           logoutFromWorkspaceMenu();
@@ -174,7 +171,6 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
 
       {/* ── Sub-panels — float to the right, top-aligned ── */}
       <AppearancePanel isOpen={activePanel === 'appearance'} />
-      <LanguagePanel isOpen={activePanel === 'language'} />
     </Box>
   );
 }
