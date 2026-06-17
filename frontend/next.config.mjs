@@ -1,18 +1,10 @@
 /** @type {import('next').NextConfig} */
-// Static HTML for Electron packaging (see scripts/electron/next-build-electron.mjs).
-const electronStaticExport =
-    process.env.ELECTRON_STATIC === '1' || process.env.ELECTRON_STATIC_EXPORT === '1';
-
 // Self-contained Node.js server build for Docker (emits `.next/standalone/server.js`).
 // Gated behind an env flag so the default `next dev` / `next build` behavior is unchanged.
 const standaloneOutput = process.env.NEXT_OUTPUT_STANDALONE === '1';
 
 const nextConfig = {
-    ...(electronStaticExport
-        ? { output: 'export' }
-        : standaloneOutput
-          ? { output: 'standalone' }
-          : {}),
+    ...(standaloneOutput ? { output: 'standalone' } : {}),
     trailingSlash: true,
     /**
      * Static export does not emit per-slug callback HTML. Rewrites map
