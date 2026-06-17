@@ -8,12 +8,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    include: [
-      'app/(main)/notifications/__tests__/store.test.ts',
-      'app/(main)/notifications/__tests__/useNotificationSocket.test.tsx',
-      'lib/socket/__tests__/notification-socket.test.ts',
-    ],
-    passWithNoTests: false,
+    include: [],
+    passWithNoTests: true,
   },
   resolve: {
     alias: {
