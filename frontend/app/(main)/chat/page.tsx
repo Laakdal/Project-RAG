@@ -37,8 +37,6 @@ import { createChatShareAdapter } from './share-adapter';
 import { ChatSearch } from './components/search';
 import { isCommandKey } from '@/lib/utils/platform';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
-import { useGitHubStars } from '@/app/components/workspace-menu/hooks/use-github-stars';
-import { EXTERNAL_LINKS } from '@/lib/constants/external-links';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore } from '@/lib/store/user-store';
 import { toast } from '@/lib/store/toast-store';
@@ -53,84 +51,6 @@ const CHAT_INPUT_OFFSET = { mobile: 120, desktop: 128 };
 const FOOTER_ONLY_OFFSET = { mobile: 48, desktop: 48 };
 // Extra breathing room above the chat input for the search results list.
 const SEARCH_RESULTS_EXTRA_OFFSET = { mobile: 0, desktop: 70 };
-
-const footerLinkStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 'var(--space-1)',
-  opacity: 0.7,
-  textDecoration: 'none',
-  color: 'inherit',
-};
-
-function ChatFooterLinks() {
-  const stars = useGitHubStars();
-
-  return (
-    <Flex
-      align="center"
-      justify="center"
-      gap="3"
-      style={{ marginTop: 'var(--space-1)', paddingBottom: 0 }}
-    >
-      <a
-        href={EXTERNAL_LINKS.github}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={footerLinkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-      >
-        <img
-          src="/icons/logos/github-logo.svg"
-          width={14}
-          height={14}
-          alt=""
-          style={{ flexShrink: 0 }}
-        />
-        <span style={{ fontSize: 12, color: 'var(--olive-9)', whiteSpace: 'nowrap' }}>
-          GitHub
-        </span>
-        {stars && (
-          <>
-            <Text style={{ color: 'var(--olive-6)', fontSize: 12 }}>·</Text>
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--slate-10)', whiteSpace: 'nowrap' }}>
-              {stars}
-              <MaterialIcon
-                name="star"
-                size={11}
-                color="var(--slate-10)"
-                style={{ marginLeft: 1, verticalAlign: 'middle' }}
-              />
-            </span>
-          </>
-        )}
-      </a>
-
-      <Text style={{ color: 'var(--olive-6)', fontSize: 12 }}>·</Text>
-
-      <a
-        href="https://docs.pipeshub.com/introduction"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={footerLinkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-      >
-        <img
-          src="/icons/common/reader.svg"
-          width={14}
-          height={14}
-          alt=""
-          style={{ flexShrink: 0 }}
-        />
-        <span style={{ fontSize: 12, color: 'var(--olive-9)', whiteSpace: 'nowrap' }}>
-          Docs
-        </span>
-      </a>
-    </Flex>
-  );
-}
 
 /**
  * Inner content component that uses assistant-ui hooks.
@@ -1376,7 +1296,6 @@ function ChatContent() {
       >
         <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'auto' }}>
           {!isInputCentered && showChatInput && <ChatInputWrapper />}
-          <ChatFooterLinks />
         </Box>
       </Box>
     </>
