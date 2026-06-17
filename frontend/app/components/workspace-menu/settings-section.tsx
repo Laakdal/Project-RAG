@@ -6,16 +6,12 @@ import { ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { useThemeAppearance } from '@/app/components/theme-provider';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import { useLanguageStore } from '@/lib/store/language-store';
-import { SUPPORTED_LANGUAGES } from '@/lib/i18n/supported-languages';
 import { MenuItem } from './menu-item';
 
 interface SettingsSectionProps {
   onWorkspaceSettings: () => void;
   onAppearanceToggle: () => void;
   isAppearanceActive: boolean;
-  onLanguageToggle: () => void;
-  isLanguageActive: boolean;
   onLogout: () => void;
 }
 
@@ -39,17 +35,13 @@ export function SettingsSection({
   onWorkspaceSettings,
   onAppearanceToggle,
   isAppearanceActive,
-  onLanguageToggle,
-  isLanguageActive,
   onLogout,
 }: SettingsSectionProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const { appearance } = useThemeAppearance();
-  const { language } = useLanguageStore();
 
   const appearanceLabel = appearance === 'dark' ? t('workspaceMenu.darkMode') : t('workspaceMenu.lightMode');
-  const languageLabel = SUPPORTED_LANGUAGES[language].menuName;
 
   return (
     <Flex direction="column" gap="1">
@@ -75,32 +67,6 @@ export function SettingsSection({
           />
         }
         onClick={onAppearanceToggle}
-      />
-
-      <MenuItem
-        icon={
-          <MaterialIcon
-            name="language"
-            size={ICON_SIZE_DEFAULT}
-            color={isLanguageActive ? 'var(--slate-12)' : 'var(--slate-11)'}
-          />
-        }
-        label={
-          <Flex align="center" gap="1">
-            {t('workspaceMenu.language')}
-            <Text style={{ color: 'var(--slate-6)' }}>•</Text>
-            <Text size="2" weight="medium" style={{ color: 'var(--slate-10)' }}>{languageLabel}</Text>
-          </Flex>
-        }
-        isActive={isLanguageActive}
-        rightSlot={
-          <MaterialIcon
-            name="chevron_right"
-            size={ICON_SIZE_DEFAULT}
-            color={isLanguageActive ? 'var(--slate-12)' : 'var(--slate-11)'}
-          />
-        }
-        onClick={onLanguageToggle}
       />
 
       {!isMobile && (
