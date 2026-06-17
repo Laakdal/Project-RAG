@@ -6,6 +6,7 @@ import {
   clearElectronLogoutServerState,
   persistElectronServerUrlOnLogin,
 } from '@/lib/electron/api-base-url-storage';
+import { DEV_BYPASS_AUTH, makeFakeJwt } from '@/lib/dev/dev-bypass';
 
 export interface User {
   id: string;
@@ -149,6 +150,12 @@ if (typeof window !== 'undefined') {
     window.localStorage.removeItem('auth-storage');
   } catch {
     // ignore storage access errors (private mode, etc.)
+  }
+  // DEV bypass: seed a fake session so AuthGuard passes with no backend.
+  if (DEV_BYPASS_AUTH && !window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)) {
+    const fake = makeFakeJwt();
+    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, fake);
+    window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, fake);
   }
   hydrateAuthStore();
 }
