@@ -19,7 +19,6 @@ export { FileTypeIcon, FILE_TYPE_ICON_MAP } from './file-type-icons';
 export type { FileTypeIconComponentProps } from './file-type-icons';
 export { FolderIcon } from './folder-icon';
 export type { FolderIconVariant } from './folder-icon';
-export { PipesHubIcon } from './pipes-hub-icon';
 export { KnowledgeItemIcon } from './knowledge-item-icon';
 export { UserAvatar } from './user-avatar';
 export type { UserAvatarProps, UserAvatarProfile } from './user-avatar';
