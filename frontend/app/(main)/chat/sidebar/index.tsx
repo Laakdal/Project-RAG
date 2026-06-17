@@ -11,7 +11,6 @@ import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { ChatSidebarHeader } from './header';
 import { ChatSidebarFooter } from './footer';
 import { StaticNavSection } from './static-nav-section';
-import { MyAgentsSection } from './my-agents-section';
 import { ChatSections } from './chat-sections';
 import { MoreChatsSidebar } from './more-chats-sidebar';
 import { AgentsSidebar } from './agents-sidebar';
@@ -66,7 +65,6 @@ function ChatSidebarInner() {
     >
       <Flex direction="column" gap="3">
         <StaticNavSection />
-        <MyAgentsSection />
         <ChatSections onOpenMoreChats={toggleMoreChatsPanel} />
       </Flex>
     </SidebarBase>
