@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 #
-# Standalone Next.js server image for the PipesHub frontend.
+# Standalone Next.js server image for the frontend.
 # Runs on its own (no backend required) — unauthenticated users land on /login.
 #
 # Build:
-#   docker build -t pipeshub-frontend ./frontend
+#   docker build -t frontend ./frontend
 # Run:
-#   docker run --rm -p 3000:3000 pipeshub-frontend
+#   docker run --rm -p 3000:3000 frontend
 #
-# To point the frontend at a backend, pass the build arg (NEXT_PUBLIC_* values
-# are inlined at build time, so this must be set when building, not at runtime):
-#   docker build --build-arg NEXT_PUBLIC_API_BASE_URL=http://localhost:3001 -t pipeshub-frontend ./frontend
+# NEXT_PUBLIC_* values are inlined at BUILD time, so pass them as build args:
+#   --build-arg NEXT_PUBLIC_API_BASE_URL=http://host:3001   point at a backend
+#   --build-arg NEXT_PUBLIC_DEV_BYPASS_AUTH=1               preview the UI without a backend
 
 ARG NODE_VERSION=22-slim
 
@@ -36,6 +36,10 @@ WORKDIR /app
 # no backend is present. Override with --build-arg to bake in a real backend URL.
 ARG NEXT_PUBLIC_API_BASE_URL=""
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+# DEV-only: bake in the login/health bypass so the UI is viewable without a
+# backend. Defaults off; set to 1 only for previews.
+ARG NEXT_PUBLIC_DEV_BYPASS_AUTH=""
+ENV NEXT_PUBLIC_DEV_BYPASS_AUTH=${NEXT_PUBLIC_DEV_BYPASS_AUTH}
 ENV NEXT_OUTPUT_STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
 
