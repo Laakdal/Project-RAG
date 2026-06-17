@@ -56,7 +56,7 @@ export function DocumentationSection({
 // DocumentationLinkRow
 // ========================================
 
-const PIPESHUB_ICON_PATH = '/logo/pipes-hub.svg';
+const PIPESHUB_ICON_PATH = '/logo.png';
 
 function DocumentationLinkRow({
   link,
