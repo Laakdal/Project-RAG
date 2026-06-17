@@ -6,6 +6,7 @@ import { Flex } from '@radix-ui/themes';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { LottieLoader } from './lottie-loader';
 import { getOrgExists } from '@/lib/api/org-exists-public';
+import { DEV_BYPASS_AUTH } from '@/lib/dev/dev-bypass';
 
 export function LoadingScreen() {
   return (
@@ -32,6 +33,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isHydrated = useAuthStore((s) => s.isHydrated);
   
   useEffect(() => {
+    if (DEV_BYPASS_AUTH) return;
     if (!isHydrated) return;
     if (!isAuthenticated) {
       let cancelled = false;
@@ -50,7 +52,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  if (!isHydrated || !isAuthenticated) {
+  if (!DEV_BYPASS_AUTH && (!isHydrated || !isAuthenticated)) {
     return <LoadingScreen />;
   }
 
