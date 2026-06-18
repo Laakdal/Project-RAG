@@ -659,15 +659,6 @@ export function UploadDataSidebar({
             </Text>
           </Flex>
           <Flex align="center" gap="3">
-            <Button
-              variant="surface"
-              color="gray"
-              size="2"
-              onClick={() => window.open('https://docs.pipeshub.com', '_blank')}
-            >
-              <MaterialIcon name="open_in_new" size={14} color="var(--slate-11)" />
-              Documentation
-            </Button>
             <IconButton
               variant="ghost"
               color="gray"
