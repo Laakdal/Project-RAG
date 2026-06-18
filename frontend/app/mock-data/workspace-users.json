@@ -6,7 +6,7 @@
             "id": "e142e9df-d007-4f80-b641-9b1f7e289655",
             "userId": "69803cedc03caefc0f8c1680",
             "name": "Abhishek",
-            "email": "abhishek@pipeshub.app",
+            "email": "abhishek@example.com",
             "isActive": true,
             "createdAtTimestamp": 1770011885554,
             "updatedAtTimestamp": 1770011889604
@@ -15,7 +15,7 @@
             "id": "81bf21fe-49b1-48f2-b419-a226422489f0",
             "userId": "69803d56c03caefc0f8c171b",
             "name": "AG",
-            "email": "abhishek@pipeshubinc.onmicrosoft.com",
+            "email": "abhishek@example.onmicrosoft.com",
             "isActive": true,
             "createdAtTimestamp": 1770011990641,
             "updatedAtTimestamp": 1770012340986
@@ -42,7 +42,7 @@
             "id": "a71ccb81-3c36-4c79-aa7c-019ece1b3cd9",
             "userId": "698b0a02fb109cb8cd5ed1ad",
             "name": "Vishwjeet",
-            "email": "vishwjeet.pawar@pipeshub.app",
+            "email": "vishwjeet.pawar@example.com",
             "isActive": true,
             "createdAtTimestamp": 1770719746523,
             "updatedAtTimestamp": 1770720043515
