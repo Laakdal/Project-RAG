@@ -28,8 +28,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/one-drive",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/one-drive",
                         "type": "pipeshub"
                     }
                 ],
@@ -378,8 +378,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/sharepoint",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/sharepoint",
                         "type": "pipeshub"
                     }
                 ],
@@ -765,8 +765,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/outlook",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/outlook",
                         "type": "pipeshub"
                     }
                 ],
@@ -1066,8 +1066,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/confluence/confluence",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/confluence/confluence",
                         "type": "pipeshub"
                     }
                 ],
@@ -1419,8 +1419,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/jira/jira",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/jira/jira",
                         "type": "pipeshub"
                     }
                 ],
@@ -1671,8 +1671,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/box",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/box",
                         "type": "pipeshub"
                     }
                 ],
@@ -1977,8 +1977,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/google-workspace/drive/drive",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/google-workspace/drive/drive",
                         "type": "pipeshub"
                     }
                 ],
@@ -2337,8 +2337,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/google-workspace/gmail/gmail",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/google-workspace/gmail/gmail",
                         "type": "pipeshub"
                     }
                 ],
@@ -2560,8 +2560,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/dropbox/dropbox_teams",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/dropbox/dropbox_teams",
                         "type": "pipeshub"
                     }
                 ],
@@ -2901,9 +2901,9 @@
                         "type": "Setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/servicenow/servicenow",
-                        "type": "Pipeshub"
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/servicenow/servicenow",
+                        "type": "Project RAG"
                     }
                 ],
                 "hideConnector": false,
@@ -3076,7 +3076,7 @@
                 "documentationLinks": [
                     {
                         "title": "Web Connector Guide",
-                        "url": "https://docs.pipeshub.ai/connectors/web",
+                        "url": "https://docs.example.com/connectors/web",
                         "type": "setup"
                     }
                 ],
@@ -3226,7 +3226,7 @@
                 "documentationLinks": [
                     {
                         "title": "RSS Connector Guide",
-                        "url": "https://docs.pipeshub.ai/connectors/rss",
+                        "url": "https://docs.example.com/connectors/rss",
                         "type": "setup"
                     }
                 ],
@@ -3349,8 +3349,8 @@
                         "type": "docs"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/bookstack/bookstack",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/bookstack/bookstack",
                         "type": "pipeshub"
                     }
                 ],
@@ -3565,8 +3565,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/s3/s3",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/s3/s3",
                         "type": "pipeshub"
                     }
                 ],
@@ -3864,8 +3864,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/minio/minio",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/minio/minio",
                         "type": "pipeshub"
                     }
                 ],
@@ -4123,8 +4123,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/gcs/gcs",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/gcs/gcs",
                         "type": "pipeshub"
                     }
                 ],
@@ -4408,8 +4408,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/azure/azureblob",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/azure/azureblob",
                         "type": "pipeshub"
                     }
                 ],
@@ -4693,8 +4693,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/azure/azurefiles",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/azure/azurefiles",
                         "type": "pipeshub"
                     }
                 ],
@@ -4974,8 +4974,8 @@
                 "supportsAgent": true,
                 "documentationLinks": [
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/linear/linear",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/linear/linear",
                         "type": "pipeshub"
                     }
                 ],
@@ -5265,8 +5265,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/notion/notion",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/notion/notion",
                         "type": "pipeshub"
                     }
                 ],
