@@ -4,8 +4,8 @@
  */
 
 export const EXTERNAL_LINKS = {
-  /** Project documentation site */
-  documentation: 'https://docs.pipeshub.com/',
-  /** GitHub repository */
-  github: 'https://github.com/pipeshub-ai/pipeshub-ai',
+  /** Project documentation site (set when one exists) */
+  documentation: '',
+  /** GitHub repository (set when one exists) */
+  github: '',
 } as const;
