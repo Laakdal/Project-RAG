@@ -2,7 +2,7 @@
     "success": true,
     "connectors": [
         {
-            "name": "Pipeshub docs",
+            "name": "Project RAG docs",
             "type": "Web",
             "appGroup": "Web",
             "supportedAuthTypes": [
@@ -24,7 +24,7 @@
                 "documentationLinks": [
                     {
                         "title": "Web Connector Guide",
-                        "url": "https://docs.pipeshub.ai/connectors/web",
+                        "url": "https://docs.example.com/connectors/web",
                         "type": "setup"
                     }
                 ],
@@ -188,8 +188,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/sharepoint",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/sharepoint",
                         "type": "pipeshub"
                     }
                 ],
@@ -585,8 +585,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/one-drive",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/one-drive",
                         "type": "pipeshub"
                     }
                 ],
@@ -944,8 +944,8 @@
                         "type": "setup"
                     },
                     {
-                        "title": "Pipeshub Documentation",
-                        "url": "https://docs.pipeshub.com/connectors/microsoft-365/outlook",
+                        "title": "Project RAG Documentation",
+                        "url": "https://docs.example.com/connectors/microsoft-365/outlook",
                         "type": "pipeshub"
                     }
                 ],
