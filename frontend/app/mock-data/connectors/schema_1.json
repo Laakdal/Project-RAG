@@ -12,8 +12,8 @@
                 "type": "setup"
             },
             {
-                "title": "Pipeshub Documentation",
-                "url": "https://docs.pipeshub.com/connectors/microsoft-365/one-drive",
+                "title": "Project RAG Documentation",
+                "url": "https://docs.example.com/connectors/microsoft-365/one-drive",
                 "type": "pipeshub"
             }
         ],
