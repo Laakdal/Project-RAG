@@ -28,7 +28,7 @@
                     {
                         "citationId": "698ebed4e936aca3e105bbdc",
                         "citationData": {
-                            "content": "PipesHub is compliant with SOC 2 and ISO/IEC pp\r\n27001, and is designed to meet enterprise gp\r\nsecurity,privacy, and compliance requirements. ypypq\r\nThe platform supports auditability, transparent pppyp\r\narchitecture, and strong access controls.",
+                            "content": "Project RAG is compliant with SOC 2 and ISO/IEC pp\r\n27001, and is designed to meet enterprise gp\r\nsecurity,privacy, and compliance requirements. ypypq\r\nThe platform supports auditability, transparent pppyp\r\narchitecture, and strong access controls.",
                             "chunkIndex": 1,
                             "metadata": {
                                 "blockNum": [
@@ -42,7 +42,7 @@
                                 "recordType": "FILE",
                                 "orgId": "69803cedc03caefc0f8c167e",
                                 "blockType": "text",
-                                "blockText": "PipesHub is compliant with SOC 2 and ISO/IEC pp\r\n27001, and is designed to meet enterprise gp\r\nsecurity,privacy, and compliance requirements. ypypq\r\nThe platform supports auditability, transparent pppyp\r\narchitecture, and strong access controls.",
+                                "blockText": "Project RAG is compliant with SOC 2 and ISO/IEC pp\r\n27001, and is designed to meet enterprise gp\r\nsecurity,privacy, and compliance requirements. ypypq\r\nThe platform supports auditability, transparent pppyp\r\narchitecture, and strong access controls.",
                                 "mimeType": "application/pdf",
                                 "recordId": "184505ed-6fd8-470b-b538-885d29cbecfa",
                                 "recordVersion": 0,
@@ -70,10 +70,10 @@
                                         "_id": "698ebed4e936aca3e105bbe0"
                                     }
                                 ],
-                                "recordName": "Pipeshub _ Enterprise AI Search, Built for Trust.pdf",
+                                "recordName": "Project RAG _ Enterprise AI Search, Built for Trust.pdf",
                                 "origin": "CONNECTOR",
                                 "extension": "pdf",
-                                "webUrl": "https://pipeshubinc-my.sharepoint.com/personal/abhishek_pipeshubinc_onmicrosoft_com/Documents/Pipeshub%20_%20Enterprise%20AI%20Search,%20Built%20for%20Trust.pdf",
+                                "webUrl": "https://example-my.sharepoint.com/personal/abhishek_example_onmicrosoft_com/Documents/Project RAG%20_%20Enterprise%20AI%20Search,%20Built%20for%20Trust.pdf",
                                 "previewRenderable": true,
                                 "hideWeburl": false
                             },
