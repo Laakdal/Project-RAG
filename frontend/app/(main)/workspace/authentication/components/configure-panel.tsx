@@ -22,10 +22,10 @@ interface ConfigurePanelProps {
 // ── Per-method display info ────────────────────────────────
 
 const METHOD_DOC_URLS: Record<ConfigurableMethod, string> = {
-  google: 'https://docs.pipeshub.com/auth/google',
-  microsoft: 'https://docs.pipeshub.com/auth/microsoft-azureAd',
-  samlSso: 'https://docs.pipeshub.com/auth/saml',
-  oauth: 'https://docs.pipeshub.com/auth',
+  google: '',
+  microsoft: '',
+  samlSso: '',
+  oauth: '',
 };
 
 const METHOD_ICONS: Record<ConfigurableMethod, string> = {
