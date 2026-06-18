@@ -340,7 +340,7 @@ export default function WebSearchPage() {
             color="gray"
             size="2"
             onClick={() =>
-              window.open('https://docs.pipeshub.com/workspace/web-search', '_blank')
+              window.open('', '_blank')
             }
             style={{ cursor: 'pointer', flexShrink: 0, gap: 6 }}
           >
