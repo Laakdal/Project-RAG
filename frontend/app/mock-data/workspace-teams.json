@@ -15,7 +15,7 @@
                     "id": "a71ccb81-3c36-4c79-aa7c-019ece1b3cd9",
                     "userId": "698b0a02fb109cb8cd5ed1ad",
                     "userName": "Vishwjeet",
-                    "userEmail": "vishwjeet.pawar@pipeshub.app",
+                    "userEmail": "vishwjeet.pawar@example.com",
                     "role": "OWNER",
                     "joinedAt": 1770722667183,
                     "isOwner": true
@@ -24,7 +24,7 @@
                     "id": "e142e9df-d007-4f80-b641-9b1f7e289655",
                     "userId": "69803cedc03caefc0f8c1680",
                     "userName": "Abhishek",
-                    "userEmail": "abhishek@pipeshub.app",
+                    "userEmail": "abhishek@example.com",
                     "role": "OWNER",
                     "joinedAt": 1770722667183,
                     "isOwner": true
@@ -33,7 +33,7 @@
                     "id": "81bf21fe-49b1-48f2-b419-a226422489f0",
                     "userId": "69803d56c03caefc0f8c171b",
                     "userName": "AG",
-                    "userEmail": "abhishek@pipeshubinc.onmicrosoft.com",
+                    "userEmail": "abhishek@example.onmicrosoft.com",
                     "role": "OWNER",
                     "joinedAt": 1770722667183,
                     "isOwner": true
@@ -57,7 +57,7 @@
                     "id": "81bf21fe-49b1-48f2-b419-a226422489f0",
                     "userId": "69803d56c03caefc0f8c171b",
                     "userName": "AG",
-                    "userEmail": "abhishek@pipeshubinc.onmicrosoft.com",
+                    "userEmail": "abhishek@example.onmicrosoft.com",
                     "role": "OWNER",
                     "joinedAt": 1770712418174,
                     "isOwner": true
@@ -81,7 +81,7 @@
                     "id": "81bf21fe-49b1-48f2-b419-a226422489f0",
                     "userId": "69803d56c03caefc0f8c171b",
                     "userName": "AG",
-                    "userEmail": "abhishek@pipeshubinc.onmicrosoft.com",
+                    "userEmail": "abhishek@example.onmicrosoft.com",
                     "role": "OWNER",
                     "joinedAt": 1770712356681,
                     "isOwner": true
@@ -90,7 +90,7 @@
                     "id": "e142e9df-d007-4f80-b641-9b1f7e289655",
                     "userId": "69803cedc03caefc0f8c1680",
                     "userName": "Abhishek",
-                    "userEmail": "abhishek@pipeshub.app",
+                    "userEmail": "abhishek@example.com",
                     "role": "READER",
                     "joinedAt": 1770712356681,
                     "isOwner": false
@@ -114,7 +114,7 @@
                     "id": "e142e9df-d007-4f80-b641-9b1f7e289655",
                     "userId": "69803cedc03caefc0f8c1680",
                     "userName": "Abhishek",
-                    "userEmail": "abhishek@pipeshub.app",
+                    "userEmail": "abhishek@example.com",
                     "role": "OWNER",
                     "joinedAt": 1770186937360,
                     "isOwner": true
@@ -141,7 +141,7 @@
                     "id": "81bf21fe-49b1-48f2-b419-a226422489f0",
                     "userId": "69803d56c03caefc0f8c171b",
                     "userName": "AG",
-                    "userEmail": "abhishek@pipeshubinc.onmicrosoft.com",
+                    "userEmail": "abhishek@example.onmicrosoft.com",
                     "role": "READER",
                     "joinedAt": 1770186937360,
                     "isOwner": false
