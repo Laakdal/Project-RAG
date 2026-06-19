@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthApi } from '../api';
 import { applyAuthUser } from '@/lib/auth/session';
+import { isProcessedError } from '@/lib/api';
 
 export interface AuthError {
   type: 'wrongPassword' | 'generic';
@@ -43,7 +44,7 @@ export function useAuthActions({ email, redirectTo }: UseAuthActionsOptions) {
         }
         router.push(postAuthRedirectTo);
       } catch (err: unknown) {
-        const status = (err as { response?: { status?: number } })?.response?.status;
+        const status = isProcessedError(err) ? err.statusCode : undefined;
         if (status === 401) {
           setError({ type: 'wrongPassword' });
         } else {
