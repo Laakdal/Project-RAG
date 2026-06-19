@@ -3,7 +3,7 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToastStore } from '@/lib/store/toast-store';
-import { logoutFromWorkspaceMenu } from '@/lib/store/auth-store';
+import { signOut } from '@/lib/auth/session';
 import { useProfileStore, isProfileFormDirty } from '../store';
 import { ProfileApi } from '../api';
 import { getUserIdFromToken, getUserEmailFromToken } from '@/lib/utils/jwt';
@@ -154,7 +154,7 @@ export function useProfilePage() {
     });
     // Give the user a moment to read the toast, then log out
     setTimeout(() => {
-      logoutFromWorkspaceMenu();
+      void signOut();
     }, 1500);
   }, [addToast]);
   // ── Email change ───────────────────────────────────────────

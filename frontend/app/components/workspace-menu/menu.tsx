@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Flex, Box, Text } from '@radix-ui/themes';
-import { logoutFromWorkspaceMenu } from '@/lib/store/auth-store';
+import { signOut } from '@/lib/auth/session';
 import { UserAvatar } from '@/app/components/ui/user-avatar';
 import type { OrgInfo } from './types';
 import { POPUP_WIDTH } from './types';
@@ -115,7 +115,7 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
         isAppearanceActive={activePanel === 'appearance'}
         onLogout={() => {
           onClose();
-          logoutFromWorkspaceMenu();
+          void signOut();
         }}
       />
 
