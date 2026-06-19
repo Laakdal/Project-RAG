@@ -16,25 +16,6 @@
  */
 export const DEV_BYPASS_AUTH = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === '1';
 
-function b64url(obj: Record<string, unknown>): string {
-  const json = JSON.stringify(obj);
-  // btoa is browser-only; this module is 'use client' and only called client-side.
-  const b64 = typeof window !== 'undefined' ? window.btoa(json) : '';
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-/**
- * A syntactically-valid but fake JWT that decodes to a stable userId.
- *   header  = {"alg":"HS256","typ":"JWT"}
- *   payload = {"sub":"dev-user","userId":"dev-user","name":"Dev User"}
- * The signature is not real — nothing verifies it client-side.
- */
-export function makeFakeJwt(): string {
-  const header = b64url({ alg: 'HS256', typ: 'JWT' });
-  const payload = b64url({ sub: 'dev-user', userId: 'dev-user', name: 'Dev User' });
-  return `${header}.${payload}.dev-bypass-not-a-real-signature`;
-}
-
 export const DEV_FAKE_PROFILE = {
   userId: 'dev-user',
   firstName: 'Dev',

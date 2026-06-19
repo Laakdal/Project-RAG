@@ -6,7 +6,6 @@ import {
   clearElectronLogoutServerState,
   persistElectronServerUrlOnLogin,
 } from '@/lib/electron/api-base-url-storage';
-import { DEV_BYPASS_AUTH, makeFakeJwt } from '@/lib/dev/dev-bypass';
 
 export interface User {
   id: string;
@@ -29,6 +28,7 @@ interface AuthActions {
   setTokens: (accessToken: string, refreshToken: string) => void;
   setAccessToken: (accessToken: string) => void;
   setUser: (user: User | null) => void;
+  setSession: (user: User | null) => void;
   logout: () => void;
   setHydrated: (value: boolean) => void;
 }
@@ -94,6 +94,12 @@ export const useAuthStore = create<AuthStore>()(
           state.user = user;
         }),
 
+      setSession: (user) =>
+        set((state) => {
+          state.user = user;
+          state.isAuthenticated = !!user;
+        }),
+
       logout: () => {
         writeAccessToken(null);
         writeRefreshToken(null);
@@ -113,52 +119,6 @@ export const useAuthStore = create<AuthStore>()(
     { name: 'AuthStore' }
   )
 );
-
-/**
- * Hydrates the auth store from localStorage on the client. Safe to call
- * multiple times — subsequent calls are a no-op once hydrated.
- *
- * This must run in a client context (e.g. from a `'use client'` effect
- * or via the `AuthHydrator` provider mounted in the root layout).
- */
-export function hydrateAuthStore(): void {
-  if (typeof window === 'undefined') return;
-  const api = useAuthStore.getState();
-  if (api.isHydrated) return;
-
-  const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
-  const refreshToken = window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-
-  // Use the store's own actions so mutations go through the immer wrapper
-  // exactly like a normal login would, guaranteeing subscribers are
-  // notified with the updated state.
-  if (accessToken && refreshToken) {
-    api.setTokens(accessToken, refreshToken);
-  } else if (accessToken) {
-    api.setAccessToken(accessToken);
-  }
-  useAuthStore.getState().setHydrated(true);
-}
-
-// Hydrate synchronously as soon as the module loads on the client.
-// This guarantees `isHydrated` is true before any component subscribes
-// to the store, removing the race between the `AuthHydrator` effect
-// and the auth/guest guards.
-if (typeof window !== 'undefined') {
-  // Remove the legacy zustand-persist JSON blob to avoid confusion in DevTools.
-  try {
-    window.localStorage.removeItem('auth-storage');
-  } catch {
-    // ignore storage access errors (private mode, etc.)
-  }
-  // DEV bypass: seed a fake session so AuthGuard passes with no backend.
-  if (DEV_BYPASS_AUTH && !window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)) {
-    const fake = makeFakeJwt();
-    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, fake);
-    window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, fake);
-  }
-  hydrateAuthStore();
-}
 
 /** Dispatched after logout; AuthHydrator listens and runs client-side navigation. */
 export const LOGIN_NAVIGATION_EVENT = 'pipeshub:request-login-navigation';

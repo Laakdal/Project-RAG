@@ -67,9 +67,7 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
     passwordRequiredError ||
     (auth.error?.type === 'wrongPassword'
       ? t('auth.common.incorrectPassword')
-      : auth.error?.type === 'noPasswordSet'
-        ? t('auth.common.noPasswordSet')
-        : undefined);
+      : undefined);
 
   return (
     <Box style={{ width: '100%', maxWidth: '440px' }}>
