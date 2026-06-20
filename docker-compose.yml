@@ -1,0 +1,114 @@
+# Full-stack local stack: Postgres + backend (Express/session auth) + frontend (Next.js).
+#
+#   docker compose up --build         # first run MUST use --build (builds the backend image
+#                                     # tag that the migrate/seed-admin services reuse)
+#   → frontend: http://localhost:3000
+#   → backend:  http://localhost:4000
+#
+# Config comes from the root .env (copy .env.example → .env first).
+# NOTE: NEXT_PUBLIC_* are baked into the frontend bundle at BUILD time, so the API
+# URL the browser uses is fixed at build — change it here and rebuild.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-project_rag}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-project_rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - appnet
+
+  # One-shot: apply pending DB migrations, then exit.
+  migrate:
+    image: project-rag-backend:local
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+    command: ["node", "dist/src/db/migrate.js"]
+    networks:
+      - appnet
+
+  # One-shot: create/update the admin user from ADMIN_* (idempotent upsert), then exit.
+  seed-admin:
+    image: project-rag-backend:local
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+    command: ["node", "dist/scripts/create-admin.js"]
+    networks:
+      - appnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: project-rag-backend:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+      NODE_ENV: production
+      PORT: "4000"
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # The browser calls the backend on the host's published port, so this is
+        # localhost:4000 — NOT the docker-internal hostname.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+        NEXT_PUBLIC_DEV_BYPASS_AUTH: "0"
+    image: project-rag-frontend:local
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  # Shared network so additional services (e.g. n8n) can attach later.
+  appnet:
+    driver: bridge

@@ -1,0 +1,14 @@
+# Keep host build artifacts out of the image build context. Critically,
+# node_modules is excluded so the host's (Windows) native modules — e.g.
+# @node-rs/argon2 — never clobber the Linux modules installed by `npm ci`.
+node_modules
+dist
+.git
+.env*
+!.env.example
+*.tsbuildinfo
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+.dockerignore
+.DS_Store
