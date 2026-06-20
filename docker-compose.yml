@@ -12,6 +12,9 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    ports:
+      # Exposed on localhost only so a DB GUI (DBeaver/TablePlus/pgAdmin) can connect.
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
