@@ -1,11 +1,10 @@
 'use client';
 
 import { Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import { AGENT_STRATEGY_ICONS } from '@/chat/components/agent-strategy-dropdown';
+import { AGENT_STRATEGY_ICONS, AGENT_STRATEGY_SHORT } from '@/chat/components/agent-strategy-dropdown';
 import type { AgentStrategy } from '@/chat/types';
 
 export interface AgentStrategyModeSwitcherProps {
@@ -33,7 +32,6 @@ export function AgentStrategyModeSwitcher({
   disabled,
   onClick,
 }: AgentStrategyModeSwitcherProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
 
   return (
@@ -79,7 +77,7 @@ export function AgentStrategyModeSwitcher({
               textOverflow: 'ellipsis',
             }}
           >
-            {t(`chat.agentStrategy.modes.${activeStrategy}.short`)}
+            {AGENT_STRATEGY_SHORT[activeStrategy] ?? activeStrategy}
           </Text>
         )}
         <MaterialIcon

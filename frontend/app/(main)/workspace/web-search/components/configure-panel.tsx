@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Flex, Text, Button, TextField, Callout } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -45,7 +44,6 @@ export function ConfigurePanel({
   onSaveSuccess,
   onDeleteSuccess,
 }: ConfigurePanelProps) {
-  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -151,7 +149,7 @@ export function ConfigurePanel({
       <span className="material-icons-outlined" style={{ fontSize: 14 }}>
         open_in_new
       </span>
-      <Text size="1">{t('workspace.bots.documentation')}</Text>
+      <Text size="1">{"Documentation"}</Text>
     </Button>
   );
 

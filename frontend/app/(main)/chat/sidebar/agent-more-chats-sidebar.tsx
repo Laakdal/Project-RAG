@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Flex, Box, Text, TextField } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { SecondaryPanel, SidebarBackHeader } from '@/app/components/sidebar';
@@ -43,8 +42,6 @@ export const AgentMoreChatsSidebar = React.memo(function AgentMoreChatsSidebar({
   const moveConversationToTop = useChatStore((s) => s.moveConversationToTop);
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const isMobile = useIsMobile();
-
-  const { t } = useTranslation();
 
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedSearch(searchInput, 300);
@@ -166,7 +163,7 @@ export const AgentMoreChatsSidebar = React.memo(function AgentMoreChatsSidebar({
     <SecondaryPanel
       header={
         <SidebarBackHeader
-          title={t('chat.yourChats')}
+          title={"Your Chats"}
           onBack={onBack}
           backgroundColor="var(--olive-1)"
         />
@@ -175,7 +172,7 @@ export const AgentMoreChatsSidebar = React.memo(function AgentMoreChatsSidebar({
       <Flex direction="column" gap="3">
         <TextField.Root
           size="2"
-          placeholder={t('form.searchPlaceholder')}
+          placeholder={"Search..."}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           style={{ width: '100%' }}
@@ -203,7 +200,7 @@ export const AgentMoreChatsSidebar = React.memo(function AgentMoreChatsSidebar({
           ) : (
             <Flex align="center" justify="center" style={{ padding: 'var(--space-4) var(--space-3)' }}>
               <Text size="2" style={{ color: 'var(--slate-11)' }}>
-                {searching ? t('message.noResults') : t('chat.noChatsYet')}
+                {searching ? "No results found" : "No chats yet"}
               </Text>
             </Flex>
           )}

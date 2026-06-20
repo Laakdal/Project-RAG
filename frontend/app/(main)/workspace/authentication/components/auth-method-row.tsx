@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Box, Text, Switch, Badge, IconButton, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { AuthMethodMeta, AuthMethodState, ConfigurableMethod, ConfigStatus } from '../types';
@@ -33,7 +32,6 @@ export function AuthMethodRow({
   onToggle,
   onConfigure,
 }: AuthMethodRowProps) {
-  const { t } = useTranslation();
   const isConfigurable = meta.configurable;
   const isConfigured = isConfigurable
     ? configStatus[state.type as keyof ConfigStatus] ?? false
@@ -46,10 +44,10 @@ export function AuthMethodRow({
   if (isEditing) {
     if (meta.requiresSmtp && !smtpConfigured) {
       toggleDisabled = true;
-      disabledReason = t('workspace.authentication.disabledReasons.requiresSmtp');
+      disabledReason = "Requires SMTP configuration. Configure SMTP in the Mail settings first.";
     } else if (isConfigurable && !isConfigured) {
       toggleDisabled = true;
-      disabledReason = t('workspace.authentication.disabledReasons.notConfigured');
+      disabledReason = "Configure this method first before enabling it.";
     }
   }
 
@@ -57,7 +55,7 @@ export function AuthMethodRow({
 
   // ── Badge colour ─────────────────────────────────────────
   const badgeColor = isConfigured ? 'green' : 'orange';
-  const badgeLabel = isConfigured ? t('workspace.authentication.badges.configured') : t('workspace.authentication.badges.notConfigured');
+  const badgeLabel = isConfigured ? "Configured" : "Not Configured";
 
   return (
     <Flex
@@ -125,7 +123,7 @@ export function AuthMethodRow({
 
         {/* Gear / configure button */}
         {showConfigureButton && (
-          <Tooltip content={t('workspace.authentication.configure')}>
+          <Tooltip content={"Configure"}>
             <IconButton
               variant="ghost"
               color="gray"

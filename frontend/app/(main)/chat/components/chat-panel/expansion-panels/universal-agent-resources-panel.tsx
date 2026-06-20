@@ -20,7 +20,6 @@ import {
   Text,
   TextField,
 } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useThemeAppearance } from '@/app/components/theme-provider';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon, resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
@@ -314,7 +313,6 @@ export function UniversalAgentResourcesPanel({
   onToggleView,
   viewMode = 'inline',
 }: UniversalAgentResourcesPanelProps) {
-  const { t } = useTranslation();
   const [tab, setTab] = useState<TabValue>('connectors');
   const [search, setSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -398,11 +396,7 @@ export function UniversalAgentResourcesPanel({
         if (page === 1) {
           // Mark cache so the initial-load effect does not retry in a tight loop on failure.
           _actionsPageCache = { ..._actionsPageCache, lastFetchedAt: Date.now() };
-          setToolsError(
-            t('chat.universalAgent.toolsLoadError', {
-              defaultValue: 'Failed to load available actions.',
-            })
-          );
+          setToolsError('Failed to load available actions.');
           setToolsLoading(false);
         }
       } finally {
@@ -410,7 +404,7 @@ export function UniversalAgentResourcesPanel({
         isFetchingPageRef.current = false;
       }
     },
-    [hydrateResources, setToolsLoading, setToolsError, t]
+    [hydrateResources, setToolsLoading, setToolsError]
   );
 
   // Initial load — skips re-fetch when the module cache has a fresh page-1 result
@@ -557,20 +551,20 @@ export function UniversalAgentResourcesPanel({
   }, [toolGroups, search]);
 
   const tabPlaceholders = [
-    t('chat.agentResources.searchConnectors', { defaultValue: 'Search connectors' }),
-    t('chat.agentResources.searchCollections', { defaultValue: 'Search collections' }),
-    t('chat.agentResources.searchActions', { defaultValue: 'Search actions' }),
+    "Search connectors",
+    "Search collections",
+    "Search actions",
   ];
   const tabIndex = TAB_VALUES.indexOf(tab);
   const searchPlaceholder = tabPlaceholders[tabIndex >= 0 ? tabIndex : 0];
 
   const tabLabels = useMemo(
     () => ({
-      connectors: t('nav.connectors', { defaultValue: 'Connectors' }),
-      collections: t('nav.collections', { defaultValue: 'Collections' }),
-      actions: t('chat.agentResources.actionsTab', { defaultValue: 'Actions' }),
+      connectors: "Connectors",
+      collections: "Collections",
+      actions: "Actions",
     }),
-    [t]
+    []
   );
 
   const toggleGroupExpanded = (key: string) => {
@@ -597,10 +591,7 @@ export function UniversalAgentResourcesPanel({
             <MaterialIcon name="warning" size={16} color="var(--amber-11)" />
           </Callout.Icon>
           <Callout.Text>
-            {t('chat.universalAgent.noReasoningModel', {
-              defaultValue:
-                'No reasoning-capable model is configured. Configure one in Settings → AI Models before using Agent mode.',
-            })}
+            {"No reasoning-capable model is configured. Configure one in Settings → AI Models before using Agent mode."}
           </Callout.Text>
         </Callout.Root>
       )}
@@ -673,7 +664,7 @@ export function UniversalAgentResourcesPanel({
               <Flex align="center" justify="center" gap="2" style={{ padding: 'var(--space-4)' }}>
                 <Spinner size="2" />
                 <Text size="2" style={{ color: 'var(--gray-10)' }}>
-                  {t('chat.universalAgent.loadingTools', { defaultValue: 'Loading actions…' })}
+                  {"Loading actions…"}
                 </Text>
               </Flex>
             )}
@@ -688,13 +679,8 @@ export function UniversalAgentResourcesPanel({
               <Flex direction="column" gap="2" style={{ padding: 'var(--space-3)' }}>
                 <Text size="2" style={{ color: 'var(--slate-9)' }}>
                   {toolGroups.length === 0
-                    ? t('chat.universalAgent.noActions', {
-                        defaultValue:
-                          'No authenticated actions found. Connect integrations in Workspace → Actions.',
-                      })
-                    : t('chat.agentResources.noActionMatches', {
-                        defaultValue: 'No actions match your search.',
-                      })}
+                    ? 'No authenticated actions found. Connect integrations in Workspace → Actions.'
+                    : 'No actions match your search.'}
                 </Text>
                 <Flex
                   align="center"
@@ -708,9 +694,7 @@ export function UniversalAgentResourcesPanel({
                   <Flex align="center" gap="2" style={{ minWidth: 0 }}>
                     <MaterialIcon name="apps" size={18} color="var(--gray-11)" />
                     <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }} truncate>
-                      {t('chat.agentResources.browseWorkspaceActions', {
-                        defaultValue: 'Browse workspace actions',
-                      })}
+                      {"Browse workspace actions"}
                     </Text>
                   </Flex>
                   <IconButton asChild size="1" variant="soft" color="gray" style={{ flexShrink: 0 }}>
@@ -782,9 +766,7 @@ export function UniversalAgentResourcesPanel({
                         </Flex>
                         <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
                           <Badge size="1" variant="soft" color="green" highContrast>
-                            {t('chat.agentResources.actionsCount', {
-                              count: group.fullNames.length,
-                            })}
+                            {`${group.fullNames.length} Actions`}
                           </Badge>
                           <IconButton
                             type="button"
@@ -792,7 +774,7 @@ export function UniversalAgentResourcesPanel({
                             variant="ghost"
                             color="gray"
                             aria-expanded={expanded}
-                            aria-label={expanded ? t('common.collapse') : t('common.expand')}
+                            aria-label={expanded ? "Collapse" : "Expand"}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleGroupExpanded(groupKey);
@@ -878,8 +860,8 @@ export function UniversalAgentResourcesPanel({
                       }}
                     >
                       {isLoadingMore
-                        ? t('agentBuilder.loadingMore', { defaultValue: 'Loading more…' })
-                        : t('agentBuilder.loadMore', { defaultValue: 'Load more' })}
+                        ? "Loading…"
+                        : "Load more"}
                     </button>
                   </Flex>
                 )}
@@ -887,9 +869,7 @@ export function UniversalAgentResourcesPanel({
                 {/* Configure more actions link */}
                 <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-1)' }}>
                   <Text size="1" style={{ color: 'var(--gray-11)' }}>
-                    {t('chat.agentResources.configureMoreActions', {
-                      defaultValue: 'Configure more actions',
-                    })}
+                    {"Configure more actions"}
                   </Text>
                   <Flex
                     align="center"
@@ -903,9 +883,7 @@ export function UniversalAgentResourcesPanel({
                     <Flex align="center" gap="2" style={{ minWidth: 0 }}>
                       <MaterialIcon name="apps" size={18} color="var(--gray-11)" />
                       <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }} truncate>
-                        {t('chat.agentResources.browseWorkspaceActions', {
-                          defaultValue: 'Browse workspace actions',
-                        })}
+                        {"Browse workspace actions"}
                       </Text>
                     </Flex>
                     <IconButton asChild size="1" variant="soft" color="gray" style={{ flexShrink: 0 }}>
@@ -924,21 +902,17 @@ export function UniversalAgentResourcesPanel({
       {/* Footer */}
       <Flex align="center" justify="between" gap="2" style={{ flexShrink: 0 }}>
         <Button type="button" size="1" variant="outline" color="gray" onClick={resetToDefaults}>
-          {t('chat.agentResources.resetDefaults', { defaultValue: 'Reset to defaults' })}
+          {"Reset to defaults"}
         </Button>
         {tab === 'actions' && (
           <Flex align="center" gap="2">
             {atToolCap && (
               <Text size="1" style={{ color: 'var(--amber-11)' }}>
-                {t('chat.universalAgent.toolCapReached', { defaultValue: 'Tool limit reached' })}
+                {"Tool limit reached"}
               </Text>
             )}
             <Text size="1" style={{ color: 'var(--gray-9)' }}>
-              {t('chat.universalAgent.toolCount', {
-                count: selectedCount,
-                max: MAX_USER_TOOLS,
-                defaultValue: `{{count}} / {{max}} tools`,
-              })}
+              {`${selectedCount} / ${MAX_USER_TOOLS} tools`}
             </Text>
           </Flex>
         )}

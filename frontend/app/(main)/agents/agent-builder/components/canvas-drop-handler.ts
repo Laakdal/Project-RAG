@@ -1,5 +1,4 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { TFunction } from 'i18next';
 import type { Connector } from '@/app/(main)/workspace/connectors/types';
 import type { FlowNodeData, NodeTemplate } from '../types';
 import { normalizeDisplayName, normalizePaletteLabel } from '../display-utils';
@@ -52,15 +51,12 @@ function rejectIfDuplicateToolsetType(
   nodes: Node<FlowNodeData>[],
   toolsetName: string,
   fallbackName: string,
-  t: TFunction,
   onError?: (message: string) => void
 ): boolean {
   const droppedToolsetTypeKey = normalizeToolsetTypeKey(toolsetName);
   if (droppedToolsetTypeKey && collectActiveToolsetTypeKeysFromNodes(nodes).has(droppedToolsetTypeKey)) {
     onError?.(
-      t('agentBuilder.toolsetDuplicateNotify', {
-        name: normalizePaletteLabel(toolsetName || fallbackName || ''),
-      })
+      `Only one ${normalizePaletteLabel(toolsetName || fallbackName || '')} toolset can be on the canvas at a time.`
     );
     return true;
   }
@@ -80,7 +76,6 @@ export function handleFlowCanvasDrop(
     configuredConnectors: Connector[];
     activeAgentConnectors: Connector[];
     readOnly: boolean;
-    t: TFunction;
     onError?: (message: string) => void;
   }
 ): void {
@@ -122,7 +117,6 @@ export function handleFlowCanvasDrop(
     configuredConnectors,
     activeAgentConnectors,
     onError,
-    t,
   } = ctx;
 
   const place = (plannedType: string) => resolvePremiumDropPosition(flowPointer, plannedType, nodes);
@@ -144,17 +138,12 @@ export function handleFlowCanvasDrop(
   if (type.startsWith('toolset-') || toolsetType === 'toolset') {
     if (!isToolsetConfigured || !isToolsetAuthenticated) {
       onError?.(
-        t('agentBuilder.toolsetNotReadyNotify', {
-          name: toolsetDisplayName || toolsetName,
-          reason: !isToolsetConfigured
-            ? t('agentBuilder.notConfiguredReason')
-            : t('agentBuilder.notAuthenticatedReason'),
-        })
+        `${toolsetDisplayName || toolsetName} is ${!isToolsetConfigured ? "not configured" : "not authenticated"}. Configure it before dragging onto the canvas.`
       );
       return;
     }
     if (!allToolsStr) {
-      onError?.(t('agentBuilder.dropNoToolsInToolset'));
+      onError?.("No tools found for this toolset.");
       return;
     }
     const allTools = parseJson<Record<string, unknown>[]>(allToolsStr, []);
@@ -218,7 +207,7 @@ export function handleFlowCanvasDrop(
       return;
     }
 
-    if (rejectIfDuplicateToolsetType(nodes, toolsetName, toolsetDisplayName || '', t, onError)) return;
+    if (rejectIfDuplicateToolsetType(nodes, toolsetName, toolsetDisplayName || '', onError)) return;
 
     const resolvedSelectedNames =
       selectedTools.length > 0
@@ -244,13 +233,7 @@ export function handleFlowCanvasDrop(
         id: tsNodeId,
         type: tsType,
         label: normalizeDisplayName(instanceLabel),
-        description: t('agentBuilder.toolsetNodeDescriptionTools', {
-          name: toolsetDisplayName || toolsetName,
-          count: (() => {
-            const n = parseInt(String(toolCount || '').trim(), 10);
-            return Number.isFinite(n) && n >= 0 ? n : normalizedTools.length;
-          })(),
-        }),
+        description: `${toolsetDisplayName || toolsetName} — ${(() => { const n = parseInt(String(toolCount || '').trim(), 10); return Number.isFinite(n) && n >= 0 ? n : normalizedTools.length; })()} tools`,
         icon: toolsetIconPath || 'extension',
         category: 'toolset',
         config: {
@@ -282,7 +265,7 @@ export function handleFlowCanvasDrop(
 
   if (isToolsetTool) {
     if (!isToolsetConfigured || !isToolsetAuthenticated) {
-      onError?.(t('agentBuilder.dropToolsetNotReady', { name: toolsetDisplayName || toolsetName }));
+      onError?.(`${toolsetDisplayName || toolsetName} is not ready.`);
       return;
     }
     const finalToolFullName = constructedToolFullName || `${toolsetName}.${toolName}`;
@@ -347,7 +330,7 @@ export function handleFlowCanvasDrop(
       return;
     }
 
-    if (rejectIfDuplicateToolsetType(nodes, toolsetName, toolsetDisplayName || '', t, onError)) return;
+    if (rejectIfDuplicateToolsetType(nodes, toolsetName, toolsetDisplayName || '', onError)) return;
 
     const tsId = `toolset-${toolsetName}-${Date.now()}`;
     const tsTypeSingle = `toolset-${toolsetName}`;
@@ -390,7 +373,7 @@ export function handleFlowCanvasDrop(
   if (type === 'web-search') {
     const existingWebSearch = nodes.find((n) => n.data?.type === 'web-search');
     if (existingWebSearch) {
-      onError?.(t('agentBuilder.webSearchOnlyOne'));
+      onError?.("Only one web search provider can be added to the canvas at a time.");
       return;
     }
     const wsProvider = event.dataTransfer.getData('provider');
@@ -462,8 +445,8 @@ export function handleFlowCanvasDrop(
       const connector = findConnector();
       onError?.(
         connector
-          ? t('agentBuilder.dropConnectorMustEnableNamed', { name: connector.name })
-          : t('agentBuilder.dropConnectorMustEnableApp', { app: appName || '' })
+          ? `Connector "${connector.name}" must be configured and enabled for agents.`
+          : `Connector for "${appName || ''}" must be configured and enabled for agents.`
       );
       return;
     }
@@ -471,7 +454,7 @@ export function handleFlowCanvasDrop(
 
   if (template.type.startsWith('tool-group-')) {
     if (!isConnectorAgentActive) {
-      onError?.(t('agentBuilder.dropEnableConnectorToolGroup'));
+      onError?.("Enable this connector for agents before adding its tool group.");
       return;
     }
     const connectorAppType = connectorType || (template.defaultConfig?.appName as string);
@@ -483,7 +466,7 @@ export function handleFlowCanvasDrop(
             n.data.config?.appName === connectorAppType)
       );
       if (dup) {
-        onError?.(t('agentBuilder.dropOnlyOneToolGroup', { type: connectorAppType }));
+        onError?.(`Only one ${connectorAppType} tool group is allowed. Remove the existing node first.`);
         return;
       }
     }
@@ -500,13 +483,7 @@ export function handleFlowCanvasDrop(
         id: tgId,
         type: template.type,
         label: normalizeDisplayName(connectorName || template.label),
-        description: t('agentBuilder.connectorToolGroupTools', {
-          type: connectorType,
-          count: (() => {
-            const n = parseInt(String(toolCount || '').trim(), 10);
-            return Number.isFinite(n) && n >= 0 ? n : allTools.length;
-          })(),
-        }),
+        description: `${connectorType} — ${(() => { const n = parseInt(String(toolCount || '').trim(), 10); return Number.isFinite(n) && n >= 0 ? n : allTools.length; })()} tools`,
         icon: template.icon,
         config: {
           ...template.defaultConfig,

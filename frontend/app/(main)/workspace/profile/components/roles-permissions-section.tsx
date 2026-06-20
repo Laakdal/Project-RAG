@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, TextField, Badge } from '@radix-ui/themes';
 import { SettingsSection } from './settings-section';
 import { SettingsRow } from './settings-row';
@@ -20,12 +19,11 @@ export interface RolesPermissionsSectionProps {
 // ========================================
 
 export function RolesPermissionsSection({ role, groups }: RolesPermissionsSectionProps) {
-  const { t } = useTranslation();
   return (
-    <SettingsSection title={t('workspace.profile.rolesPermissions.title')}>
+    <SettingsSection title={"Roles & Permissions"}>
 
       {/* Role */}
-      <SettingsRow label={t('workspace.profile.rolesPermissions.role')} description={t('workspace.profile.rolesPermissions.roleDescription')}>
+      <SettingsRow label={"Role"} description={"Your role on Project RAG app"}>
         <TextField.Root
           value={role}
           readOnly
@@ -34,10 +32,10 @@ export function RolesPermissionsSection({ role, groups }: RolesPermissionsSectio
       </SettingsRow>
 
       {/* Groups */}
-      <SettingsRow label={t('workspace.profile.rolesPermissions.groups')} description={t('workspace.profile.rolesPermissions.groupsDescription')}>
+      <SettingsRow label={"Groups"} description={"User groups you belong to"}>
         {groups.length === 0 ? (
           <Text size="2" style={{ color: 'var(--gray-9)' }}>
-            {t('workspace.profile.rolesPermissions.noGroups')}
+            {"No user groups found"}
           </Text>
         ) : (
           <Flex wrap="wrap" gap="2">

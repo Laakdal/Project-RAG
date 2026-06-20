@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useIsMainChatRoute } from '@/chat/hooks/use-is-main-chat-route';
 import { Flex, Box, Text, TextField, IconButton } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { SecondaryPanel } from '@/app/components/sidebar';
@@ -31,7 +30,6 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
   const searchParams = useSearchParams();
   const chatAgentId = searchParams.get('agentId');
   const onChatRoute = useIsMainChatRoute();
-  const { t } = useTranslation();
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const isMobile = useIsMobile();
 
@@ -77,7 +75,7 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
         });
       } catch {
         if (!cancelled) {
-          setLoadError(t('chat.failedToLoadAgents'));
+          setLoadError("Could not load agents");
           setAgents([]);
           setPagination(null);
         }
@@ -89,7 +87,7 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearch, t]);
+  }, [debouncedSearch]);
 
   const loadMore = useCallback(async () => {
     const pag = paginationRef.current;
@@ -168,18 +166,18 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
             backgroundColor: 'var(--olive-1)',
           }}
         >
-          <IconButton variant="ghost" color="gray" size="2" onClick={onBack} aria-label={t('common.back')}>
+          <IconButton variant="ghost" color="gray" size="2" onClick={onBack} aria-label="Back">
             <MaterialIcon name="chevron_left" size={24} color="var(--slate-11)" />
           </IconButton>
           <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-            {t('nav.agents')}
+            {"Agents"}
           </Text>
           <IconButton
             variant="ghost"
             color="gray"
             size="2"
             onClick={handleCreateAgent}
-            aria-label={t('chat.newAgent')}
+            aria-label="New agent"
           >
             <MaterialIcon name="add" size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />
           </IconButton>
@@ -189,7 +187,7 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
       <Flex direction="column" gap="3">
         <TextField.Root
           size="2"
-          placeholder={t('chat.searchAgents')}
+          placeholder="Search agents…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           style={{ width: '100%' }}
@@ -257,7 +255,7 @@ export const AgentsSidebar = React.memo(function AgentsSidebar({ onBack }: Agent
           ) : (
             <Flex align="center" justify="center" style={{ padding: 'var(--space-4) var(--space-3)' }}>
               <Text size="2" style={{ color: 'var(--slate-11)' }}>
-                {t('chat.noAgentsFound')}
+                {"No agents found"}
               </Text>
             </Flex>
           )}

@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Flex, Box, Text, IconButton, Popover, Tooltip } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import {
@@ -25,23 +24,23 @@ type FeedbackValue = 'like' | 'dislike';
 
 interface FeedbackCategory {
   value: string;
-  i18nKey: string;
+  label: string;
 }
 
 const LIKE_CATEGORIES: FeedbackCategory[] = [
-  { value: 'excellent_answer', i18nKey: 'chat.feedbackCategoryExcellentAnswer' },
-  { value: 'well_explained', i18nKey: 'chat.feedbackCategoryWellExplained' },
-  { value: 'helpful_citations', i18nKey: 'chat.feedbackCategoryHelpfulCitations' },
-  { value: 'other', i18nKey: 'chat.feedbackCategoryOther' },
+  { value: 'excellent_answer', label: 'Excellent answer' },
+  { value: 'well_explained', label: 'Well explained' },
+  { value: 'helpful_citations', label: 'Helpful citations' },
+  { value: 'other', label: 'Other...' },
 ];
 
 const DISLIKE_CATEGORIES: FeedbackCategory[] = [
-  { value: 'incorrect_information', i18nKey: 'chat.feedbackCategoryIncorrectInfo' },
-  { value: 'missing_information', i18nKey: 'chat.feedbackCategoryMissingInfo' },
-  { value: 'irrelevant_information', i18nKey: 'chat.feedbackCategoryIrrelevantInfo' },
-  { value: 'unclear_explanation', i18nKey: 'chat.feedbackCategoryUnclearExplanation' },
-  { value: 'poor_citations', i18nKey: 'chat.feedbackCategoryPoorCitations' },
-  { value: 'other', i18nKey: 'chat.feedbackCategoryOther' },
+  { value: 'incorrect_information', label: 'Incorrect information' },
+  { value: 'missing_information', label: 'Missing information' },
+  { value: 'irrelevant_information', label: 'Irrelevant information' },
+  { value: 'unclear_explanation', label: 'Unclear explanation' },
+  { value: 'poor_citations', label: 'Poor citations' },
+  { value: 'other', label: 'Other...' },
 ];
 
 const OTHER_VALUE = 'other';
@@ -121,7 +120,6 @@ export function MessageActions({
   const [copiedMessage, setCopiedMessage] = useState('');
   const copiedTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [readAloudHovered, setReadAloudHovered] = useState(false);
-  const { t, i18n } = useTranslation();
 
   // ── Like popover state ──
   const [likeOpen, setLikeOpen] = useState(false);
@@ -138,12 +136,12 @@ export function MessageActions({
   const switchingRef = useRef(false);
 
   const { isSpeaking, isSupported: isTtsSupported, speak, stop: stopSpeech } = useChatSpeechSynthesis({
-    lang: i18n.language,
+    lang: 'en',
     onError: (error) => {
       if (error === 'not-supported') {
-        toast.error(t('chat.ttsNotSupported'));
+        toast.error("Text-to-speech is not supported in this browser");
       } else {
-        toast.error(t('chat.ttsFailed'));
+        toast.error("Failed to read aloud. Please try again.");
       }
     },
   });
@@ -179,11 +177,11 @@ export function MessageActions({
     setLikeOpen(false);
     try {
       await submitFeedbackToApi(messageId, { isHelpful: true, categories: [cat.value] });
-      toast.success(t('chat.thankYouForFeedback'), { description: t('chat.feedbackHelpsImprove') });
+      toast.success("Thank you for your feedback", { description: "Your feedback helps us improve" });
     } catch {
-      toast.error(t('chat.feedbackError', 'Failed to submit feedback'));
+      toast.error("Failed to submit feedback");
     }
-  }, [messageId, t]);
+  }, [messageId]);
 
   const handleLikeOtherSubmit = useCallback(async () => {
     if (!messageId) return;
@@ -196,13 +194,13 @@ export function MessageActions({
       });
       setFeedbackGiven('like');
       setLikeOpen(false);
-      toast.success(t('chat.thankYouForFeedback'), { description: t('chat.feedbackHelpsImprove') });
+      toast.success("Thank you for your feedback", { description: "Your feedback helps us improve" });
     } catch {
-      toast.error(t('chat.feedbackError', 'Failed to submit feedback'));
+      toast.error("Failed to submit feedback");
     } finally {
       setLikeSubmitting(false);
     }
-  }, [messageId, likeComment, t]);
+  }, [messageId, likeComment]);
 
   const handleLikePopoverClose = useCallback(() => {
     if (switchingRef.current) {
@@ -236,11 +234,11 @@ export function MessageActions({
     setDislikeOpen(false);
     try {
       await submitFeedbackToApi(messageId, { isHelpful: false, categories: [cat.value] });
-      toast.success(t('chat.thankYouForFeedback'), { description: t('chat.feedbackHelpsImprove') });
+      toast.success("Thank you for your feedback", { description: "Your feedback helps us improve" });
     } catch {
-      toast.error(t('chat.feedbackError', 'Failed to submit feedback'));
+      toast.error("Failed to submit feedback");
     }
-  }, [messageId, t]);
+  }, [messageId]);
 
   const handleDislikeOtherSubmit = useCallback(async () => {
     if (!messageId) return;
@@ -253,13 +251,13 @@ export function MessageActions({
       });
       setFeedbackGiven('dislike');
       setDislikeOpen(false);
-      toast.success(t('chat.thankYouForFeedback'), { description: t('chat.feedbackHelpsImprove') });
+      toast.success("Thank you for your feedback", { description: "Your feedback helps us improve" });
     } catch {
-      toast.error(t('chat.feedbackError', 'Failed to submit feedback'));
+      toast.error("Failed to submit feedback");
     } finally {
       setDislikeSubmitting(false);
     }
-  }, [messageId, dislikeComment, t]);
+  }, [messageId, dislikeComment]);
 
   const handleDislikePopoverClose = useCallback(() => {
     if (switchingRef.current) {
@@ -297,13 +295,13 @@ export function MessageActions({
 
   const handleCopyMarkdown = useCallback(() => {
     const resolved = resolveMarkdownCitations(content, citationMaps);
-    copyToClipboard(resolved, t('chat.copiedAsMarkdown'));
-  }, [content, citationMaps, copyToClipboard, t]);
+    copyToClipboard(resolved, "Copied as Markdown");
+  }, [content, citationMaps, copyToClipboard]);
 
   const handleCopyText = useCallback(() => {
     const plainText = stripMarkdownAndCitations(content);
-    copyToClipboard(plainText, t('chat.copiedAsText'));
-  }, [content, copyToClipboard, t]);
+    copyToClipboard(plainText, "Copied as text");
+  }, [content, copyToClipboard]);
 
   if (isStreaming) return null;
 
@@ -329,7 +327,7 @@ export function MessageActions({
         {/* ── Thumbs up with optional comment popover ── */}
         {messageId && (
           <Popover.Root open={likeOpen} onOpenChange={(open) => { if (!open) handleLikePopoverClose(); }}>
-            <Tooltip content={t('chat.like', 'Helpful')} side="top">
+            <Tooltip content="Helpful" side="top">
               <Popover.Trigger>
                 <IconButton
                   variant="ghost"
@@ -378,7 +376,7 @@ export function MessageActions({
                       <MaterialIcon name="arrow_back" size={16} color="var(--slate-11)" />
                     </IconButton>
                     <Text size="1" weight="medium" style={{ color: 'var(--slate-11)', flex: 1 }}>
-                      {t('chat.feedbackLikeTitle', 'What did you like about this response? (optional)')}
+                      {"What did you like about this response? (optional)"}
                     </Text>
                     <IconButton
                       variant="ghost"
@@ -394,7 +392,7 @@ export function MessageActions({
                     <textarea
                       value={likeComment}
                       onChange={(e) => setLikeComment(e.target.value)}
-                      placeholder={t('chat.feedbackOtherPlaceholder', 'Add specific details...')}
+                      placeholder="Add specific details..."
                       rows={3}
                       autoFocus
                       style={{
@@ -437,7 +435,7 @@ export function MessageActions({
                 <Flex direction="column" gap="2">
                   <Flex align="center" justify="between">
                     <Text size="1" weight="medium" style={{ color: 'var(--slate-11)' }}>
-                      {t('chat.feedbackLikeTitle', 'What did you like about this response? (optional)')}
+                      {"What did you like about this response? (optional)"}
                     </Text>
                     <IconButton
                       variant="ghost"
@@ -453,7 +451,7 @@ export function MessageActions({
                     {LIKE_CATEGORIES.map((cat) => (
                       <FeedbackChip
                         key={cat.value}
-                        label={t(cat.i18nKey)}
+                        label={cat.label}
                         selected={false}
                         onClick={() => handleLikeChipClick(cat)}
                       />
@@ -468,7 +466,7 @@ export function MessageActions({
         {/* ── Thumbs down with category chips + optional text ── */}
         {messageId && (
           <Popover.Root open={dislikeOpen} onOpenChange={(open) => { if (!open) handleDislikePopoverClose(); }}>
-            <Tooltip content={t('chat.dislike', 'Not helpful')} side="top">
+            <Tooltip content="Not helpful" side="top">
               <Popover.Trigger>
                 <IconButton
                   variant="ghost"
@@ -517,7 +515,7 @@ export function MessageActions({
                       <MaterialIcon name="arrow_back" size={16} color="var(--slate-11)" />
                     </IconButton>
                     <Text size="1" weight="medium" style={{ color: 'var(--slate-11)', flex: 1 }}>
-                      {t('chat.feedbackDislikeTitle', "What didn't you like about this response?")}
+                      {"What didn't you like about this response?"}
                     </Text>
                     <IconButton
                       variant="ghost"
@@ -533,7 +531,7 @@ export function MessageActions({
                     <textarea
                       value={dislikeComment}
                       onChange={(e) => setDislikeComment(e.target.value)}
-                      placeholder={t('chat.feedbackDislikeOtherPlaceholder', 'Please describe the issue...')}
+                      placeholder="Please describe the issue..."
                       rows={3}
                       autoFocus
                       style={{
@@ -576,7 +574,7 @@ export function MessageActions({
                 <Flex direction="column" gap="2">
                   <Flex align="center" justify="between">
                     <Text size="1" weight="medium" style={{ color: 'var(--slate-11)' }}>
-                      {t('chat.feedbackDislikeTitle', "What didn't you like about this response?")}
+                      {"What didn't you like about this response?"}
                     </Text>
                     <IconButton
                       variant="ghost"
@@ -592,7 +590,7 @@ export function MessageActions({
                     {DISLIKE_CATEGORIES.map((cat) => (
                       <FeedbackChip
                         key={cat.value}
-                        label={t(cat.i18nKey)}
+                        label={cat.label}
                         selected={false}
                         onClick={() => handleDislikeChipClick(cat)}
                       />
@@ -606,7 +604,7 @@ export function MessageActions({
 
         {/* Copy with popover & copied tooltip */}
         <Tooltip
-          content={copiedTooltipOpen ? copiedMessage : t('chat.copy')}
+          content={copiedTooltipOpen ? copiedMessage : "Copy"}
           open={copiedTooltipOpen ? true : undefined}
           side="top"
           align="center"
@@ -676,11 +674,11 @@ export function MessageActions({
               >
                 <Flex direction="column" gap="1">
                   <CopyOption
-                    label={t('chat.markdownWithCitations')}
+                    label="Markdown with citations"
                     onClick={handleCopyMarkdown}
                   />
                   <CopyOption
-                    label={t('chat.onlyTextWithoutCitations')}
+                    label="Only text without citations"
                     onClick={handleCopyText}
                   />
                 </Flex>
@@ -691,7 +689,7 @@ export function MessageActions({
 
         {/* Regenerate - only show for the last message */}
         {isLastMessage && messageId &&(
-          <Tooltip content={t('chat.regenerate')} side="top">
+          <Tooltip content="Regenerate" side="top">
             <IconButton
               variant="ghost"
               color="gray"
@@ -712,7 +710,7 @@ export function MessageActions({
 
         {/* Read aloud */}
         {isTtsSupported && (
-          <Tooltip content={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')} side="top">
+          <Tooltip content={isSpeaking ? "Stop reading" : "Read aloud"} side="top">
             <IconButton
               variant="ghost"
               color="gray"

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useCallback, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Flex, Text, Badge } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
@@ -107,7 +106,6 @@ function isInDateRange(
 // ========================================
 
 function UsersPageContent() {
-  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const addToast = useToastStore((s) => s.addToast);
   const router = useRouter();
@@ -328,15 +326,8 @@ function UsersPageContent() {
     [router]
   );
 
-  // ── Filter chips with translated labels ──
-  const filterChips = useMemo<FilterChipConfig[]>(
-    () =>
-      USERS_FILTER_CHIPS.map((chip) => ({
-        ...chip,
-        label: t(`workspace.filters.${chip.key}`) || chip.label,
-      })),
-    [t]
-  );
+  // ── Filter chips ──
+  const filterChips = USERS_FILTER_CHIPS;
 
   // ── Render individual filter components ──
   const renderFilter = useCallback(
@@ -437,7 +428,7 @@ function UsersPageContent() {
           return null;
       }
     },
-    [filters, setFilters, groupOptions, groupFilter]
+    [filters, setFilters, groupOptions, groupFilter.onSearch, groupFilter.onLoadMore, groupFilter.isLoading, groupFilter.hasMore]
   );
 
   // ── Client-side date filters (role/group/status are server-side) ──
@@ -506,26 +497,20 @@ function UsersPageContent() {
     if (succeeded > 0) {
       addToast({
         variant: 'success',
-        title: t('workspace.users.bulk.removeSuccess', {
-          count: succeeded,
-          defaultValue: `${succeeded} user(s) removed from workspace`,
-        }),
+        title: `${succeeded} user(s) removed from workspace`,
         duration: 3000,
       });
     }
     if (failed > 0) {
       addToast({
         variant: 'error',
-        title: t('workspace.users.bulk.removePartialError', {
-          count: failed,
-          defaultValue: `Failed to remove ${failed} user(s)`,
-        }),
+        title: `Failed to remove ${failed} user(s)`,
         duration: 5000,
       });
     }
     setSelectedUsers(new Set());
     fetchUsers();
-  }, [selectedUsersList, addToast, t, setSelectedUsers, fetchUsers]);
+  }, [selectedUsersList, addToast, setSelectedUsers, fetchUsers]);
 
   const handleBulkResendInvite = useCallback(async () => {
     const userIds = selectedUsersList.map((u) => u.userId);
@@ -533,25 +518,19 @@ function UsersPageContent() {
     if (succeeded > 0) {
       addToast({
         variant: 'success',
-        title: t('workspace.users.bulk.resendSuccess', {
-          count: succeeded,
-          defaultValue: `Invite resent to ${succeeded} user(s)`,
-        }),
+        title: `Invite resent to ${succeeded} user(s)`,
         duration: 3000,
       });
     }
     if (failed > 0) {
       addToast({
         variant: 'error',
-        title: t('workspace.users.bulk.resendPartialError', {
-          count: failed,
-          defaultValue: `Failed to resend invite to ${failed} user(s)`,
-        }),
+        title: `Failed to resend invite to ${failed} user(s)`,
         duration: 5000,
       });
     }
     setSelectedUsers(new Set());
-  }, [selectedUsersList, addToast, t, setSelectedUsers]);
+  }, [selectedUsersList, addToast, setSelectedUsers]);
 
   const handleBulkCancelInvite = useCallback(async () => {
     const userIds = selectedUsersList.map((u) => u.userId);
@@ -559,26 +538,20 @@ function UsersPageContent() {
     if (succeeded > 0) {
       addToast({
         variant: 'success',
-        title: t('workspace.users.bulk.cancelSuccess', {
-          count: succeeded,
-          defaultValue: `${succeeded} invite(s) cancelled`,
-        }),
+        title: `${succeeded} invite(s) cancelled`,
         duration: 3000,
       });
     }
     if (failed > 0) {
       addToast({
         variant: 'error',
-        title: t('workspace.users.bulk.cancelPartialError', {
-          count: failed,
-          defaultValue: `Failed to cancel ${failed} invite(s)`,
-        }),
+        title: `Failed to cancel ${failed} invite(s)`,
         duration: 5000,
       });
     }
     setSelectedUsers(new Set());
     fetchUsers();
-  }, [selectedUsersList, addToast, t, setSelectedUsers, fetchUsers]);
+  }, [selectedUsersList, addToast, setSelectedUsers, fetchUsers]);
 
   /** Bulk actions shown in the floating bar — varies by selection composition */
   const hasAdminSelected = useMemo(
@@ -592,14 +565,14 @@ function UsersPageContent() {
       return [
         {
           key: 'resend-invite',
-          label: t('workspace.users.bulk.resendInvite', 'Resend Invite'),
+          label: 'Resend Invite',
           icon: 'send',
           variant: 'default',
           onClick: handleBulkResendInvite,
         },
         {
           key: 'cancel-invite',
-          label: t('workspace.users.bulk.cancelInvite', 'Cancel Invite'),
+          label: 'Cancel Invite',
           icon: 'cancel_schedule_send',
           variant: 'danger',
           onClick: handleBulkCancelInvite,
@@ -612,15 +585,15 @@ function UsersPageContent() {
       {
         key: 'remove-from-workspace',
         label: hasAdminSelected
-          ? t('workspace.users.bulk.adminCantBeRemoved', 'Admin users cannot be removed')
-          : t('workspace.users.bulk.removeFromWorkspace', 'Remove from Workplace'),
+          ? 'Admin users cannot be removed'
+          : 'Remove from Workplace',
         icon: hasAdminSelected ? 'block' : 'person_remove',
         variant: 'danger',
         disabled: hasAdminSelected,
         onClick: handleBulkRemove,
       },
     ];
-  }, [allSelectedArePending, hasAdminSelected, t, handleBulkResendInvite, handleBulkCancelInvite, handleBulkRemove]);
+  }, [allSelectedArePending, hasAdminSelected, handleBulkResendInvite, handleBulkCancelInvite, handleBulkRemove]);
 
   // ── Column definitions ──────────────────
 
@@ -628,7 +601,7 @@ function UsersPageContent() {
     () => [
       {
         key: 'user',
-        label: t('workspace.users.columns.user'),
+        label: "User",
         minWidth: '220px',
         render: (user) => (
           <AvatarCell
@@ -641,7 +614,7 @@ function UsersPageContent() {
       },
       {
         key: 'role',
-        label: t('workspace.users.columns.role'),
+        label: "Role",
         width: '112px',
         render: (user) => (
           <Text size="2" style={{ color: 'var(--slate-12)' }}>
@@ -651,7 +624,7 @@ function UsersPageContent() {
       },
       {
         key: 'groups',
-        label: t('workspace.users.columns.groups'),
+        label: "Groups",
         width: '100px',
         render: (user) => (
           <Badge variant="soft" color="gray" size="1">
@@ -661,7 +634,7 @@ function UsersPageContent() {
       },
       {
         key: 'status',
-        label: t('workspace.users.columns.status'),
+        label: "Status",
         width: '110px',
         render: (user) => (
           <StatusBadge
@@ -673,7 +646,7 @@ function UsersPageContent() {
       },
       {
         key: 'lastActive',
-        label: t('workspace.users.columns.lastActive'),
+        label: "Last Active",
         width: '130px',
         render: (user) => (
           <Text size="2" style={{ color: 'var(--slate-11)' }}>
@@ -683,7 +656,7 @@ function UsersPageContent() {
       },
       {
         key: 'dateJoined',
-        label: t('workspace.users.columns.dateJoined'),
+        label: "Date Joined",
         width: '130px',
         render: (user) => (
           <Text size="2" style={{ color: 'var(--slate-11)' }}>
@@ -692,7 +665,7 @@ function UsersPageContent() {
         ),
       },
     ],
-    [t, currentUser]
+    [currentUser]
   );
 
   // ── Row actions ────────────
@@ -703,10 +676,8 @@ function UsersPageContent() {
       await UsersApi.deleteUser(removeTarget.userId);
       addToast({
         variant: 'success',
-        title: t('workspace.users.actions.removeSuccess'),
-        description: t('workspace.users.actions.removeSuccessDescription', {
-          name: removeTarget.name || removeTarget.email,
-        }),
+        title: "User removed successfully",
+        description: `${removeTarget.name || removeTarget.email} is no longer part of this workspace`,
         duration: 3000,
       });
       setRemoveTarget(null);
@@ -714,13 +685,13 @@ function UsersPageContent() {
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.users.actions.removeError'),
+        title: "Failed to remove user",
         duration: 5000,
       });
     } finally {
       setIsRemoving(false);
     }
-  }, [removeTarget, fetchUsers, addToast, t]);
+  }, [removeTarget, fetchUsers, addToast]);
 
   const handleCancelInvite = useCallback(async () => {
     if (!cancelInviteTarget) return;
@@ -729,10 +700,8 @@ function UsersPageContent() {
       await UsersApi.deleteUser(cancelInviteTarget.userId);
       addToast({
         variant: 'success',
-        title: t('workspace.users.actions.cancelInviteSuccess'),
-        description: t('workspace.users.actions.cancelInviteSuccessDescription', {
-          email: cancelInviteTarget.email || cancelInviteTarget.name || '',
-        }),
+        title: "Invite cancelled",
+        description: `The invitation to ${cancelInviteTarget.email || cancelInviteTarget.name || ''} has been cancelled`,
         duration: 3000,
       });
       setCancelInviteTarget(null);
@@ -740,13 +709,13 @@ function UsersPageContent() {
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.users.actions.cancelInviteError'),
+        title: "Failed to cancel invite",
         duration: 5000,
       });
     } finally {
       setIsCancellingInvite(false);
     }
-  }, [cancelInviteTarget, fetchUsers, addToast, t]);
+  }, [cancelInviteTarget, fetchUsers, addToast]);
 
   const handleConfirmUnblock = useCallback(async () => {
     if (!unblockTarget) return;
@@ -755,7 +724,7 @@ function UsersPageContent() {
       await UsersApi.unblockUser(unblockTarget.userId);
       addToast({
         variant: 'success',
-        title: t('workspace.users.actions.unblockSuccess', 'User unblocked'),
+        title: "User unblocked successfully",
         duration: 3000,
       });
       setUnblockTarget(null);
@@ -763,13 +732,13 @@ function UsersPageContent() {
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.users.actions.unblockError', 'Failed to unblock user'),
+        title: "Failed to unblock user",
         duration: 5000,
       });
     } finally {
       setIsUnblocking(false);
     }
-  }, [unblockTarget, addToast, t, fetchUsers]);
+  }, [unblockTarget, addToast, fetchUsers]);
 
   const unblockConfirmKeyword =
     unblockTarget?.name?.trim() || unblockTarget?.email || '';
@@ -778,11 +747,11 @@ function UsersPageContent() {
   const showComingSoon = useCallback(() => {
     addToast({
       variant: 'info',
-      title: t('workspace.users.actions.comingSoonTitle'),
-      description: t('workspace.users.actions.comingSoonDescription'),
+      title: "Not supported",
+      description: "This Action is coming Soon",
       duration: 3000,
     });
-  }, [addToast, t]);
+  }, [addToast]);
 
   // ── Change Role handler ──
   const handleChangeRole = useCallback(
@@ -794,7 +763,7 @@ function UsersPageContent() {
       if (!adminGroup) {
         addToast({
           variant: 'error',
-          title: t('workspace.users.actions.changeRoleError', 'Failed to change role'),
+          title: 'Failed to change role',
           description: 'Admin group not found',
           duration: 5000,
         });
@@ -812,15 +781,8 @@ function UsersPageContent() {
 
         addToast({
           variant: 'success',
-          title: t('workspace.users.actions.changeRoleSuccess', 'Role updated'),
-          description: t(
-            'workspace.users.actions.changeRoleSuccessDescription',
-            {
-              name: user.name || user.email,
-              role: newRole,
-              defaultValue: `${user.name || user.email} is now ${newRole}`,
-            }
-          ),
+          title: 'Role updated',
+          description: `${user.name || user.email} is now ${newRole}`,
           duration: 3000,
         });
 
@@ -829,12 +791,12 @@ function UsersPageContent() {
       } catch {
         addToast({
           variant: 'error',
-          title: t('workspace.users.actions.changeRoleError', 'Failed to change role'),
+          title: 'Failed to change role',
           duration: 5000,
         });
       }
     },
-    [addToast, t, fetchUsers]
+    [addToast, fetchUsers]
   );
 
   // ── Resend Invite handler ──
@@ -844,25 +806,19 @@ function UsersPageContent() {
         await UsersApi.resendInvite(user.userId);
         addToast({
           variant: 'success',
-          title: t('workspace.users.actions.resendInviteSuccess', 'Invite resent'),
-          description: t(
-            'workspace.users.actions.resendInviteSuccessDescription',
-            {
-              email: user.email,
-              defaultValue: `Invite has been resent to ${user.email}`,
-            }
-          ),
+          title: 'Invite resent',
+          description: `Invite has been resent to ${user.email}`,
           duration: 3000,
         });
       } catch {
         addToast({
           variant: 'error',
-          title: t('workspace.users.actions.resendInviteError', 'Failed to resend invite'),
+          title: 'Failed to resend invite',
           duration: 5000,
         });
       }
     },
-    [addToast, t]
+    [addToast]
   );
 
   // ── Edit Invite handler ──
@@ -874,19 +830,15 @@ function UsersPageContent() {
     []
   );
 
-  // Role options for the sub-menu — sourced from shared constants,
-  // with i18n-translated labels and descriptions.
+  // Role options for the sub-menu — sourced from shared constants.
   const ROLE_SUB_MENU_OPTIONS = useMemo(
     () =>
       ALL_ROLE_OPTIONS.map((role) => ({
         value: role.value,
-        label: t(`workspace.users.roles.${role.value.toLowerCase()}`, role.label),
-        description: t(
-          `workspace.users.roles.${role.value.toLowerCase()}Description`,
-          role.description
-        ),
+        label: role.label,
+        description: role.description,
       })),
-    [t]
+    []
   );
 
   const renderRowActions = useCallback(
@@ -907,12 +859,12 @@ function UsersPageContent() {
         actions = [
           {
             icon: 'visibility',
-            label: t('workspace.users.actions.viewProfile'),
+            label: "View Profile",
             onClick: () => navigateToProfilePanel(user),
           },
           {
             icon: 'lock_open',
-            label: t('workspace.users.actions.unblock', 'Unblock'),
+            label: "Unblock",
             onClick: () => setUnblockTarget(user),
           },
         ];
@@ -921,17 +873,17 @@ function UsersPageContent() {
         actions = [
           {
             icon: 'send',
-            label: t('workspace.users.actions.resendInvite'),
+            label: "Resend Invite",
             onClick: () => handleResendInvite(user),
           },
           {
             icon: 'edit',
-            label: t('workspace.users.actions.editInvite'),
+            label: "Edit Invite",
             onClick: () => handleEditInvite(user),
           },
           {
             icon: 'cancel_schedule_send',
-            label: t('workspace.users.actions.cancelInvite'),
+            label: "Cancel Invite",
             variant: 'danger' as const,
             separatorBefore: true,
             onClick: () => setCancelInviteTarget(user),
@@ -942,12 +894,12 @@ function UsersPageContent() {
         actions = [
           {
             icon: 'send',
-            label: t('workspace.users.actions.resendInvite'),
+            label: "Resend Invite",
             onClick: () => handleResendInvite(user),
           },
           {
             icon: 'cancel_schedule_send',
-            label: t('workspace.users.actions.cancelInvite'),
+            label: "Cancel Invite",
             variant: 'danger' as const,
             separatorBefore: true,
             onClick: () => setCancelInviteTarget(user),
@@ -961,7 +913,7 @@ function UsersPageContent() {
         actions = [
           {
             icon: 'visibility',
-            label: t('workspace.users.actions.viewProfile'),
+            label: "View Profile",
             onClick: () => navigateToProfilePanel(user),
           },
           // {
@@ -980,7 +932,7 @@ function UsersPageContent() {
         actions = [
           {
             icon: 'visibility',
-            label: t('workspace.users.actions.viewProfile'),
+            label: "View Profile",
             onClick: () => navigateToProfilePanel(user),
           },
           // {
@@ -995,12 +947,12 @@ function UsersPageContent() {
           // },
           {
             icon: 'person_off',
-            label: t('workspace.users.actions.deactivate'),
+            label: "Deactivate",
             onClick: showComingSoon,
           },
           {
             icon: 'person_remove',
-            label: t('workspace.users.actions.removeFromWorkspace'),
+            label: "Remove from Workplace",
             variant: 'danger' as const,
             separatorBefore: true,
             onClick: () => setRemoveTarget(user),
@@ -1013,13 +965,11 @@ function UsersPageContent() {
       return <EntityRowActionMenu actions={actions} />;
     },
     [
-      t,
       navigateToProfilePanel,
       showComingSoon,
       handleChangeRole,
       handleResendInvite,
       handleEditInvite,
-      ROLE_SUB_MENU_OPTIONS,
     ]
   );
 
@@ -1050,12 +1000,12 @@ function UsersPageContent() {
     >
       {/* Header */}
       <EntityPageHeader
-        title={t('workspace.users.title')}
-        subtitle={t('workspace.users.subtitle')}
-        searchPlaceholder={t('workspace.users.searchPlaceholder')}
+        title={"Users"}
+        subtitle={"List of all the users who are part of your workspace."}
+        searchPlaceholder={"Search..."}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        ctaLabel={t('workspace.users.inviteButton')}
+        ctaLabel={"Invite"}
         ctaIcon="person_add_alt"
         onCtaClick={navigateToInvitePanel}
       />
@@ -1083,10 +1033,10 @@ function UsersPageContent() {
           >
             <MaterialIcon name="filter_list_off" size={32} color="var(--slate-8)" />
             <Text size="2" weight="medium" style={{ color: 'var(--slate-11)' }}>
-              {t('workspace.users.noFilterResults', 'No users match the applied filters')}
+              {"No users match the applied filters"}
             </Text>
             <Text size="1" style={{ color: 'var(--slate-9)' }}>
-              {t('workspace.users.noFilterResultsHint', 'Try adjusting or clearing the filters above')}
+              {"Try adjusting or clearing the filters above"}
             </Text>
           </Flex>
         ) : (
@@ -1125,7 +1075,7 @@ function UsersPageContent() {
           {/* Bulk action bar — overlays pagination when items selected */}
           <EntityBulkActionBar
             selectedCount={selectedUsers.size}
-            itemLabel={t('workspace.users.bulkLabel', 'Users')}
+            itemLabel="Users"
             actions={bulkActions}
             visible={selectedUsers.size > 0}
           />
@@ -1144,13 +1094,10 @@ function UsersPageContent() {
         onOpenChange={(open) => {
           if (!open) setRemoveTarget(null);
         }}
-        title={t('workspace.users.actions.removeUserTitle')}
-        message={t('workspace.users.actions.removeUserMessage', {
-          email: removeTarget?.email || removeTarget?.name || '',
-          workspace: 'Pipeshub',
-        })}
-        confirmLabel={t('workspace.users.actions.removeButton')}
-        cancelLabel={t('workspace.users.actions.cancelButton')}
+        title={"Remove user?"}
+        message={`Are you sure you want to remove ${removeTarget?.email || removeTarget?.name || ''} from the workspace?`}
+        confirmLabel={"Remove"}
+        cancelLabel={"Cancel"}
         confirmVariant="danger"
         isLoading={isRemoving}
         onConfirm={handleRemoveUser}
@@ -1162,12 +1109,10 @@ function UsersPageContent() {
         onOpenChange={(open) => {
           if (!open) setCancelInviteTarget(null);
         }}
-        title={t('workspace.users.actions.cancelInviteConfirmTitle')}
-        message={t('workspace.users.actions.cancelInviteConfirmMessage', {
-          email: cancelInviteTarget?.email || cancelInviteTarget?.name || '',
-        })}
-        confirmLabel={t('workspace.users.actions.cancelInvite')}
-        cancelLabel={t('workspace.users.actions.keepInviteButton')}
+        title={"Cancel invite?"}
+        message={`Are you sure you want to cancel the invite for ${cancelInviteTarget?.email || cancelInviteTarget?.name || ''}?`}
+        confirmLabel={"Cancel Invite"}
+        cancelLabel={"Keep Invite"}
         confirmVariant="danger"
         isLoading={isCancellingInvite}
         onConfirm={handleCancelInvite}
@@ -1178,34 +1123,23 @@ function UsersPageContent() {
         onOpenChange={(open) => {
           if (!open) setUnblockTarget(null);
         }}
-        heading={t('workspace.users.actions.unblockTypedConfirmTitle', {
-          name: unblockTarget?.name || unblockTarget?.email || '',
-          defaultValue: 'Unblock {{name}}?',
-        })}
+        heading={`Unblock ${unblockTarget?.name || unblockTarget?.email || ''}?`}
         body={
           <>
             <Text size="2" style={{ color: 'var(--slate-12)', lineHeight: '20px' }}>
-              {t('workspace.users.actions.unblockTypedConfirmBodyLine1', {
-                name: unblockTarget?.name || unblockTarget?.email || '',
-                defaultValue: 'This will restore sign-in access for {{name}}.',
-              })}
+              {`This will restore sign-in access for ${unblockTarget?.name || unblockTarget?.email || ''}.`}
             </Text>
             <Text size="2" style={{ color: 'var(--slate-12)', lineHeight: '20px' }}>
-              {t(
-                'workspace.users.actions.unblockTypedConfirmBodyLine2',
-                'Type the user\'s display name exactly to confirm.'
-              )}
+              {"Type the user's display name exactly to confirm."}
             </Text>
           </>
         }
         confirmationKeyword={unblockConfirmKeyword}
-        confirmInputLabel={t('workspace.users.actions.typeNameToConfirm', {
-          keyword: unblockConfirmKeyword,
-        })}
-        primaryButtonText={t('workspace.users.actions.unblockConfirmAction', 'Unblock')}
-        cancelLabel={t('workspace.users.actions.cancelButton')}
+        confirmInputLabel={`Type ${unblockConfirmKeyword} to confirm`}
+        primaryButtonText={"Unblock"}
+        cancelLabel={"Cancel"}
         isLoading={isUnblocking}
-        confirmLoadingLabel={t('workspace.users.actions.unblocking', 'Unblocking…')}
+        confirmLoadingLabel={"Unblocking…"}
         onConfirm={() => void handleConfirmUnblock()}
       />
     </Flex>

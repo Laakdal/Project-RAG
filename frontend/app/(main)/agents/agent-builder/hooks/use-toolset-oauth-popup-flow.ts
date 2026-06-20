@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { TFunction } from 'i18next';
 import {
   OAUTH_POPUP_MAX_POLLS,
   OAUTH_POPUP_POLL_MS,
@@ -15,7 +14,6 @@ import {
 } from '@/app/(main)/toolsets/oauth/toolset-oauth-window-messages';
 
 export interface UseToolsetOauthPopupFlowOptions {
-  t: TFunction;
   verifyAuthenticated: () => Promise<boolean>;
   onVerified: () => void;
   onNotify?: (message: string) => void;
@@ -34,7 +32,6 @@ export interface ToolsetOauthBeginHandlers {
  * listen for toolset OAuth popup messages (`TOOLSET_OAUTH_POST_MESSAGE` success/error payloads).
  */
 export function useToolsetOauthPopupFlow({
-  t,
   verifyAuthenticated,
   onVerified,
   onNotify,
@@ -168,7 +165,7 @@ export function useToolsetOauthPopupFlow({
         const msg =
           typeof event.data?.error === 'string' && event.data.error.trim()
             ? event.data.error
-            : t('agentBuilder.oauthSignInIncomplete');
+            : "Sign-in did not finish. The window may have been closed before completion — try again when you are ready.";
         const p = oauthPopupRef.current;
         oauthPopupRef.current = null;
         if (p && !p.closed) {
@@ -184,7 +181,7 @@ export function useToolsetOauthPopupFlow({
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [authenticating, clearOAuthPoll, completeOAuthFlowIfNeeded, onOAuthPopupError, t]);
+  }, [authenticating, clearOAuthPoll, completeOAuthFlowIfNeeded, onOAuthPopupError]);
 
   const beginOAuth = useCallback(
     async (
@@ -198,7 +195,7 @@ export function useToolsetOauthPopupFlow({
         const { authorizationUrl, windowName } = await fetchAuthorization();
         const popup = openCenteredOAuthWindow(authorizationUrl, windowName);
         if (!popup) {
-          throw new Error(t('agentBuilder.oauthPopupBlocked'));
+          throw new Error("Popup blocked. Allow popups for this site and try again.");
         }
         oauthPopupRef.current = popup;
         popup.focus();
@@ -234,13 +231,13 @@ export function useToolsetOauthPopupFlow({
         handlers.onOpenError(e);
       }
     },
-    [clearOAuthPoll, completeOAuthFlowIfNeeded, t]
+    [clearOAuthPoll, completeOAuthFlowIfNeeded]
   );
 
   const cancelForUserDismissal = useCallback(() => {
     stopOAuthUi();
-    onNotify?.(t('agentBuilder.oauthSignInCancelled'));
-  }, [onNotify, stopOAuthUi, t]);
+    onNotify?.("Sign-in was cancelled.");
+  }, [onNotify, stopOAuthUi]);
 
   return {
     authenticating,

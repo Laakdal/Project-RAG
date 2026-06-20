@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import type { Connector } from '@/app/(main)/workspace/connectors/types';
 import type { KnowledgeBaseForBuilder, AgentToolsListRow } from '../../types';
 import type { AvailableLlmModel } from '@/chat/types';
@@ -29,13 +28,12 @@ export function useAgentBuilderNodeTemplates(
   availableKnowledgeBases: KnowledgeBaseForBuilder[],
   configuredConnectors: Connector[]
 ): { nodeTemplates: NodeTemplate[] } {
-  const { t } = useTranslation();
   const nodeTemplates = useMemo(() => {
     const groupedTools = groupToolsByApp(availableTools);
     const dynamicAppKnowledgeNodes: NodeTemplate[] = configuredConnectors.map((connector) => ({
       type: `app-${connector.name.toLowerCase().replace(/\s+/g, '-')}`,
       label: normalizeDisplayName(connector.name),
-      description: t('agentBuilder.connectorDataDescription', { name: connector.name }),
+      description: `Connect to ${connector.name} data and content`,
       icon: connector.iconPath || 'cloud',
       defaultConfig: {
         appName: connector.name.toUpperCase(),
@@ -55,7 +53,7 @@ export function useAgentBuilderNodeTemplates(
       .map((connector) => ({
       type: `connector-group-${connector._key}`,
       label: normalizeDisplayName(connector.name),
-      description: t('agentBuilder.connectorGroupDescription', { type: connector.type }),
+      description: `${connector.type} connector — tools or knowledge`,
       icon: 'hub',
       defaultConfig: {
         id: connector._key,
@@ -74,13 +72,13 @@ export function useAgentBuilderNodeTemplates(
     const templates: NodeTemplate[] = [
       {
         type: 'agent-core',
-        label: normalizeDisplayName(t('agentBuilder.coreNodeTitle')),
-        description: t('agentBuilder.coreNodeTemplateDescription'),
+        label: normalizeDisplayName("Agent"),
+        description: "Orchestrates tools, knowledge, and models",
         icon: 'auto_awesome',
         defaultConfig: {
-          systemPrompt: t('agentBuilder.defaultSystemPrompt'),
+          systemPrompt: "You are a helpful assistant.",
           instructions: '',
-          startMessage: t('agentBuilder.defaultStartMessage'),
+          startMessage: "Hello! I am ready to assist you. How can I help you today?",
           routing: 'auto',
           allowMultipleLLMs: true,
         },
@@ -90,17 +88,17 @@ export function useAgentBuilderNodeTemplates(
       },
       {
         type: 'user-input',
-        label: normalizeDisplayName(t('agentBuilder.nodeLabelChatInput')),
-        description: t('agentBuilder.nodeDescUserMessages'),
+        label: normalizeDisplayName("Chat input"),
+        description: "User messages",
         icon: 'chat',
-        defaultConfig: { placeholder: t('agentBuilder.nodeTemplateInputPlaceholder'), inputType: 'text' },
+        defaultConfig: { placeholder: "Enter your message...", inputType: 'text' },
         inputs: [],
         outputs: ['message'],
         category: 'inputs',
       },
       ...availableModels.map((model) => {
         const displayName =
-          model.modelFriendlyName?.trim() || model.modelName || t('agentBuilder.placeholderModel');
+          model.modelFriendlyName?.trim() || model.modelName || "Model";
         const uniqueTypeId = `${model.provider}-${model.modelKey}-${model.modelName}`.replace(
           /[^a-zA-Z0-9]/g,
           '-'
@@ -108,7 +106,7 @@ export function useAgentBuilderNodeTemplates(
         return {
           type: `llm-${uniqueTypeId}`,
           label: displayName,
-          description: t('agentBuilder.llmProviderModel', { provider: model.provider }),
+          description: `${model.provider} model`,
           icon: 'psychology',
           defaultConfig: {
             modelKey: model.modelKey,
@@ -128,9 +126,9 @@ export function useAgentBuilderNodeTemplates(
       ...Object.entries(groupedTools).map(([appName, appTools]) => ({
         type: `tool-group-${appName}`,
         label: normalizeDisplayName(
-          t('agentBuilder.paletteToolGroupLabel', { app: getAppDisplayName(appName) })
+          `${getAppDisplayName(appName)} tools`
         ),
-        description: t('agentBuilder.allToolsForAppDescription', { app: getAppDisplayName(appName) }),
+        description: `All ${getAppDisplayName(appName)} tools`,
         icon: getAppIconName(appName),
         defaultConfig: {
           appName,
@@ -151,7 +149,7 @@ export function useAgentBuilderNodeTemplates(
       ...availableTools.map((tool) => ({
         type: `tool-${tool.tool_id}`,
         label: normalizeDisplayName(tool.tool_name.replace(/_/g, ' ')),
-        description: tool.description || t('agentBuilder.toolInlineSuffix', { name: tool.app_name }),
+        description: tool.description || `${tool.app_name} tool`,
         icon: getAppIconName(tool.app_name),
         defaultConfig: {
           toolId: tool.tool_id,
@@ -165,10 +163,8 @@ export function useAgentBuilderNodeTemplates(
       })),
       {
         type: 'app-group',
-        label: t('agentBuilder.groupApps'),
-        description: t('agentBuilder.appGroupTemplateDescription', {
-          count: configuredConnectors.length,
-        }),
+        label: "Apps",
+        description: `Connect app data (${configuredConnectors.length} connectors)`,
         icon: 'apps',
         defaultConfig: {
           apps: configuredConnectors.map((c) => ({
@@ -189,10 +185,8 @@ export function useAgentBuilderNodeTemplates(
       ...connectorGroupNodes,
       {
         type: 'kb-group',
-        label: t('agentBuilder.groupCollections'),
-        description: t('agentBuilder.kbGroupTemplateDescription', {
-          count: availableKnowledgeBases.length,
-        }),
+        label: "Collections",
+        description: `${availableKnowledgeBases.length} collections`,
         icon: 'folder',
         defaultConfig: {
           knowledgeBases: availableKnowledgeBases.map((k) => ({
@@ -213,7 +207,7 @@ export function useAgentBuilderNodeTemplates(
       ...availableKnowledgeBases.map((kb) => ({
         type: `kb-${kb.id}`,
         label: truncateText(kb.name, 22),
-        description: t('agentBuilder.kbNodeTemplateDescription'),
+        description: "Collection for retrieval",
         icon: 'folder',
         defaultConfig: {
           kbId: kb.id,
@@ -226,8 +220,8 @@ export function useAgentBuilderNodeTemplates(
       })),
       {
         type: 'web-search',
-        label: t('agentBuilder.webSearch'),
-        description: t('Web Search'),
+        label: "Web Search",
+        description: "Web Search",
         icon: 'public',
         defaultConfig: {
           provider: '',
@@ -240,8 +234,8 @@ export function useAgentBuilderNodeTemplates(
       },
       {
         type: 'chat-response',
-        label: t('agentBuilder.nodeLabelChatOutput'),
-        description: t('agentBuilder.nodeTemplateChatResponseDesc'),
+        label: "Chat output",
+        description: "Sends the reply to the user",
         icon: 'reply',
         defaultConfig: { format: 'text', includeMetadata: false },
         inputs: ['response'],
@@ -251,7 +245,7 @@ export function useAgentBuilderNodeTemplates(
     ];
 
     return templates;
-  }, [availableTools, availableModels, availableKnowledgeBases, configuredConnectors, t]);
+  }, [availableTools, availableModels, availableKnowledgeBases, configuredConnectors]);
 
   return { nodeTemplates };
 }

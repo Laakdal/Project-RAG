@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation, Trans } from 'react-i18next';
 import {
   Box,
   Flex,
@@ -37,7 +36,6 @@ import {
 // ============================================================
 
 export default function AuthenticationPage() {
-  const { t } = useTranslation();
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
   const isAdmin = useUserStore(selectIsAdmin);
@@ -166,8 +164,8 @@ export default function AuthenticationPage() {
 
       addToast({
         variant: 'success',
-        title: t('workspace.authentication.toasts.configureSuccess', { label }),
-        description: t('workspace.authentication.toasts.configureSuccessDescription', { label }),
+        title: `${label} Auth successfully configured!`,
+        description: `Your users can sign in with their ${label} accounts`,
         duration: 5000,
       });
     },
@@ -193,15 +191,15 @@ export default function AuthenticationPage() {
 
       addToast({
         variant: 'success',
-        title: t('workspace.authentication.toasts.saveSuccess'),
-        description: t('workspace.authentication.toasts.saveSuccessDescription'),
+        title: "Authentication settings saved",
+        description: "Your changes have been applied successfully.",
         duration: 4000,
       });
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.authentication.toasts.saveError'),
-        description: t('message.tryAgain'),
+        title: "Failed to save authentication settings",
+        description: "Please try again",
         duration: 5000,
       });
     } finally {
@@ -255,7 +253,7 @@ export default function AuthenticationPage() {
   if (isLoading) {
     return (
       <Flex align="center" justify="center" style={{ height: '100%', width: '100%' }}>
-        <LottieLoader variant="loader" size={48} showLabel label={t('workspace.authentication.loading')} />
+        <LottieLoader variant="loader" size={48} showLabel label={"Loading authentication settings…"} />
       </Flex>
     );
   }
@@ -268,10 +266,10 @@ export default function AuthenticationPage() {
         <Flex align="start" justify="between" style={{ marginBottom: 'var(--space-6)' }}>
           <Box>
             <Heading size="5" style={{ color: 'var(--slate-12)' }}>
-              {t('workspace.authentication.title')}
+              {"Authentication Settings"}
             </Heading>
             <Text size="2" style={{ color: 'var(--slate-11)', marginTop: 'var(--space-1)', display: 'block' }}>
-              {t('workspace.authentication.subtitle')}
+              {"Configure how users sign in to your application"}
             </Text>
           </Box>
 
@@ -287,7 +285,7 @@ export default function AuthenticationPage() {
             <span className="material-icons-outlined" style={{ fontSize: 15 }}>
               open_in_new
             </span>
-            {t('workspaceMenu.documentation')}
+            {"Documentation"}
           </Button>
         </Flex>
 
@@ -311,13 +309,13 @@ export default function AuthenticationPage() {
           >
             <Box>
               <Text size="3" weight="medium" style={{ color: 'var(--slate-12)', display: 'block' }}>
-                {t('workspace.authentication.methodsHeading')}
+                {"Authentication Methods"}
               </Text>
               <Text
                 size="1"
                 style={{ color: 'var(--slate-10)', display: 'block', marginTop: 2, fontWeight: 300 }}
               >
-                {t('workspace.authentication.methodsSubtitle')}
+                {"Enable one or more authentication methods. Users can sign in using any enabled method."}
               </Text>
             </Box>
 
@@ -333,7 +331,7 @@ export default function AuthenticationPage() {
                 <span className="material-icons-outlined" style={{ fontSize: 15 }}>
                   edit
                 </span>
-                {t('workspace.aiModels.actionEdit')}
+                {"Edit"}
               </Button>
             )}
           </Flex>
@@ -381,17 +379,17 @@ export default function AuthenticationPage() {
           </IconButton>
           <Flex direction="column" gap="1">
             <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {t('workspace.authentication.policyHeading')}
+              {"Authentication Method Policy"}
             </Text>
             <Text size="1" style={{ color: 'var(--slate-11)', lineHeight: '16px', fontWeight: 300 }}>
-              {t('workspace.authentication.policyDescription')}
+              {"Multiple methods can be active simultaneously. Users will be able to choose any enabled method when signing in."}
             </Text>
             {!smtpConfigured && (
               <Text
                 size="1"
                 style={{ color: 'var(--amber-11)', display: 'block', marginTop: 'var(--space-1)' }}
               >
-                {t('workspace.authentication.smtpWarning')}
+                {"⚠ SMTP is not configured. One-Time Password authentication requires SMTP. Configure it under Workspace → Mail."}
               </Text>
             )}
           </Flex>
@@ -419,19 +417,16 @@ export default function AuthenticationPage() {
       <ConfirmationDialog
         open={riskDialogOpen}
         onOpenChange={setRiskDialogOpen}
-        title={t('workspace.authentication.riskDialog.title')}
-        confirmLabel={t('workspace.authentication.riskDialog.confirmLabel')}
-        confirmLoadingLabel={t('workspace.authentication.riskDialog.confirmLoadingLabel')}
+        title={"Confirm authentication changes"}
+        confirmLabel={"Accept"}
+        confirmLoadingLabel={"Saving..."}
         confirmVariant="primary"
         isLoading={isSaving}
         onConfirm={handleRiskAccept}
         message={
           <Flex direction="column" gap="2">
             <Text size="2" style={{ color: 'var(--slate-12)' }}>
-              <Trans
-                i18nKey="workspace.authentication.riskDialog.body"
-                components={{ bold: <strong /> }}
-              />
+              {"You have "}<strong>{"Password"}</strong>{" and "}<strong>{"One-Time Password"}</strong>{" disabled. Users will only be able to sign in using:"}
             </Text>
             <Box
               style={{
@@ -471,8 +466,8 @@ export default function AuthenticationPage() {
               </span>
               <Text size="2" style={{ color: 'var(--amber-11)', lineHeight: '20px' }}>
                 {enabledAlternativeLabels.length === 1
-                  ? t('workspace.authentication.riskDialog.warningSingle', { method: enabledAlternativeLabels[0] })
-                  : t('workspace.authentication.riskDialog.warningMultiple')}
+                  ? `Make sure ${enabledAlternativeLabels[0]} is fully configured and working before saving. If single sign-on fails due to misconfiguration, users may be locked out.`
+                  : "Make sure all selected methods are fully configured and working before saving. If single sign-on fails due to misconfiguration, users may be locked out."}
               </Text>
             </Flex>
           </Flex>

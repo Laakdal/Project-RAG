@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import {
   AlertDialog,
@@ -94,7 +93,6 @@ export function AdminManageActionPanel({
 }: AdminManageActionPanelProps) {
   const router = useRouter();
   const nestedModalHost = useWorkspaceDrawerNestedModalHost(true);
-  const { t } = useTranslation();
   const instanceId = instance.instanceId ?? '';
   const toolsetType = (instance.toolsetType || '').trim();
   const authType = (instance.authType || 'NONE').toUpperCase();
@@ -318,14 +316,13 @@ export function AdminManageActionPanel({
   }, [instanceId]);
 
   const { authenticating, beginOAuth, stopOAuthUi } = useToolsetOauthPopupFlow({
-    t,
     verifyAuthenticated: verifyOAuthComplete,
     onVerified: () => {
-      onNotify?.(t('agentBuilder.oauthSuccessNotify'));
+      onNotify?.("Authentication successful. Toolset list refreshed.");
       onSaved();
     },
     onNotify,
-    onIncomplete: () => setError(t('agentBuilder.oauthSignInIncomplete')),
+    onIncomplete: () => setError("Sign-in did not finish. The window may have been closed before completion — try again when you are ready."),
     onOAuthPopupError: (msg) => setError(msg),
   });
 
@@ -345,12 +342,12 @@ export function AdminManageActionPanel({
           ...f,
           required: false,
           placeholder:
-            ln === 'clientsecret' ? t('workspace.actions.manage.secretPlaceholder') : f.placeholder,
+            ln === 'clientsecret' ? "Leave blank to keep the existing secret" : f.placeholder,
         };
       }
       return f;
     },
-    [selectedOauthRow, t]
+    [selectedOauthRow]
   );
 
   const showOauthImpactCallout =
@@ -388,11 +385,11 @@ export function AdminManageActionPanel({
     if (!redirectUri) return;
     try {
       await navigator.clipboard.writeText(redirectUri);
-      onNotify?.(t('workspace.actions.redirectUriCopied'));
+      onNotify?.("Redirect URI copied");
     } catch {
-      setError(t('workspace.actions.manage.copyFailed'));
+      setError("Could not copy to the clipboard.");
     }
-  }, [onNotify, redirectUri, t]);
+  }, [onNotify, redirectUri]);
 
   const runManageValidation = useCallback((): boolean => {
     setFieldErrors({});
@@ -400,7 +397,7 @@ export function AdminManageActionPanel({
     setError(null);
     const next: Record<string, string> = {};
     if (!instanceName.trim()) {
-      setInstanceNameError(t('workspace.actions.errors.instanceNameRequired'));
+      setInstanceNameError("Enter an instance name.");
     }
     if (oauth) {
       for (const f of oauthFields) {
@@ -416,7 +413,7 @@ export function AdminManageActionPanel({
           raw === null ||
           (typeof raw === 'string' && raw.trim() === '')
         ) {
-          next[f.name] = t('workspace.actions.validation.fieldRequired', { field: f.displayName });
+          next[f.name] = `${f.displayName} is required`;
         }
       }
     } else {
@@ -428,7 +425,7 @@ export function AdminManageActionPanel({
           raw === null ||
           (typeof raw === 'string' && raw.trim() === '')
         ) {
-          next[f.name] = t('workspace.actions.validation.fieldRequired', { field: f.displayName });
+          next[f.name] = `${f.displayName} is required`;
         }
       }
     }
@@ -465,7 +462,6 @@ export function AdminManageActionPanel({
     oauthFieldForDisplay,
     oauthFields,
     oauthFieldValues,
-    t,
   ]);
 
   const handleSave = useCallback(async () => {
@@ -503,9 +499,9 @@ export function AdminManageActionPanel({
         });
         const n = res.deauthenticatedUserCount ?? 0;
         if (n > 0) {
-          onNotify?.(t('workspace.actions.manage.saveDeauthNotice', { count: n }));
+          onNotify?.(`Saved. ${n} user(s) were signed out and must authenticate again.`);
         } else {
-          onNotify?.(t('workspace.actions.manage.saveSuccess'));
+          onNotify?.("Changes saved.");
         }
         onSaved();
         onClose();
@@ -545,7 +541,7 @@ export function AdminManageActionPanel({
           /* ignore */
         }
       }
-      onNotify?.(t('workspace.actions.manage.saveSuccess'));
+      onNotify?.("Changes saved.");
       onSaved();
       onClose();
     } catch (e) {
@@ -569,7 +565,6 @@ export function AdminManageActionPanel({
     onSaved,
     runManageValidation,
     selectedOauthConfigId,
-    t,
   ]);
 
   const handleDelete = useCallback(async () => {
@@ -578,7 +573,7 @@ export function AdminManageActionPanel({
     setError(null);
     try {
       await ToolsetsApi.deleteToolsetInstance(instanceId);
-      onNotify?.(t('workspace.actions.manage.deleteSuccess'));
+      onNotify?.("Instance deleted.");
       setDeleteOpen(false);
       onDeleted();
       onClose();
@@ -587,7 +582,7 @@ export function AdminManageActionPanel({
     } finally {
       setDeleting(false);
     }
-  }, [instanceId, onClose, onDeleted, onNotify, t]);
+  }, [instanceId, onClose, onDeleted, onNotify]);
 
   const handleAuthenticate = useCallback(async () => {
     setError(null);
@@ -598,7 +593,7 @@ export function AdminManageActionPanel({
           typeof window !== 'undefined' ? window.location.origin : undefined
         );
         if (!result.success || !result.authorizationUrl) {
-          throw new Error(t('agentBuilder.oauthUrlFailed'));
+          throw new Error("Failed to get authorization URL");
         }
         return {
           authorizationUrl: result.authorizationUrl,
@@ -606,11 +601,11 @@ export function AdminManageActionPanel({
         };
       },
       {
-        onTimeout: () => setError(t('agentBuilder.authTimeout')),
+        onTimeout: () => setError("Authentication timed out. Please try again."),
         onOpenError: (e) => setError(apiErrorDetail(e)),
       }
     );
-  }, [beginOAuth, instanceId, t]);
+  }, [beginOAuth, instanceId]);
 
   const goToPersonalActions = useCallback(() => {
     if (!toolsetType) return;
@@ -620,7 +615,7 @@ export function AdminManageActionPanel({
   if (!instanceId) {
     return (
       <Text size="2" color="gray">
-        {t('workspace.actions.manage.missingInstance')}
+        {"This action is missing an instance id. Try refreshing the page."}
       </Text>
     );
   }
@@ -631,7 +626,7 @@ export function AdminManageActionPanel({
         <>
           <Flex direction="column" gap="2">
             <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.actions.redirectUri')}
+              {"Redirect URI"}
             </Text>
             <Flex align="center" gap="2">
               <TextField.Root
@@ -645,20 +640,20 @@ export function AdminManageActionPanel({
               </IconButton>
             </Flex>
             <Text size="1" color="gray">
-              {t('workspace.actions.redirectUriHint')}
+              {"Register this URL as an allowed redirect URI in your OAuth provider."}
             </Text>
           </Flex>
 
           <Separator size="4" />
 
-          <FormField label={t('workspace.actions.manage.oauthAppHeading')}>
+          <FormField label={"OAuth app"}>
             {oauthConfigsLoading ? (
               <Text size="2" color="gray">
-                {t('workspace.actions.manage.loadingOauthApps', 'Loading OAuth apps…')}
+                {"Loading OAuth apps…"}
               </Text>
             ) : oauthConfigs.length === 0 ? (
               <Text size="2" color="gray">
-                {t('workspace.actions.manage.noOauthApps', 'No OAuth apps configured')}
+                {"No OAuth apps configured"}
               </Text>
             ) : (
               <Select.Root
@@ -689,7 +684,7 @@ export function AdminManageActionPanel({
 
       <div data-ph-toolset-admin-instance-name>
         <FormField
-          label={t('workspace.actions.instanceName')}
+          label={"Instance name"}
           required
           error={instanceNameError ?? undefined}
         >
@@ -702,7 +697,7 @@ export function AdminManageActionPanel({
               }
             }}
             color={instanceNameError ? 'red' : undefined}
-            placeholder={t('workspace.actions.instanceNamePlaceholder')}
+            placeholder={"e.g. Production Slack"}
             aria-invalid={instanceNameError ? true : undefined}
           />
         </FormField>
@@ -712,7 +707,7 @@ export function AdminManageActionPanel({
         <>
           {credentialsSectionLoading ? (
             <Flex align="center" justify="center" mt="1" style={{ width: '100%', minHeight: 120 }}>
-              <LottieLoader variant="loader" size={40} showLabel label={t('agentBuilder.loadingSchema')} />
+              <LottieLoader variant="loader" size={40} showLabel label={"Loading schema…"} />
             </Flex>
           ) : oauthFields.length > 0 ? (
             <Flex direction="column" gap="3" mt="1">
@@ -737,18 +732,18 @@ export function AdminManageActionPanel({
             </Flex>
           ) : (
             <Callout.Root color="amber" variant="surface" size="1">
-              <Callout.Text size="1">{t('agentBuilder.noCredentialFields')}</Callout.Text>
+              <Callout.Text size="1">{"No credential fields were returned for this auth type. If this persists, check the toolset registry schema."}</Callout.Text>
             </Callout.Root>
           )}
         </>
       ) : credentialsSectionLoading ? (
         <Flex align="center" justify="center" mt="1" style={{ width: '100%', minHeight: 120 }}>
-          <LottieLoader variant="loader" size={40} showLabel label={t('agentBuilder.loadingSchema')} />
+          <LottieLoader variant="loader" size={40} showLabel label={"Loading schema…"} />
         </Flex>
       ) : nonOauthConfigureFields.length > 0 ? (
         <Flex direction="column" gap="3" mt="1">
           <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.actions.configurationHeading')}
+            {"Configuration"}
           </Text>
           {nonOauthConfigureFields.map((field) => (
             <SchemaFormField
@@ -774,7 +769,7 @@ export function AdminManageActionPanel({
           <Callout.Icon>
             <MaterialIcon name="info" size={16} />
           </Callout.Icon>
-          <Callout.Text>{t('workspace.actions.manage.nonOAuthHint')}</Callout.Text>
+          <Callout.Text>{"User credentials are managed per person. Use Authenticate so your account can use this action."}</Callout.Text>
         </Callout.Root>
       ) : null}
 
@@ -783,14 +778,14 @@ export function AdminManageActionPanel({
           <Callout.Icon>
             <MaterialIcon name="warning" size={16} />
           </Callout.Icon>
-          <Callout.Text>{t('workspace.actions.manage.oauthImpact')}</Callout.Text>
+          <Callout.Text>{"Changing OAuth configuration will sign out users who had connected this action. They will need to authenticate again."}</Callout.Text>
         </Callout.Root>
       ) : null}
 
       {toolNames.length > 0 ? (
         <Flex direction="column" gap="2">
           <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.actions.availableActions')} ({toolNames.length})
+            {"Available actions"} ({toolNames.length})
           </Text>
           <Flex gap="2" wrap="wrap">
             {toolNames.map((n) => (
@@ -805,9 +800,7 @@ export function AdminManageActionPanel({
       {showPersonalActionsCta ? (
         <Callout.Root color="blue" variant="surface" size="1">
           <Callout.Text>
-            {t('workspace.actions.manage.personalActionsHint', {
-              defaultValue: 'User credentials are managed in My Actions.',
-            })}
+            {"User credentials are managed in My Actions."}
             <Button
               type="button"
               size="1"
@@ -816,9 +809,7 @@ export function AdminManageActionPanel({
               ml="2"
               onClick={goToPersonalActions}
             >
-              {t('workspace.actions.manage.openPersonalActionsCta', {
-                defaultValue: 'Open My Actions',
-              })}
+              {"Open My Actions"}
             </Button>
           </Callout.Text>
         </Callout.Root>
@@ -837,16 +828,14 @@ export function AdminManageActionPanel({
         }}
       >
         <Text size="2" weight="bold" color="red">
-          {t('workspace.actions.manage.dangerZone')}
+          {"Danger zone"}
         </Text>
         <Flex align="center" justify="between" gap="3" wrap="wrap">
           <Text size="2" color="gray" style={{ maxWidth: 420 }}>
-            {t('workspace.actions.manage.deleteDescription', {
-              name: instance.displayName || instance.toolsetType || '',
-            })}
+            {`Permanently remove this ${instance.displayName || instance.toolsetType || ''} instance from the organization.`}
           </Text>
           <Button color="red" variant="soft" onClick={() => setDeleteOpen(true)}>
-            {t('workspace.actions.manage.deleteInstance')}
+            {"Delete instance"}
           </Button>
         </Flex>
       </Flex>
@@ -859,7 +848,7 @@ export function AdminManageActionPanel({
 
       <Flex justify="end" gap="2" pt="2" style={{ borderTop: '1px solid var(--gray-a4)' }}>
         <Button type="button" variant="soft" color="gray" onClick={onClose}>
-          {t('action.cancel')}
+          {"Cancel"}
         </Button>
         {oauth ? (
           <Button
@@ -869,7 +858,7 @@ export function AdminManageActionPanel({
             loading={authenticating}
             onClick={() => void handleAuthenticate()}
           >
-            {t('workspace.actions.cta.authenticate')}
+            {"Authenticate"}
           </Button>
         ) : null}
         <Button
@@ -879,25 +868,25 @@ export function AdminManageActionPanel({
           disabled={!hasChanges}
           onClick={() => void handleSave()}
         >
-          {t('action.save')}
+          {"Save"}
         </Button>
       </Flex>
 
       {nestedModalHost ? (
         <AlertDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialog.Content container={nestedModalHost} style={{ maxWidth: 440 }}>
-            <AlertDialog.Title>{t('workspace.actions.manage.deleteConfirmTitle')}</AlertDialog.Title>
+            <AlertDialog.Title>{"Delete this instance?"}</AlertDialog.Title>
             <AlertDialog.Description size="2">
-              {t('workspace.actions.manage.deleteConfirmBody')}
+              {"This removes the organization instance. Users can no longer authenticate against it. This cannot be undone."}
             </AlertDialog.Description>
             <Flex gap="3" justify="end" mt="4">
               <AlertDialog.Cancel>
                 <Button variant="soft" color="gray">
-                  {t('action.cancel')}
+                  {"Cancel"}
                 </Button>
               </AlertDialog.Cancel>
               <Button color="red" loading={deleting} onClick={() => void handleDelete()}>
-                {t('workspace.actions.manage.deleteInstance')}
+                {"Delete instance"}
               </Button>
             </Flex>
           </AlertDialog.Content>

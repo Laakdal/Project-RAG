@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import { Box, Flex, Text, TextField, IconButton, ScrollArea } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -143,7 +143,6 @@ export function AgentBuilderSidebar(props: {
     webSearchAttached,
   } = props;
 
-  const { t } = useTranslation();
   const onPaletteDragBlocked = useCallback(() => {
     if (paletteDragBlockedMessage) onNotify(paletteDragBlockedMessage);
   }, [paletteDragBlockedMessage, onNotify]);
@@ -217,7 +216,7 @@ export function AgentBuilderSidebar(props: {
           </Box>
           <Box style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
             <Text size="2" weight="medium" style={{ color: 'var(--olive-12)', lineHeight: 1.25 }}>
-              {t('agentBuilder.palette')}
+              {"Palette"}
             </Text>
             <Text
               size="1"
@@ -233,15 +232,15 @@ export function AgentBuilderSidebar(props: {
             >
               {paletteStructureLocked
                 ? toolsetsOrgCredentialLocked
-                  ? t('agentBuilder.paletteViewOnlyServiceAccount')
-                  : t('agentBuilder.paletteViewerAuthenticateInTools')
-                : t('agentBuilder.paletteDragHint')}
+                  ? "View only. Palette and toolset setup are locked for this org service agent."
+                  : "View only. Canvas drag is off; sign in to toolsets under Tools."
+                : "Drag blocks to the canvas"}
             </Text>
           </Box>
         </Flex>
         <Box px="2" pb="2" style={{ background: 'var(--olive-1)' }}>
           <TextField.Root
-            placeholder={t('agentBuilder.searchNodes')}
+            placeholder={"Search nodes…"}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={paletteStructureLocked}
@@ -268,7 +267,7 @@ export function AgentBuilderSidebar(props: {
           }}
         >
           <SectionHeader
-            title={t('agentBuilder.aiModels')}
+            title={"AI models"}
             icon="auto_awesome"
             open={expanded.models}
             onToggle={() => toggle('models')}
@@ -307,7 +306,7 @@ export function AgentBuilderSidebar(props: {
           ) : null}
 
           <SectionHeader
-            title={t('agentBuilder.knowledge')}
+            title={"Knowledge"}
             icon="menu_book"
             open={expanded.knowledge}
             onToggle={() => toggle('knowledge')}
@@ -322,7 +321,7 @@ export function AgentBuilderSidebar(props: {
               {/* Apps group — drag the whole row to drop all connected apps as one node */}
               {appGroup ? (
                 <SidebarCategoryRow
-                  groupLabel={t('agentBuilder.groupApps')}
+                  groupLabel={"Apps"}
                   groupMaterialIcon="apps"
                   itemCount={configuredConnectors.length}
                   isExpanded={expanded['knowledge-apps'] ?? true}
@@ -331,7 +330,7 @@ export function AgentBuilderSidebar(props: {
                 >
                   {configuredConnectors.length === 0 ? (
                     <Text size="1" style={{ color: 'var(--olive-11)', padding: '4px 8px', fontStyle: 'italic' }}>
-                      {t('agentBuilder.noConnectors')}
+                      {"No connectors configured"}
                     </Text>
                   ) : (
                     connectorTypeEntries.map(([connectorTypeLabel, { instances, icon }]) => {
@@ -387,7 +386,7 @@ export function AgentBuilderSidebar(props: {
               {/* Collections group — drag the whole row to drop all KBs as one node */}
               {kbGroup ? (
                 <SidebarCategoryRow
-                  groupLabel={t('agentBuilder.groupCollections')}
+                  groupLabel={"Collections"}
                   groupMaterialIcon="folder"
                   itemCount={kbIndividuals.length}
                   isExpanded={expanded['knowledge-collections'] ?? true}
@@ -396,7 +395,7 @@ export function AgentBuilderSidebar(props: {
                 >
                   {kbIndividuals.length === 0 ? (
                     <Text size="1" style={{ color: 'var(--olive-11)', padding: '4px 8px', fontStyle: 'italic' }}>
-                      {t('agentBuilder.noCollections')}
+                      {"No collections available"}
                     </Text>
                   ) : (
                     kbIndividuals.map((t) => (
@@ -424,7 +423,7 @@ export function AgentBuilderSidebar(props: {
           ) : null}
 
           <SectionHeader
-            title={t('agentBuilder.tools')}
+            title={"Tools"}
             icon="handyman"
             open={expanded.tools}
             onToggle={() => toggle('tools')}
@@ -465,7 +464,6 @@ function SectionHeader({
   open: boolean;
   onToggle: () => void;
 }) {
-  const { t } = useTranslation();
   return (
     <Flex
       align="start"
@@ -526,7 +524,7 @@ function SectionHeader({
           e.stopPropagation();
           onToggle();
         }}
-        aria-label={open ? t('agentBuilder.collapse') : t('agentBuilder.expand')}
+        aria-label={open ? "Collapse" : "Expand"}
         style={{ flexShrink: 0 }}
       >
         <MaterialIcon name={open ? 'expand_less' : 'expand_more'} size={18} color="var(--olive-11)" />

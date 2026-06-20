@@ -1,9 +1,7 @@
 'use client';
 
-import type { TFunction } from 'i18next';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Button, Callout, Flex, Switch, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ThemeableAssetIcon } from '@/app/components/ui/themeable-asset-icon';
 import { WorkspaceRightPanel } from '@/app/(main)/workspace/components/workspace-right-panel';
@@ -164,7 +162,6 @@ export function ModelConfigDialog({
   onClose,
   onSaved,
 }: ModelConfigDialogProps) {
-  const { t } = useTranslation();
   const [fields, setFields] = useState<AIModelProviderField[]>([]);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
@@ -304,7 +301,7 @@ export function ModelConfigDialog({
         const shouldAutoDefault = existingModelsCount === 0;
         if (provider.providerId === 'sentenceTransformers') {
           toast.info(
-            t('workspace.aiModels.toastSentenceTransformerDownloading'),
+            "The model may take a few minutes to become available as it downloads in the background",
             { duration: 8000 }
           );
         }
@@ -344,22 +341,22 @@ export function ModelConfigDialog({
         e?.response?.data?.error?.message ??
         e?.response?.data?.message ??
         e?.message ??
-        t('workspace.aiModels.configSaveErrorFallback');
+        "Failed to save model configuration";
       setError(msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const capLabel = capability ? aiModelsCapabilityLabel(t, capability) : '';
+  const capLabel = capability ? aiModelsCapabilityLabel(capability) : '';
 
   const headerTitle = useMemo(() => {
     const name = provider?.name ?? '';
     if (mode === 'add') {
-      return t('workspace.aiModels.configPanelTitleAdd', { provider: name, capability: capLabel }).trim();
+      return (`Add ${name} ${capLabel}`).trim();
     }
-    return t('workspace.aiModels.configPanelTitleEdit', { provider: name, capability: capLabel }).trim();
-  }, [mode, provider?.name, capLabel, t]);
+    return (`Edit ${name} ${capLabel}`).trim();
+  }, [mode, provider?.name, capLabel]);
 
   const headerIcon = useMemo(() => {
     if (!provider?.iconPath) return undefined;
@@ -389,7 +386,7 @@ export function ModelConfigDialog({
         variant="ghost"
         color="gray"
         size="2"
-        aria-label={t('workspace.aiModels.configDocsOpenLabel')}
+        aria-label={"Open AI models documentation"}
         style={{ cursor: 'pointer', gap: 6 }}
         onClick={() =>
           window.open(`${EXTERNAL_LINKS.documentation}ai-models/overview`, '_blank', 'noopener,noreferrer')
@@ -398,7 +395,7 @@ export function ModelConfigDialog({
         <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
       </Button>
     ),
-    [t]
+    []
   );
 
   return (
@@ -410,13 +407,13 @@ export function ModelConfigDialog({
       title={headerTitle}
       icon={headerIcon}
       headerActions={headerActions}
-      primaryLabel={mode === 'add' ? t('workspace.aiModels.configAddModel') : t('workspace.aiModels.configUpdateModel')}
-      secondaryLabel={t('workspace.aiModels.cancel')}
+      primaryLabel={mode === 'add' ? "Add Model" : "Update Model"}
+      secondaryLabel={"Cancel"}
       primaryLoading={saving}
       primaryDisabled={primaryBlocked}
       primaryTooltip={
         !formValid && !saving && Boolean(provider) && Boolean(capability)
-          ? t('workspace.aiModels.configFillRequiredTooltip')
+          ? "Fill in all required fields"
           : undefined
       }
       onPrimaryClick={() => {
@@ -439,24 +436,23 @@ export function ModelConfigDialog({
 }
 
 function resolveConfigInfoMessage(
-  t: TFunction,
   capability: string | null,
   providerName: string,
   capLabel: string
 ): string {
   if (!capability) {
-    return t('workspace.aiModels.configInfoNoCapability', { providerName });
+    return `Configure your model to enable AI capabilities. Enter your ${providerName} API credentials to get started.`;
   }
   if (capability === 'text_generation') {
-    return t('workspace.aiModels.configInfoTextGeneration', { providerName });
+    return `Configure your LLM model to enable AI capabilities in your application. Enter your ${providerName} API credentials to get started.`;
   }
   if (capability === 'embedding') {
-    return t('workspace.aiModels.configInfoEmbedding', { providerName });
+    return `Configure your embedding model for search and retrieval. Enter your ${providerName} API credentials to get started.`;
   }
   if (capability === 'image_generation') {
-    return t('workspace.aiModels.configInfoImageGeneration', { providerName });
+    return `Configure your image generation model. Enter your ${providerName} API credentials to get started.`;
   }
-  return t('workspace.aiModels.configInfoFallback', { capLabel, providerName });
+  return `Configure your ${capLabel} model to enable AI capabilities in your application. Enter your ${providerName} API credentials to get started.`;
 }
 
 function ModelConfigFormBody({
@@ -478,7 +474,6 @@ function ModelConfigFormBody({
   error: string | null;
   onFieldChange: (name: string, value: unknown) => void;
 }) {
-  const { t } = useTranslation();
   const instanceField = useMemo(
     () => fields.find((f) => f.name === 'modelFriendlyName') ?? null,
     [fields]
@@ -502,7 +497,7 @@ function ModelConfigFormBody({
     [fields]
   );
 
-  const section1Title = t('workspace.aiModels.configSectionCapabilityConfig', { capability: capLabel });
+  const section1Title = `${capLabel} Configuration`;
 
   if (fields.length === 0) {
     return (
@@ -534,7 +529,7 @@ function ModelConfigFormBody({
             </Callout.Icon>
             <Callout.Text>
               <Text size="2" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.aiModels.configDefaultModelNotice', { modelName: provider.modelName })}
+                {`"${provider.modelName}" will be used by the system by default.`}
               </Text>
             </Callout.Text>
           </Callout.Root>
@@ -545,7 +540,7 @@ function ModelConfigFormBody({
             </Callout.Icon>
             <Callout.Text>
               <Text size="2" style={{ color: 'var(--gray-11)' }}>
-                {t('workspace.aiModels.configNoConfigRequired')}
+                {"No configuration required for this provider."}
               </Text>
             </Callout.Text>
           </Callout.Root>
@@ -560,11 +555,11 @@ function ModelConfigFormBody({
   }
 
   const providerName =
-    provider?.name ?? t('workspace.aiModels.configInfoPlaceholderProvider');
+    provider?.name ?? "provider";
   const infoMessage =
     provider && capability
-      ? resolveConfigInfoMessage(t, capability, provider.name, capLabel)
-      : resolveConfigInfoMessage(t, null, providerName, capLabel);
+      ? resolveConfigInfoMessage(capability, provider.name, capLabel)
+      : resolveConfigInfoMessage(null, providerName, capLabel);
 
   const boolValue = (v: unknown) =>
     typeof v === 'boolean' ? v : v === 'true' ? true : v === 'false' ? false : Boolean(v);
@@ -598,15 +593,15 @@ function ModelConfigFormBody({
       <Box style={CARD_STYLE}>
         <Flex direction="column" gap="3">
           <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.aiModels.configSectionModelConfiguration')}
+            {"Model Configuration"}
           </Text>
           {provider ? (
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-                {t('workspace.aiModels.configProviderType')}
+                {"Provider Type"}
               </Text>
               <Box style={READONLY_ROW_STYLE}>
-                <Text size="2">{t('workspace.aiModels.configProviderApiRow', { name: provider.name })}</Text>
+                <Text size="2">{`${provider.name} API`}</Text>
               </Box>
             </Flex>
           ) : null}
@@ -627,7 +622,7 @@ function ModelConfigFormBody({
         <Box style={CARD_STYLE}>
           <Flex direction="column" gap="3">
             <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.aiModels.configSectionCompatibilities')}
+              {"Model Compatibilities"}
             </Text>
             <Flex direction="column" gap="2">
               {compatFields.map((field) => (

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { buildChatHref } from '@/chat/build-chat-url';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { Box, Flex } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { Conversation } from '@/chat/types';
 import { useChatStore, isConversationStreamingInScope } from '@/chat/store';
 import { ChatApi } from '@/chat/api';
@@ -320,7 +319,6 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
  * return to a new chat that's still generating in the background.
  */
 export function GeneratingTitleItem({ slotId }: { slotId: string }) {
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentConversationId = searchParams?.get('conversationId') ?? null;
@@ -366,8 +364,8 @@ export function GeneratingTitleItem({ slotId }: { slotId: string }) {
       onClick={handleClick}
       label={
         <span className="generating-shimmer">
-          <span className="generating-shimmer-base">{t('chat.generatingTitle')}</span>
-          <span className="generating-shimmer-overlay" aria-hidden="true">{t('chat.generatingTitle')}</span>
+          <span className="generating-shimmer-base">{"Generating Chat…"}</span>
+          <span className="generating-shimmer-overlay" aria-hidden="true">{"Generating Chat…"}</span>
         </span>
       }
       textColor="var(--slate-11)"
@@ -380,7 +378,6 @@ export function GeneratingTitleItem({ slotId }: { slotId: string }) {
  * Empty state — prompts user to start a new chat.
  */
 export function StartChatButton({ onClick }: { onClick: () => void }) {
-  const { t } = useTranslation();
   return (
     <SidebarItem
       icon={
@@ -389,7 +386,7 @@ export function StartChatButton({ onClick }: { onClick: () => void }) {
           color="var(--accent-11)"
         />
       }
-      label={t('chat.startChat')}
+      label={"Start a chat"}
       onClick={onClick}
       textColor="var(--accent-11)"
     />

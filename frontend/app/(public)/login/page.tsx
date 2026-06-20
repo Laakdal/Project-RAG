@@ -8,10 +8,6 @@ import AuthHero from '../components/auth-hero';
 import FormPanel from '../components/form-panel';
 import { SingleProvider } from '../forms';
 
-/**
- * Login — email + password only. Accounts are created by an admin; there is no
- * self-service sign-up or password reset.
- */
 export default function LoginPage() {
   const splitLayout = useAuthWideLayout();
 

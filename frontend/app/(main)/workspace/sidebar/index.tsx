@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+
 import { Flex } from '@radix-ui/themes';
 import { SidebarBase } from '@/app/components/sidebar';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -13,27 +13,27 @@ import { CollapsibleSection } from './collapsible-section';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 
 // ========================================
-// Route constants (labels resolved at render via i18n)
+// Route constants
 // ========================================
 
 interface NavItem {
   icon: string;
-  labelKey: string;
+  label: string;
   route: string;
   adminOnly?: boolean;
 }
 
 const OVERVIEW_ITEMS: NavItem[] = [
-  { icon: 'business', labelKey: 'workspace.sidebar.nav.general', route: '/workspace/general' },
+  { icon: 'business', label: "General", route: '/workspace/general' },
 ];
 
 const PEOPLE_SUB_ITEMS = [
-  { labelKey: 'workspace.sidebar.nav.users', route: '/workspace/users', adminOnly: true },
-  { labelKey: 'workspace.sidebar.nav.teams', route: '/workspace/teams' },
+  { label: "Users", route: '/workspace/users', adminOnly: true },
+  { label: "Teams", route: '/workspace/teams' },
 ];
 
 const PERSONAL_ITEMS: NavItem[] = [
-  { icon: 'person', labelKey: 'workspace.sidebar.nav.profile', route: '/workspace/profile' },
+  { icon: 'person', label: "Profile", route: '/workspace/profile' },
 ];
 
 const PEOPLE_ROUTES = PEOPLE_SUB_ITEMS.map((item) => item.route);
@@ -50,7 +50,6 @@ const PEOPLE_ROUTES = PEOPLE_SUB_ITEMS.map((item) => item.route);
  */
 export default function WorkspaceSidebar() {
   const rawPathname = usePathname();
-  const { t } = useTranslation();
   const isAdmin = useUserStore(selectIsAdmin);
 
   // Normalize trailing slash (trailingSlash: true in next.config)
@@ -90,18 +89,18 @@ export default function WorkspaceSidebar() {
         {/* ── Back to app ── */}
         <WorkspaceSidebarItem
           icon={<MaterialIcon name="arrow_back" size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-          label={t('workspace.sidebar.backToApp')}
+          label={"Back to app"}
           href="/chat/"
         />
 
         {/* ── Overview section ── */}
         <Flex direction="column" gap="1">
-          <SectionHeader title={t('workspace.sidebar.sections.overview')} />
+          <SectionHeader title={"Overview"} />
           {visibleOverviewItems.map((item) => (
             <WorkspaceSidebarItem
               key={item.route}
               icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-              label={t(item.labelKey)}
+              label={item.label}
               href={`${item.route}/`}
               isActive={isActive(item.route)}
             />
@@ -111,7 +110,7 @@ export default function WorkspaceSidebar() {
           {visiblePeopleItems.length > 0 && (
             <CollapsibleSection
               icon="groups"
-              label={t('workspace.sidebar.sections.people')}
+              label={"People"}
               isExpanded={isPeopleExpanded}
               onToggle={() => setIsPeopleExpanded((prev) => !prev)}
               hasActiveChild={isPeopleChildActive}
@@ -119,7 +118,7 @@ export default function WorkspaceSidebar() {
               {visiblePeopleItems.map((item) => (
                 <WorkspaceSidebarItem
                   key={item.route}
-                  label={t(item.labelKey)}
+                  label={item.label}
                   href={`${item.route}/`}
                   isActive={isActive(item.route)}
                   paddingLeft={36}
@@ -131,12 +130,12 @@ export default function WorkspaceSidebar() {
 
         {/* ── Personal section ── */}
         <Flex direction="column" gap="1">
-          <SectionHeader title={t('workspace.sidebar.sections.personal')} />
+          <SectionHeader title={"Personal"} />
           {PERSONAL_ITEMS.map((item) => (
             <WorkspaceSidebarItem
               key={item.route}
               icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-              label={t(item.labelKey)}
+              label={item.label}
               href={`${item.route}/`}
               isActive={isActive(item.route)}
             />

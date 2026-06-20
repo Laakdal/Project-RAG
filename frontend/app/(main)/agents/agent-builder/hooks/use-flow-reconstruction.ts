@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Node, Edge } from '@xyflow/react';
 import {
   truncateText,
@@ -46,7 +45,6 @@ export function useAgentBuilderReconstruction(): {
     knowledgeBases: { id: string; name: string; connectorId?: string }[]
   ) => { nodes: Node<FlowNodeData>[]; edges: Edge[] };
 } {
-  const { t } = useTranslation();
   const reconstructFlowFromAgent = useCallback(
     (agent: AgentReconstructionSource, models: unknown[], tools: unknown[], knowledgeBases: { id: string; name: string; connectorId?: string }[]) => {
       const nodes: Node<FlowNodeData>[] = [];
@@ -199,10 +197,10 @@ export function useAgentBuilderReconstruction(): {
         data: {
           id: 'chat-input-1',
           type: 'user-input',
-          label: t('agentBuilder.nodeLabelChatInput'),
-          description: t('agentBuilder.nodeDescUserInputFlow'),
+          label: "Chat input",
+          description: "Receives user messages and queries",
           icon: 'chat',
-          config: { placeholder: t('agentBuilder.chatInputPlaceholder') },
+          config: { placeholder: "Type your message…" },
           inputs: [],
           outputs: ['message'],
           isConfigured: true,
@@ -244,7 +242,7 @@ export function useAgentBuilderReconstruction(): {
           const isKnowledgeBase = isKB || hasKBIds;
 
           if (isKnowledgeBase) {
-            const kbName = knowledgeItem.name || knowledgeItem.displayName || t('agentBuilder.nodeCollectionFallbackName');
+            const kbName = knowledgeItem.name || knowledgeItem.displayName || "Collection";
             const kbDisplayName = knowledgeItem.displayName || knowledgeItem.name || kbName;
             const kbId = kbIdsInRecordGroups[0] || recordGroups[0] || knowledgeItem._key || '';
 
@@ -264,7 +262,7 @@ export function useAgentBuilderReconstruction(): {
                 id: nodeId,
                 type: `kb-${finalKbId}`,
                 label: truncateText(finalKbName, 18),
-                description: t('agentBuilder.nodeKbDescRetrieval'),
+                description: "Collection for contextual information retrieval",
                 icon: 'folder',
                 config: {
                   kbId: finalKbId,
@@ -289,7 +287,7 @@ export function useAgentBuilderReconstruction(): {
             const appDisplayName = knowledgeItem.displayName || knowledgeItem.name || appName;
 
             const displayName =
-              appDisplayName || (connectorId.split('/').pop() || connectorId) || t('agentBuilder.knowledgeSourceFallback');
+              appDisplayName || (connectorId.split('/').pop() || connectorId) || "Knowledge Source";
             const normalizedAppSlug = displayName.toLowerCase().replace(/\s+/g, '');
             const appKnowledgeType = knowledgeItem.type?.toLowerCase().replace(/\s+/g, '') || normalizedAppSlug;
 
@@ -303,7 +301,7 @@ export function useAgentBuilderReconstruction(): {
                 id: nodeId,
                 type: `app-${normalizedAppSlug}`,
                 label: normalizeDisplayName(displayName),
-                description: t('agentBuilder.appKnowledgeAccessDescription', { name: displayName }),
+                description: `Access ${displayName} knowledge and context`,
                 icon: 'cloud',
                 config: {
                   connectorInstanceId: connectorId,
@@ -371,7 +369,7 @@ export function useAgentBuilderReconstruction(): {
             matchingModel?.modelFriendlyName ||
             modelConfigObj?.modelName ||
             modelConfigString ||
-            t('agentBuilder.placeholderAiModel');
+            "AI Model";
           const modelFriendlyName = matchingModel?.modelFriendlyName;
 
           nodeCounter += 1;
@@ -388,9 +386,7 @@ export function useAgentBuilderReconstruction(): {
                 matchingModel?.modelName ?? modelConfigObj?.modelName ?? modelConfigString
               ),
               label: displayName.trim(),
-              description: t('agentBuilder.llmLanguageModelSuffix', {
-                provider: formattedProvider(modelConfigObj?.provider || 'AI'),
-              }),
+              description: `${formattedProvider(modelConfigObj?.provider || 'AI')} language model`,
               icon: 'psychology',
               config: {
                 modelKey: matchingModel?.modelKey || modelConfigObj?.modelKey || modelConfigString || modelConfigObj?.modelName || '',
@@ -413,7 +409,7 @@ export function useAgentBuilderReconstruction(): {
       } else if (modelCatalog.length > 0) {
         const defaultModel = selectPreferredModel(modelCatalog);
         const displayName =
-          defaultModel.modelFriendlyName || defaultModel.modelName || t('agentBuilder.placeholderAiModel');
+          defaultModel.modelFriendlyName || defaultModel.modelName || "AI Model";
         nodeCounter += 1;
         const nodeId = `llm-${nodeCounter}`;
         const llmNode: Node<FlowNodeData> = {
@@ -424,9 +420,7 @@ export function useAgentBuilderReconstruction(): {
             id: nodeId,
             type: llmNodeTypeSlug(defaultModel.provider, defaultModel.modelKey, defaultModel.modelName),
             label: displayName.trim(),
-            description: t('agentBuilder.llmLanguageModelSuffix', {
-              provider: formattedProvider(defaultModel.provider || 'AI'),
-            }),
+            description: `${formattedProvider(defaultModel.provider || 'AI')} language model`,
             icon: 'psychology',
             config: {
               modelKey: defaultModel.modelKey,
@@ -456,7 +450,7 @@ export function useAgentBuilderReconstruction(): {
       if (hasToolsets && agent.toolsets) {
         agent.toolsets.forEach((toolset: AgentToolset, index: number) => {
           const toolsetName = toolset.name || '';
-          const toolsetDisplayName = toolset.displayName || toolset.name || t('agentBuilder.toolsetDefaultName');
+          const toolsetDisplayName = toolset.displayName || toolset.name || "Toolset";
           const toolsetInstanceName = toolset.instanceName?.trim();
           const toolsetType = toolset.type || toolsetName;
           const toolsetInstanceId = toolset.instanceId as string | undefined;
@@ -466,7 +460,7 @@ export function useAgentBuilderReconstruction(): {
           const toolsetTools: AgentToolDefinition[] = toolset.tools || [];
 
           const normalizeTool = (tool: AgentToolDefinition) => {
-            const toolName = tool.name || tool.fullName?.split('.').pop() || t('agentBuilder.placeholderTool');
+            const toolName = tool.name || tool.fullName?.split('.').pop() || "Tool";
             const toolFullName = tool.fullName || `${toolsetName}.${toolName}`;
 
             const matchingTool = toolCatalog.find(
@@ -482,7 +476,7 @@ export function useAgentBuilderReconstruction(): {
               description:
                 tool.description ||
                 matchingTool?.description ||
-                t('agentBuilder.toolInlineSuffix', { name: toolsetDisplayName }),
+                `${toolsetDisplayName} tool`,
               toolsetName,
             };
           };
@@ -533,10 +527,7 @@ export function useAgentBuilderReconstruction(): {
               id: nodeId,
               type: `toolset-${toolsetName}`,
               label: normalizeDisplayName(nodeHeaderLabel),
-              description: t('agentBuilder.toolsetWithToolCount', {
-                name: toolsetDisplayName,
-                count: toolsForNode.length,
-              }),
+              description: `${toolsetDisplayName} with ${toolsForNode.length} tools`,
               icon: iconPath,
               category: 'toolset',
               config: {
@@ -583,9 +574,9 @@ export function useAgentBuilderReconstruction(): {
           const iconPath = `/icons/connectors/${appName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}.svg`;
 
           const normalizedTools = appTools.map((tool: CatalogEntry) => ({
-            name: tool.tool_name || tool.full_name?.split('.').pop() || t('agentBuilder.placeholderTool'),
+            name: tool.tool_name || tool.full_name?.split('.').pop() || "Tool",
             fullName: tool.full_name || `${appName}.${tool.tool_name}`,
-            description: tool.description || t('agentBuilder.toolInlineSuffix', { name: appName }),
+            description: tool.description || `${appName} tool`,
             toolsetName: appName,
           }));
 
@@ -617,10 +608,7 @@ export function useAgentBuilderReconstruction(): {
               id: nodeId,
               type: `toolset-${appName}`,
               label: normalizeDisplayName(appName),
-              description: t('agentBuilder.toolsetWithToolCount', {
-                name: appName,
-                count: normalizedTools.length,
-              }),
+              description: `${appName} with ${normalizedTools.length} tools`,
               icon: iconPath,
               category: 'toolset',
               config: {
@@ -672,7 +660,7 @@ export function useAgentBuilderReconstruction(): {
             id: nodeId,
             type: 'web-search',
             label: agent.webSearch.providerLabel || agent.webSearch.provider,
-            description: t('Web Search'),
+            description: "Web Search",
             icon: 'public',
             category: 'tools',
             config: {
@@ -699,13 +687,13 @@ export function useAgentBuilderReconstruction(): {
         data: {
           id: 'agent-core-1',
           type: 'agent-core',
-          label: normalizeDisplayName(t('agentBuilder.coreNodeTitle')),
-          description: t('agentBuilder.agentCoreFlowDescription'),
+          label: normalizeDisplayName("Agent"),
+          description: "Central orchestrator and decision engine",
           icon: 'auto_awesome',
           config: {
-            systemPrompt: agent.systemPrompt || t('agentBuilder.defaultSystemPrompt'),
+            systemPrompt: agent.systemPrompt || "You are a helpful assistant.",
             instructions: agent.instructions ?? '',
-            startMessage: agent.startMessage || t('agentBuilder.defaultStartMessage'),
+            startMessage: agent.startMessage || "Hello! I am ready to assist you. How can I help you today?",
             routing: 'auto',
             allowMultipleLLMs: true,
           },
@@ -724,8 +712,8 @@ export function useAgentBuilderReconstruction(): {
         data: {
           id: 'chat-response-1',
           type: 'chat-response',
-          label: normalizeDisplayName(t('agentBuilder.nodeLabelChatOutput')),
-          description: t('agentBuilder.nodeDescChatResponseFlow'),
+          label: normalizeDisplayName("Chat output"),
+          description: "Formatted output delivery to users",
           icon: 'reply',
           config: { format: 'text' },
           inputs: ['response'],
@@ -815,7 +803,7 @@ export function useAgentBuilderReconstruction(): {
 
       return { nodes, edges };
     },
-    [t]
+    []
   );
 
   return { reconstructFlowFromAgent };

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { Flex, Box, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import type { QueryMode, QueryModeConfig } from '@/chat/types';
@@ -26,7 +25,6 @@ interface QueryModePanelProps {
  * matching the Figma "Different Modes of Query" design.
  */
 export function QueryModePanel({ activeMode, onSelect, hideHeader = false }: QueryModePanelProps) {
-  const { t } = useTranslation();
   return (
     <Flex direction="column" gap="4">
       {/* Heading */}
@@ -36,7 +34,7 @@ export function QueryModePanel({ activeMode, onSelect, hideHeader = false }: Que
           weight="medium"
           style={{ color: 'var(--slate-12)' }}
         >
-          {t('chat.differentModesOfQuery')}
+          {"Different Modes of Query"}
         </Text>
       )}
 
@@ -103,7 +101,6 @@ interface QueryModeItemProps {
 
 function QueryModeItem({ mode, isActive, onSelect }: QueryModeItemProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { t } = useTranslation();
   const isDisabled = !mode.enabled;
 
   return (
@@ -136,11 +133,11 @@ function QueryModeItem({ mode, isActive, onSelect }: QueryModeItemProps) {
             weight="medium"
             style={{ color: isActive ? mode.colors.fg : mode.colors.fg }}
           >
-            {t(`chat.queryModes.${mode.id}.label`, { defaultValue: mode.label })}
+            {mode.label}
           </Text>
         </Flex>
         <Text size="1" style={{ color: 'var(--slate-11)' }}>
-          {t(`chat.queryModes.${mode.id}.description`, { defaultValue: mode.description })}
+          {mode.description}
         </Text>
       </Flex>
 

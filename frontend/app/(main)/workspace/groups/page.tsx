@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Flex, Text, Badge } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useToastStore } from '@/lib/store/toast-store';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { formatDate } from '@/lib/utils/formatters';
@@ -41,7 +40,6 @@ const GROUPS_FILTER_CHIPS: FilterChipConfig[] = [
 // ========================================
 
 function GroupsPageContent() {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -269,15 +267,8 @@ function GroupsPageContent() {
     [router]
   );
 
-  // ── Filter chips with translated labels ──
-  const filterChips = useMemo<FilterChipConfig[]>(
-    () =>
-      GROUPS_FILTER_CHIPS.map((chip) => ({
-        ...chip,
-        label: t(`workspace.filters.${chip.key}`) || chip.label,
-      })),
-    [t]
-  );
+  // ── Filter chips ──
+  const filterChips = GROUPS_FILTER_CHIPS;
 
   // ── Render individual filter components ──
   const renderFilter = useCallback(
@@ -326,7 +317,7 @@ function GroupsPageContent() {
     () => [
       {
         key: 'name',
-        label: t('workspace.groups.columns.name'),
+        label: "Name",
         minWidth: '220px',
         render: (group) => (
           <AvatarCell name={group.name} />
@@ -334,7 +325,7 @@ function GroupsPageContent() {
       },
       {
         key: 'users',
-        label: t('workspace.groups.columns.users'),
+        label: "Users",
         width: '80px',
         render: (group) => (
           <Badge variant="soft" color="gray" size="1">
@@ -344,7 +335,7 @@ function GroupsPageContent() {
       },
       {
         key: 'createdOn',
-        label: t('workspace.groups.columns.createdOn'),
+        label: "Created on",
         width: '140px',
         render: (group) => (
           <Text size="2" style={{ color: 'var(--slate-11)' }}>
@@ -353,7 +344,7 @@ function GroupsPageContent() {
         ),
       },
     ],
-    [t]
+    []
   );
 
   // ── Row actions ────────────
@@ -363,33 +354,33 @@ function GroupsPageContent() {
       const actions: RowAction[] = [
         {
           icon: 'group',
-          label: t('workspace.groups.actions.viewGroup'),
+          label: "View Group",
           onClick: () => {
             navigateToDetailPanel(group);
           },
         },
         {
           icon: 'delete',
-          label: t('workspace.groups.actions.delete'),
+          label: "Delete",
           variant: 'danger',
           separatorBefore: true,
           disabled: systemGroup,
           tooltip: systemGroup
-            ? t('workspace.groups.actions.deleteSystemTooltip', 'Only custom groups can be deleted')
+            ? 'Only custom groups can be deleted'
             : undefined,
           onClick: async () => {
             try {
               await GroupsApi.deleteGroup(group._id);
               addToast({
                 variant: 'success',
-                title: t('workspace.groups.actions.deleteSuccess', 'Group deleted'),
+                title: "Group deleted",
                 duration: 3000,
               });
               fetchGroups();
             } catch {
               addToast({
                 variant: 'error',
-                title: t('workspace.groups.actions.deleteError', 'Failed to delete group'),
+                title: "Failed to delete group",
                 duration: 5000,
               });
             }
@@ -398,7 +389,7 @@ function GroupsPageContent() {
       ];
       return <EntityRowActionMenu actions={actions} />;
     },
-    [t, navigateToDetailPanel, fetchGroups, addToast]
+    [navigateToDetailPanel, fetchGroups, addToast]
   );
 
   // ── Empty state ──
@@ -429,12 +420,12 @@ function GroupsPageContent() {
     >
       {/* Header */}
       <EntityPageHeader
-        title={t('workspace.groups.title')}
-        subtitle={t('workspace.groups.subtitle')}
-        searchPlaceholder={t('workspace.groups.searchPlaceholder')}
+        title={"Groups"}
+        subtitle={"Create and manage groups to control access and permissions"}
+        searchPlaceholder={"Search..."}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        ctaLabel={t('workspace.groups.createGroup')}
+        ctaLabel={"Create Group"}
         ctaIcon="group_add"
         onCtaClick={navigateToCreatePanel}
       />
@@ -450,9 +441,9 @@ function GroupsPageContent() {
         {isEmpty ? (
           <EntityEmptyState
             icon="group"
-            title={t('workspace.groups.emptyTitle')}
-            description={t('workspace.groups.emptyDescription')}
-            ctaLabel={t('workspace.groups.createGroup')}
+            title={"You've not created any groups yet"}
+            description={"Groups can make it easier to manage access and permissions across the workspace."}
+            ctaLabel={"Create Group"}
             ctaIcon="group_add"
             onCtaClick={navigateToCreatePanel}
           />
@@ -479,10 +470,10 @@ function GroupsPageContent() {
               >
                 <MaterialIcon name="filter_list_off" size={32} color="var(--slate-8)" />
                 <Text size="2" weight="medium" style={{ color: 'var(--slate-11)' }}>
-                  {t('workspace.groups.noFilterResults', 'No groups match the applied filters')}
+                  {"No groups match the applied filters"}
                 </Text>
                 <Text size="1" style={{ color: 'var(--slate-9)' }}>
-                  {t('workspace.groups.noFilterResultsHint', 'Try adjusting or clearing the filters above')}
+                  {"Try adjusting or clearing the filters above"}
                 </Text>
               </Flex>
             ) : (

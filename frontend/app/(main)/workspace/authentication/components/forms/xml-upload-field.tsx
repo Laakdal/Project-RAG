@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Button, Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { FieldLabel } from './field-label';
@@ -93,8 +92,14 @@ interface XmlUploadFieldProps {
   onPopulate: (values: Record<string, string>) => void;
 }
 
+const SAML_ERROR_MESSAGES: Record<SamlErrorKind, string> = {
+  'malformed': 'Could not parse SAML metadata from this file. Check that it is a valid IdP metadata XML.',
+  'not-saml': 'The uploaded file does not appear to be SAML metadata.',
+  'invalid-url': 'The SSO entry point URL in the metadata is not a valid HTTP/HTTPS URL.',
+  'invalid-cert': 'The X.509 certificate in the metadata could not be parsed.',
+};
+
 export function XmlUploadField({ field, onPopulate }: XmlUploadFieldProps) {
-  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,20 +118,14 @@ export function XmlUploadField({ field, onPopulate }: XmlUploadFieldProps) {
       const result = parseSamlMetadata(text);
       if (result.errorKind) {
         setFileName(null);
-        const errorKey = {
-          'malformed': 'workspace.authentication.xmlUpload.parseError',
-          'not-saml': 'workspace.authentication.xmlUpload.notSamlError',
-          'invalid-url': 'workspace.authentication.xmlUpload.invalidUrlError',
-          'invalid-cert': 'workspace.authentication.xmlUpload.invalidCertError',
-        }[result.errorKind];
-        setError(t(errorKey));
+        setError(SAML_ERROR_MESSAGES[result.errorKind]);
         return;
       }
       if (result.values) onPopulate(result.values);
     };
     reader.onerror = () => {
       setFileName(null);
-      setError(t('workspace.authentication.xmlUpload.readError'));
+      setError("Failed to read the file.");
     };
     reader.readAsText(file);
 

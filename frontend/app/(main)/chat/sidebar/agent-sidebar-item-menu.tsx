@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { DropdownMenu, Flex, Text, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
 import type { ViewAgentTooltipVariant } from './agent-sidebar-row-access';
 
 interface AgentSidebarItemMenuProps {
@@ -33,11 +32,10 @@ export function AgentSidebarItemMenu({
   onView,
   onDelete,
 }: AgentSidebarItemMenuProps) {
-  const { t } = useTranslation();
   const viewTooltip = showViewAgent
     ? viewAgentTooltipVariant === 'service_account'
-      ? t('chat.viewAgentTooltipServiceAccount')
-      : t('chat.viewAgentTooltipIndividual')
+      ? "View-only: this organization service agent is locked. You can look around, but nothing here can be edited or reconfigured."
+      : "View-only: you can't change this agent's configuration, but you can connect tools with your own sign-in so they work in your chats with this agent."
     : '';
   const [isOpen, setIsOpen] = useState(false);
   const [isMeatballHovered, setIsMeatballHovered] = useState(false);
@@ -61,7 +59,7 @@ export function AgentSidebarItemMenu({
           onClick={(e) => {
             e.stopPropagation();
           }}
-          aria-label={t('chat.agentListRowMenuAria')}
+          aria-label="Agent options"
           style={{
             appearance: 'none',
             border: 'none',
@@ -89,7 +87,7 @@ export function AgentSidebarItemMenu({
             <Tooltip content={viewTooltip} delayDuration={400}>
               <Flex align="center" gap="2" style={{ maxWidth: 280 }}>
                 <MaterialIcon name="visibility" size={16} color="var(--slate-11)" />
-                <Text size="2">{t('chat.viewAgent')}</Text>
+                <Text size="2">{"View agent"}</Text>
               </Flex>
             </Tooltip>
           </DropdownMenu.Item>
@@ -103,7 +101,7 @@ export function AgentSidebarItemMenu({
           >
             <Flex align="center" gap="2">
               <MaterialIcon name="edit" size={16} color="var(--slate-11)" />
-              <Text size="2">{t('chat.editAgent')}</Text>
+              <Text size="2">{"Edit agent"}</Text>
             </Flex>
           </DropdownMenu.Item>
         )}
@@ -118,7 +116,7 @@ export function AgentSidebarItemMenu({
             <Flex align="center" gap="2">
               <MaterialIcon name="delete" size={16} color="var(--red-11)" />
               <Text size="2" style={{ color: 'var(--red-11)' }}>
-                {t('chat.deleteAgent')}
+                {"Delete agent"}
               </Text>
             </Flex>
           </DropdownMenu.Item>

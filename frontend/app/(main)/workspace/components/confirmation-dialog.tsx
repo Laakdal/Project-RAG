@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { AlertDialog, Box, Button, Flex } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 
@@ -74,9 +73,8 @@ export function ConfirmationDialog({
   onConfirm,
   container,
 }: ConfirmationDialogProps) {
-  const { t } = useTranslation();
-  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
-  const resolvedConfirmLoadingLabel = confirmLoadingLabel ?? t('common.confirm');
+  const resolvedCancelLabel = cancelLabel ?? "Cancel";
+  const resolvedConfirmLoadingLabel = confirmLoadingLabel ?? "Confirm";
   return (
     <AlertDialog.Root open={open} onOpenChange={(v) => !isLoading && onOpenChange(v)}>
       <AlertDialog.Content
@@ -112,7 +110,7 @@ export function ConfirmationDialog({
               disabled={isLoading}
               style={{ cursor: isLoading ? 'not-allowed' : 'pointer' }}
             >
-              {hideConfirm ? t('common.close') : resolvedCancelLabel}
+              {hideConfirm ? "Close" : resolvedCancelLabel}
             </Button>
           </AlertDialog.Cancel>
           {!hideConfirm && (

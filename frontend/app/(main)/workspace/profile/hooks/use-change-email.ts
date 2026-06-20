@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { isValidEmail } from '@/lib/utils/validators';
 import { ProfileApi } from '../api';
 
@@ -25,7 +24,6 @@ export interface UseChangeEmailOptions {
 // ========================================
 
 export function useChangeEmail({ userId, onOpenChange, onSuccess }: UseChangeEmailOptions) {
-  const { t } = useTranslation();
   const [view, setView] = useState<ChangeEmailView>('form');
   const [newEmail, setNewEmail] = useState('');
   const [emailError, setEmailError] = useState<string | undefined>();
@@ -66,12 +64,12 @@ export function useChangeEmail({ userId, onOpenChange, onSuccess }: UseChangeEma
   const validateEmail = useCallback((): boolean => {
     const trimmed = newEmail.trim();
     if (!trimmed) {
-      setEmailError(t('form.required'));
+      setEmailError("This field is required");
       return false;
     }
     // Use the shared email validator
     if (!isValidEmail(trimmed)) {
-      setEmailError(t('form.invalidEmail'));
+      setEmailError("Invalid email address");
       return false;
     }
     setEmailError(undefined);

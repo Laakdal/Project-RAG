@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Badge,
   Box,
@@ -87,7 +86,6 @@ export function ActionSetupPanel({
   onNotify,
   onCreatedUserAuthNotice,
 }: ActionSetupPanelProps) {
-  const { t } = useTranslation();
   const panelBodyPortal = useContext(WorkspaceRightPanelBodyPortalContext);
   const toolsetType = registryRow?.name ?? '';
   const displayName = registryRow?.displayName || registryRow?.name || '';
@@ -212,11 +210,11 @@ export function ActionSetupPanel({
     if (!toolsetOAuthCallbackUrl) return;
     try {
       await navigator.clipboard.writeText(toolsetOAuthCallbackUrl);
-      onNotify?.(t('workspace.actions.redirectUriCopied'));
+      onNotify?.("Redirect URI copied");
     } catch {
-      setError(t('workspace.actions.manage.copyFailed'));
+      setError("Could not copy to the clipboard.");
     }
-  }, [onNotify, t, toolsetOAuthCallbackUrl]);
+  }, [onNotify, toolsetOAuthCallbackUrl]);
 
   const oauthRedirectCardShell = {
     padding: 16,
@@ -301,12 +299,12 @@ export function ActionSetupPanel({
           ...f,
           required: false,
           placeholder:
-            ln === 'clientsecret' ? t('workspace.actions.manage.secretPlaceholder') : f.placeholder,
+            ln === 'clientsecret' ? "Leave blank to keep the existing secret" : f.placeholder,
         };
       }
       return f;
     },
-    [oauthAppValue, showOAuthAppPicker, t]
+    [oauthAppValue, showOAuthAppPicker]
   );
 
   const runValidation = useCallback((): boolean => {
@@ -315,7 +313,7 @@ export function ActionSetupPanel({
     const next: Record<string, string> = {};
     const name = instanceName.trim();
     if (!name) {
-      next.instanceName = t('workspace.actions.errors.instanceNameRequired');
+      next.instanceName = "Enter an instance name.";
     }
 
     const upper = (authType || 'NONE').toUpperCase();
@@ -328,7 +326,7 @@ export function ActionSetupPanel({
       }
       const v = fieldValues[f.name];
       if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
-        next[f.name] = t('workspace.actions.validation.fieldRequired', { field: f.displayName });
+        next[f.name] = `${f.displayName} is required`;
       }
     }
 
@@ -337,15 +335,13 @@ export function ActionSetupPanel({
       (!showOAuthAppPicker || oauthAppValue === NEW_OAUTH_VALUE)
     ) {
       if (!oauthAppName.trim()) {
-        next.oauthAppName = t('workspace.actions.oauthAppNameRequired');
+        next.oauthAppName = "Enter a name for the new OAuth app.";
       }
       if (!schemaFieldsToRender.some((f) => f.name.toLowerCase() === 'clientid') && !clientId.trim()) {
-        next.clientId = t('workspace.actions.validation.fieldRequired', { field: t('workspace.actions.oauthClientId') });
+        next.clientId = "Client ID is required";
       }
       if (!schemaFieldsToRender.some((f) => f.name.toLowerCase() === 'clientsecret') && !clientSecret.trim()) {
-        next.clientSecret = t('workspace.actions.validation.fieldRequired', {
-          field: t('workspace.actions.oauthClientSecret'),
-        });
+        next.clientSecret = "Client secret is required";
       }
     }
 
@@ -384,12 +380,11 @@ export function ActionSetupPanel({
     oauthAppName,
     clientId,
     clientSecret,
-    t,
   ]);
 
   const handleSubmit = useCallback(async () => {
     if (schemaLoading) {
-      setError(t('agentBuilder.loadingSchema'));
+      setError("Loading schema…");
       return;
     }
     if (!runValidation()) {
@@ -451,7 +446,7 @@ export function ActionSetupPanel({
         });
       }
 
-      onNotify?.(t('workspace.actions.createSuccess'));
+      onNotify?.("Action instance created.");
       if (isOAuthType(upper)) {
         onCreatedUserAuthNotice?.();
       }
@@ -478,7 +473,6 @@ export function ActionSetupPanel({
     runValidation,
     schemaFieldsToRender,
     showOAuthAppPicker,
-    t,
     toolsetType,
     schemaLoading,
   ]);
@@ -504,7 +498,7 @@ export function ActionSetupPanel({
           color="gray"
           size="1"
           type="button"
-          aria-label={t('workspace.actions.documentation')}
+          aria-label={"Documentation"}
           onClick={() => window.open(docUrl, '_blank', 'noopener,noreferrer')}
           style={{ cursor: 'pointer' }}
         >
@@ -523,20 +517,20 @@ export function ActionSetupPanel({
     <WorkspaceRightPanel
       open={open && Boolean(registryRow)}
       onOpenChange={onOpenChange}
-      title={t('workspace.actions.configPanelTitle')}
+      title={"Action configuration"}
       icon={panelIcon}
       headerActions={headerActions}
-      primaryLabel={t('action.create')}
-      secondaryLabel={t('action.cancel')}
+      primaryLabel={"Create"}
+      secondaryLabel={"Cancel"}
       primaryLoading={saving}
       primaryDisabled={saving}
-      primaryTooltip={saving ? t('action.saving') : undefined}
+      primaryTooltip={saving ? "Saving..." : undefined}
       onPrimaryClick={() => void handleSubmit()}
       onSecondaryClick={() => onOpenChange(false)}
     >
       {schemaLoading ? (
         <Flex align="center" justify="center" py="8" style={{ width: '100%' }}>
-          <LottieLoader variant="loader" size={48} showLabel label={t('agentBuilder.loadingSchema')} />
+          <LottieLoader variant="loader" size={48} showLabel label={"Loading schema…"} />
         </Flex>
       ) : (
         <Flex direction="column" gap="6" style={{ minWidth: 0, padding: '4px 0' }}>
@@ -562,7 +556,7 @@ export function ActionSetupPanel({
           <Separator size="4" />
 
           <Text as="div" size="2" weight="bold" style={{ color: 'var(--slate-12)' }}>
-            {t('workspace.actions.configurationHeading')}
+            {"Configuration"}
           </Text>
 
           {showOAuthRedirectUri ? (
@@ -570,10 +564,10 @@ export function ActionSetupPanel({
               <Flex direction="column" gap="2" style={{ width: '100%', minWidth: 0 }}>
                 <Flex direction="column" gap="1">
                   <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                    {t('workspace.actions.redirectUri')}
+                    {"Redirect URI"}
                   </Text>
                   <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
-                    {t('workspace.actions.redirectUriHint')}
+                    {"Register this URL as an allowed redirect URI in your OAuth provider."}
                   </Text>
                 </Flex>
                 <Flex
@@ -605,7 +599,7 @@ export function ActionSetupPanel({
                   >
                     <code>{toolsetOAuthCallbackUrl}</code>
                   </Box>
-                  <Tooltip content={t('workspace.actions.redirectUri')}>
+                  <Tooltip content={"Redirect URI"}>
                     <IconButton
                       type="button"
                       size="1"
@@ -613,7 +607,7 @@ export function ActionSetupPanel({
                       color="gray"
                       radius="full"
                       style={{ flexShrink: 0, cursor: 'pointer' }}
-                      aria-label={t('workspace.actions.redirectUri')}
+                      aria-label={"Redirect URI"}
                       onClick={() => void copyOAuthRedirectUri()}
                     >
                       <MaterialIcon name="content_copy" size={18} color="var(--gray-11)" />
@@ -625,7 +619,7 @@ export function ActionSetupPanel({
           ) : null}
 
           <div data-ph-action-instance-name>
-            <FormField label={t('workspace.actions.instanceName')} required error={fieldErrors.instanceName}>
+            <FormField label={"Instance name"} required error={fieldErrors.instanceName}>
               <TextField.Root
                 value={instanceName}
                 onChange={(e) => {
@@ -638,13 +632,13 @@ export function ActionSetupPanel({
                   });
                 }}
                 color={fieldErrors.instanceName ? 'red' : undefined}
-                placeholder={t('workspace.actions.instanceNamePlaceholder')}
+                placeholder={"e.g. Production Slack"}
               />
             </FormField>
           </div>
 
           {authOptions.length > 1 ? (
-            <FormField label={t('workspace.actions.authType')}>
+            <FormField label={"Authentication type"}>
               <Select.Root value={authType} onValueChange={setAuthType} size="2">
                 <Select.Trigger style={{ width: '100%' }} />
                 <Select.Content
@@ -663,7 +657,7 @@ export function ActionSetupPanel({
           ) : null}
 
           {showOAuthAppPicker ? (
-            <FormField label={t('workspace.actions.oauthAppLabel')}>
+            <FormField label={"OAuth application"}>
               <Select.Root value={oauthAppValue} onValueChange={handleOauthAppChange} size="2">
                 <Select.Trigger style={{ width: '100%' }} />
                 <Select.Content
@@ -671,7 +665,7 @@ export function ActionSetupPanel({
                   container={panelBodyPortal ?? undefined}
                   style={{ zIndex: WORKSPACE_DRAWER_POPPER_Z_INDEX }}
                 >
-                  <Select.Item value={NEW_OAUTH_VALUE}>{t('workspace.actions.oauthAppNew')}</Select.Item>
+                  <Select.Item value={NEW_OAUTH_VALUE}>{"Create new OAuth app"}</Select.Item>
                   {oauthConfigs.map((c) => (
                     <Select.Item key={c._id} value={c._id}>
                       {c.oauthInstanceName || c._id}
@@ -685,7 +679,7 @@ export function ActionSetupPanel({
           {isOAuthType(authType) && (!showOAuthAppPicker || oauthAppValue === NEW_OAUTH_VALUE) ? (
             <Flex data-ph-action-oauth-app-name direction="column" gap="1">
               <FormField
-                label={t('workspace.actions.oauthAppNameLabel')}
+                label={"OAuth app name"}
                 required
                 error={fieldErrors.oauthAppName}
               >
@@ -701,14 +695,14 @@ export function ActionSetupPanel({
                       return n;
                     });
                   }}
-                  placeholder={t('workspace.actions.oauthAppNamePlaceholder', { name: displayName })}
+                  placeholder={`e.g., ${displayName} OAuth`}
                   color={fieldErrors.oauthAppName ? 'red' : undefined}
                   aria-invalid={fieldErrors.oauthAppName ? true : undefined}
                   style={{ width: '100%' }}
                 />
               </FormField>
               <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
-                {t('workspace.actions.oauthAppNameHelper')}
+                {"This name is stored with the OAuth registration and appears when users pick a saved app for other instances."}
               </Text>
             </Flex>
           ) : null}
@@ -728,7 +722,7 @@ export function ActionSetupPanel({
             </Flex>
           ) : !isNoneAuthType(authType) ? (
             <Callout.Root color="amber" variant="surface" size="1">
-              <Callout.Text size="1">{t('agentBuilder.noCredentialFields')}</Callout.Text>
+              <Callout.Text size="1">{"No credential fields were returned for this auth type. If this persists, check the toolset registry schema."}</Callout.Text>
             </Callout.Root>
           ) : null}
 
@@ -736,7 +730,7 @@ export function ActionSetupPanel({
             <Flex data-ph-action-oauth-credentials direction="column" gap="3">
               {!schemaFieldsToRender.some((f) => f.name.toLowerCase() === 'clientid') ? (
                 <FormField
-                  label={t('workspace.actions.oauthClientId')}
+                  label={"Client ID"}
                   required
                   error={fieldErrors.clientId}
                 >
@@ -757,7 +751,7 @@ export function ActionSetupPanel({
               ) : null}
               {!schemaFieldsToRender.some((f) => f.name.toLowerCase() === 'clientsecret') ? (
                 <FormField
-                  label={t('workspace.actions.oauthClientSecret')}
+                  label={"Client secret"}
                   required
                   error={fieldErrors.clientSecret}
                 >
@@ -783,7 +777,7 @@ export function ActionSetupPanel({
           {toolNames.length > 0 ? (
             <Box>
               <Text as="div" size="2" weight="medium" mb="2" style={{ color: 'var(--slate-12)' }}>
-                {t('workspace.actions.availableActions')}
+                {"Available actions"}
               </Text>
               <Flex gap="2" wrap="wrap" style={{ rowGap: 8 }}>
                 {toolNames.map((n) => (
@@ -797,7 +791,7 @@ export function ActionSetupPanel({
 
           <Callout.Root color="blue" variant="surface" size="1">
             <Callout.Text size="1" style={{ color: 'var(--slate-11)' }}>
-              {t('workspace.actions.setupInfoCallout')}
+              {"After you create this action, users can sign in from Your actions when they need access."}
             </Callout.Text>
           </Callout.Root>
 

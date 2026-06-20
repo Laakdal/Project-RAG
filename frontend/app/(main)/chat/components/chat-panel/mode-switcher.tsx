@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
@@ -31,6 +30,17 @@ interface ModeSwitcherProps {
 }
 
 /**
+ * Maps the toolbarLabel identifier stored in QueryModeConfig to a plain-English
+ * display string (constants.ts still holds these identifier strings).
+ */
+const TOOLBAR_LABEL_MAP: Record<string, string> = {
+  'chat.queryModes.agent.toolbarLabel': "Agent",
+  'chat.queryModes.chat.toolbarLabel': "Internal Search",
+  'chat.queryModes.web-search.toolbarLabel': "Web",
+  'chat.queryModes.image.toolbarLabel': "Image",
+};
+
+/**
  * Mode switcher pill with left/right buttons.
  * Used by both collapsed widget and full toolbar in ChatInput.
  *
@@ -47,7 +57,6 @@ export function ModeSwitcher({
   onLeftClick,
   onRightClick,
 }: ModeSwitcherProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
   return (
     <Flex
@@ -110,7 +119,7 @@ export function ModeSwitcher({
                 weight="medium"
                 style={{ color: 'var(--mode-search-fg)' }}
               >
-                {t('form.search')}
+                {"Search"}
               </Text>
             )}
           </Flex>
@@ -164,7 +173,7 @@ export function ModeSwitcher({
                   textOverflow: 'ellipsis',
                 }}
               >
-                {t(activeQueryConfig.toolbarLabel)}
+                {TOOLBAR_LABEL_MAP[activeQueryConfig.toolbarLabel] ?? activeQueryConfig.label}
               </Text>
             )}
             <MaterialIcon

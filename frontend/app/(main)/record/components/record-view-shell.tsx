@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, Box, Flex, Text, IconButton, Button, Tooltip } from '@radix-ui/themes';
 import { useThemeAppearance } from '@/app/components/theme-provider';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { FileIcon } from '@/app/components/ui/file-icon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
@@ -60,7 +59,6 @@ function recordTypeIcon(recordType: string): string {
 }
 
 export function RecordViewShell({ recordId }: RecordViewShellProps) {
-  const { t } = useTranslation();
   const router = useRouter();
   const { appearance } = useThemeAppearance();
   const previewHostRef = useRef<HTMLDivElement>(null);
@@ -151,7 +149,7 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
         setIsLoading(false);
       } catch (e) {
         if (cancelled) return;
-        const message = e instanceof Error ? e.message : t('recordView.loadFailed');
+        const message = e instanceof Error ? e.message : "Could not load this record.";
         setError(message);
         setIsLoading(false);
       }
@@ -160,7 +158,7 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [recordId, revokeBlobUrl, t]);
+  }, [recordId, revokeBlobUrl]);
 
   useEffect(() => () => revokeBlobUrl(), [revokeBlobUrl]);
 
@@ -212,7 +210,7 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
 
   const paginationVisibility = shouldShowPagination(fileType, fileName, totalPages, isLoading, false);
   const hasError = !isLoading && !!error;
-  const headerTitle = recordDetails?.record.recordName || fileName || t('recordView.loading');
+  const headerTitle = recordDetails?.record.recordName || fileName || "Loading…";
   const handleFullscreenToggle = async () => {
     const el = previewHostRef.current;
     if (!el) return;
@@ -263,9 +261,9 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
     setIsForceReindexOpen(false);
     try {
       await toast.promise(KnowledgeBaseApi.reindexItem(recordId), {
-        loading: t('recordView.reindexLoading'),
-        success: t('recordView.reindexSuccess'),
-        error: t('recordView.reindexError'),
+        loading: "Submitting reindex request…",
+        success: "Reindex request submitted successfully",
+        error: "Failed to submit reindex request",
       });
       const updated = await KnowledgeBaseApi.getRecordDetails(recordId);
       setRecordDetails(updated);
@@ -292,14 +290,14 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
   const getReindexButtonLabel = (status: string | undefined): string => {
     switch (status) {
       case 'COMPLETED':
-        return t('recordView.forceReindex', { defaultValue: 'Force reindex' });
+        return "Force reindex";
       case 'AUTO_INDEX_OFF':
       case 'NOT_STARTED':
-        return t('recordView.startIndexing');
+        return "Start indexing";
       case 'PAUSED':
-        return t('recordView.resumeIndexing');
+        return "Resume indexing";
       default:
-        return t('recordView.retryIndexing');
+        return "Retry indexing";
     }
   };
 
@@ -399,10 +397,10 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
                   color="red"
                   size="2"
                   onClick={() => setIsDeleteOpen(true)}
-                  aria-label={t('recordView.deleteRecord')}
+                  aria-label={"Delete record"}
                 >
                   <MaterialIcon name="delete" size={ICON_SIZES.HEADER} />
-                  {t('recordView.deleteRecord')}
+                  {"Delete record"}
                 </Button>
               )}
             </>
@@ -510,11 +508,11 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
                 {webUrl ? (
                   <Button variant="solid" color="jade" size="3" onClick={handleOpenExternal}>
                     <MaterialIcon name="open_in_new" size={18} />
-                    {t('recordView.openExternal')}
+                    {"Open"}
                   </Button>
                 ) : (
                   <Text size="2" style={{ color: 'var(--gray-9)', textAlign: 'center', maxWidth: '280px' }}>
-                    {t('recordView.previewUnavailable')}
+                    {"Preview not available for this record type."}
                   </Text>
                 )}
               </Flex>
@@ -604,13 +602,13 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
                 </>
               ) : null}
 
-              <Tooltip content={t('recordView.download')}>
+              <Tooltip content={"Download"}>
                 <Button variant="outline" color="gray" size="2" onClick={handleDownload}>
                   <MaterialIcon name="download" size={18} />
                 </Button>
               </Tooltip>
 
-              <Tooltip content={isFs ? t('recordView.exitFullscreen') : t('recordView.openFullscreen')}>
+              <Tooltip content={isFs ? "Exit full screen" : "Open in Full Screen"}>
                 <Button variant="outline" color="gray" size="2" onClick={handleFullscreenToggle}>
                   <MaterialIcon name={isFs ? 'close_fullscreen' : 'open_in_full'} size={18} />
                 </Button>
@@ -672,19 +670,16 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
           <AlertDialog.Title>
             <Flex align="center" gap="2">
               <MaterialIcon name="sync" size={20} />
-              {t('recordView.forceReindexTitle', { defaultValue: 'Start force reindex?' })}
+              {"Start force reindex?"}
             </Flex>
           </AlertDialog.Title>
           <AlertDialog.Description size="2" style={{ color: 'var(--gray-11)' }}>
-            {t('recordView.forceReindexDescription', {
-              defaultValue:
-                'This re-indexes the document from scratch and may incur extra cost. Use this when search results are stale, or the document is not searchable even after indexing is complete.',
-            })}
+            {"This re-indexes the document from scratch and may incur extra cost. Use this when search results are stale, or the document is not searchable even after indexing is complete."}
           </AlertDialog.Description>
           <Flex gap="3" justify="end" style={{ marginTop: 'var(--space-4)' }}>
             <AlertDialog.Cancel>
               <Button variant="outline" color="gray">
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action>
@@ -695,7 +690,7 @@ export function RecordViewShell({ recordId }: RecordViewShellProps) {
                 disabled={isReindexing}
               >
                 <MaterialIcon name="sync" size={16} />
-                {t('common.confirm', { defaultValue: 'Confirm' })}
+                {"Confirm"}
               </Button>
             </AlertDialog.Action>
           </Flex>

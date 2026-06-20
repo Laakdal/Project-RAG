@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, Flex, Text, TextField, Button, Box, VisuallyHidden } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 import { FolderIcon } from '@/app/components/ui';
-import { useTranslation } from 'react-i18next';
 
 export interface CreateFolderDialogProps {
   open: boolean;
@@ -23,7 +22,6 @@ export function CreateFolderDialog({
   isCollection = false,
   parentFolderName,
 }: CreateFolderDialogProps) {
-  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -73,18 +71,18 @@ export function CreateFolderDialog({
         }}
       >
         <VisuallyHidden>
-          <Dialog.Title>{isCollection ? t('dialog.createCollection') : t('dialog.newFolder')}</Dialog.Title>
+          <Dialog.Title>{isCollection ? "Create Collection" : "New Collection Folder"}</Dialog.Title>
         </VisuallyHidden>
         <Flex direction="column" gap="6">
           {/* Header */}
           <Flex direction="column" gap="1">
             <Text size="5" weight="bold">
-              {isCollection ? t('dialog.createCollection') : t('dialog.newFolder')}
+              {isCollection ? "Create Collection" : "New Collection Folder"}
             </Text>
             {parentFolderName && (
               <Flex align="center" gap="1">
                 <Text size="2" style={{ color: 'var(--slate-11)' }}>
-                  {t('dialog.in')}
+                  {"in"}
                 </Text>
                 <FolderIcon variant="default" size={16} color="var(--emerald-11)" />
                 <Text size="2" style={{ color: 'var(--slate-11)' }}>
@@ -98,7 +96,7 @@ export function CreateFolderDialog({
           <Flex direction="column" gap="5">
             {/* Title Field */}
             <Flex direction="column" gap="2">
-              <Text size="2">{t('form.title')}</Text>
+              <Text size="2">{"Title"}</Text>
               <TextField.Root
                 size="2"
                 value={title}
@@ -111,7 +109,7 @@ export function CreateFolderDialog({
 
             {/* Description Field */}
             <Flex direction="column" gap="2">
-              <Text size="2">{t('form.description')}</Text>
+              <Text size="2">{"Description"}</Text>
               <TextField.Root
                 size="2"
                 value={description}
@@ -132,7 +130,7 @@ export function CreateFolderDialog({
               disabled={isCreating}
               style={{cursor: 'pointer'}}
             >
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               variant={isCreateDisabled ? 'soft' : 'solid'}
@@ -142,9 +140,9 @@ export function CreateFolderDialog({
               onClick={handleSubmit}
               disabled={!title.trim()}
               loading={isCreating}
-              loadingLabel={t('action.creating')}
+              loadingLabel={"Creating..."}
             >
-              {t('action.create')}
+              {"Create"}
             </LoadingButton>
           </Flex>
         </Flex>

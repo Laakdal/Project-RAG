@@ -40,7 +40,7 @@ export function useAuthActions({ email, redirectTo }: UseAuthActionsOptions) {
         const user = await AuthApi.login(email.trim(), password);
         applyAuthUser(user);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('pipeshub_last_email', email.trim());
+          localStorage.setItem('last_email', email.trim());
         }
         router.push(postAuthRedirectTo);
       } catch (err: unknown) {

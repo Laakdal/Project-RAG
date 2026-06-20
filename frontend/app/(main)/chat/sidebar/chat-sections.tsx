@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
+
 import { useChatStore, selectPendingForSidebar } from '@/chat/store';
 import { useCommandStore } from '@/lib/store/command-store';
 import { useMobileSidebarStore } from '@/lib/store/mobile-sidebar-store';
@@ -35,8 +35,6 @@ export const ChatSections = React.memo(function ChatSections({
 }) {
   const searchParams = useSearchParams();
   const currentConversationId = searchParams?.get('conversationId') ?? null;
-  const { t } = useTranslation();
-
   const conversations = useChatStore((s) => s.conversations);
   const isConversationsLoading = useChatStore((s) => s.isConversationsLoading);
   const conversationsError = useChatStore((s) => s.conversationsError);
@@ -126,7 +124,7 @@ export const ChatSections = React.memo(function ChatSections({
               lineHeight: 1,
             }}
           >
-            {t('chat.recents')}
+            {"Recents"}
           </Text>
           <MaterialIcon
             name="chevron_right"
@@ -148,7 +146,7 @@ export const ChatSections = React.memo(function ChatSections({
           >
             {/* Your Chats — time-grouped */}
             <ChatSection
-              title={t('chat.yourChats')}
+              title={"Your Chats"}
               timeGroups={yourNonEmptyGroups}
               isLoading={isConversationsLoading}
               hasError={!!conversationsError}

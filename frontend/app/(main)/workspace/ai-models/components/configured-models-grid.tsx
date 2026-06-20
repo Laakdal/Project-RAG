@@ -1,9 +1,7 @@
 'use client';
 
-import type { TFunction } from 'i18next';
 import React, { useMemo, useState } from 'react';
 import { Flex, Popover, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { Spinner } from '@/app/components/ui/spinner';
 import { ThemeableAssetIcon } from '@/app/components/ui/themeable-asset-icon';
@@ -44,9 +42,9 @@ function modelTypesForSection(section: CapabilitySection): readonly string[] {
   return ['imageGeneration'];
 }
 
-function capabilityLabelForModelType(mt: string, t: TFunction): string {
+function capabilityLabelForModelType(mt: string): string {
   const cap = registryCapabilityForModelType(mt);
-  return aiModelsCapabilityLabel(t, cap);
+  return aiModelsCapabilityLabel(cap);
 }
 
 interface ConfiguredModelsGridProps {
@@ -73,7 +71,6 @@ export function ConfiguredModelsGrid({
   isLoading = false,
   showEmbeddingBuiltinPlaceholder = true,
 }: ConfiguredModelsGridProps) {
-  const { t } = useTranslation();
   const rows = useMemo(() => {
     const types = modelTypesForSection(capabilitySection);
     const list: ConfiguredModel[] = [];
@@ -101,7 +98,7 @@ export function ConfiguredModelsGrid({
         (m.configuration?.model as string) ||
         m.provider ||
         '';
-      const capLabel = capabilityLabelForModelType(m.modelType, t).toLowerCase();
+      const capLabel = capabilityLabelForModelType(m.modelType).toLowerCase();
       return (
         name.toLowerCase().includes(q) ||
         m.provider.toLowerCase().includes(q) ||
@@ -114,7 +111,6 @@ export function ConfiguredModelsGrid({
     capabilitySection,
     searchQuery,
     providers,
-    t,
     showEmbeddingBuiltinPlaceholder,
   ]);
 
@@ -122,7 +118,7 @@ export function ConfiguredModelsGrid({
     return (
       <Flex align="center" justify="center" style={{ width: '100%', paddingTop: 80 }}>
         <Text size="2" style={{ color: 'var(--gray-9)' }}>
-          {t('workspace.aiModels.loadingModels')}
+          {"Loading models…"}
         </Text>
       </Flex>
     );
@@ -139,7 +135,7 @@ export function ConfiguredModelsGrid({
       >
         <MaterialIcon name="tune" size={48} color="var(--gray-9)" />
         <Text size="2" style={{ color: 'var(--gray-11)' }}>
-          {t('workspace.aiModels.emptyConfiguredCategory')}
+          {"No configured models in this category"}
         </Text>
       </Flex>
     );
@@ -174,7 +170,6 @@ function ConfiguredModelRow({
   onSetDefault: (modelType: string, modelKey: string) => Promise<void>;
   onDelete: (modelType: string, modelKey: string, modelName: string) => void;
 }) {
-  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   const [settingDefault, setSettingDefault] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -183,7 +178,7 @@ function ConfiguredModelRow({
     (model.configuration?.model as string) ||
     model.provider;
   const capReg = registryCapabilityForModelType(model.modelType);
-  const capChip = capabilityLabelForModelType(model.modelType, t);
+  const capChip = capabilityLabelForModelType(model.modelType);
   const mt = model.modelType;
   const isBuiltinPlaceholder = isEmbeddingBuiltinPlaceholder(model);
 
@@ -242,7 +237,7 @@ function ConfiguredModelRow({
                   fontWeight: 600,
                 }}
               >
-                {t('workspace.aiModels.chipDefault')}
+                {"Default"}
               </Text>
             )}
           </Flex>
@@ -254,7 +249,7 @@ function ConfiguredModelRow({
           <Popover.Trigger>
             <button
               type="button"
-              title={t('workspace.aiModels.moreOptions')}
+              title={"More options"}
               onClick={(e) => e.stopPropagation()}
               style={{
                 appearance: 'none',
@@ -282,7 +277,7 @@ function ConfiguredModelRow({
             <Flex direction="column">
               <PopoverMenuItem
                 icon="edit"
-                label={t('workspace.aiModels.actionEdit')}
+                label={"Edit"}
                 disabled={!provider || settingDefault}
                 onClick={() => {
                   setPopoverOpen(false);
@@ -292,7 +287,7 @@ function ConfiguredModelRow({
               {!model.isDefault && (
                 <PopoverMenuItem
                   icon="star_outline"
-                  label={t('workspace.aiModels.actionSetDefault')}
+                  label={"Set default"}
                   loading={settingDefault}
                   onClick={async () => {
                     setSettingDefault(true);
@@ -307,7 +302,7 @@ function ConfiguredModelRow({
               )}
               <PopoverMenuItem
                 icon="delete"
-                label={t('workspace.aiModels.actionDelete')}
+                label={"Delete"}
                 color="var(--red-9)"
                 disabled={!provider || settingDefault}
                 onClick={() => {

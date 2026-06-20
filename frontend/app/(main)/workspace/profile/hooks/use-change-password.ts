@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { ProfileApi } from '../api';
 import { validatePassword } from '@/lib/utils/validators';
 
@@ -33,7 +32,6 @@ export interface UseChangePasswordOptions {
 // ========================================
 
 export function useChangePassword({ onOpenChange, onSuccess }: UseChangePasswordOptions) {
-  const { t } = useTranslation();
   const [view, setView] = useState<DialogView>('form');
   const [form, setForm] = useState<FormState>({
     currentPassword: '',
@@ -76,20 +74,20 @@ export function useChangePassword({ onOpenChange, onSuccess }: UseChangePassword
     const newErrors: FormErrors = {};
 
     if (!form.currentPassword) {
-      newErrors.currentPassword = t('workspace.profile.changePassword.currentRequired');
+      newErrors.currentPassword = "Current password is required";
     }
 
     if (!form.newPassword) {
-      newErrors.newPassword = t('workspace.profile.changePassword.newRequired');
+      newErrors.newPassword = "New password is required";
     } else {
       const pwError = validatePassword(form.newPassword);
       if (pwError) newErrors.newPassword = pwError;
     }
 
     if (!form.confirmPassword) {
-      newErrors.confirmPassword = t('workspace.profile.changePassword.confirmRequired');
+      newErrors.confirmPassword = "Please confirm your new password";
     } else if (form.confirmPassword !== form.newPassword) {
-      newErrors.confirmPassword = t('workspace.profile.changePassword.mismatchError');
+      newErrors.confirmPassword = "This doesn't match with your new password";
     }
 
     setErrors(newErrors);
@@ -114,7 +112,7 @@ export function useChangePassword({ onOpenChange, onSuccess }: UseChangePassword
       const message =
         data?.error?.message ??
         data?.message ??
-        t('workspace.profile.changePassword.defaultError');
+        "Could not update your password. Please try again.";
       setApiErrorMessage(message);
       setView('error');
     } finally {

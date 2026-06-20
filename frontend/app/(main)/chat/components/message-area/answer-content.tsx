@@ -23,7 +23,6 @@ import { MermaidDiagram } from './mermaid-diagram';
 import { parseCsvContent, parseCsvCellContent } from './csv-utils';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useThemeAppearance } from '@/app/components/theme-provider';
-import { useTranslation } from 'react-i18next';
 import type { Root, Blockquote } from 'mdast';
 
 /**
@@ -451,7 +450,6 @@ function CodeBlock({ language, codeText }: { language: string; codeText: string 
   const [isHovered, setIsHovered] = useState(false);
   const { appearance } = useThemeAppearance();
   const isDark = appearance === 'dark';
-  const { t } = useTranslation();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText).then(() => {
@@ -523,7 +521,7 @@ function CodeBlock({ language, codeText }: { language: string; codeText: string 
             color={copied ? 'var(--accent-11)' : labelColor}
           />
           <Text size="1" style={{ color: 'inherit' }}>
-            {copied ? t('chatStream.copiedCode') : t('chatStream.copyCode')}
+            {copied ? "Copied" : "Copy"}
           </Text>
         </button>
       </Flex>

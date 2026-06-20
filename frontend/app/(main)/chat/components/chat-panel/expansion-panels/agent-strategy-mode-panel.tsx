@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { Flex, Box, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import {
   AGENT_STRATEGIES,
   AGENT_STRATEGY_ICONS,
+  AGENT_STRATEGY_LABEL,
+  AGENT_STRATEGY_HINT,
 } from '@/chat/components/agent-strategy-dropdown';
 import type { AgentStrategy } from '@/chat/types';
 
@@ -26,7 +27,6 @@ export function AgentStrategyModePanel({
   onSelect,
   hideHeader = false,
 }: AgentStrategyModePanelProps) {
-  const { t } = useTranslation();
   return (
     <Flex direction="column" gap="4">
       {!hideHeader && (
@@ -35,7 +35,7 @@ export function AgentStrategyModePanel({
           weight="medium"
           style={{ color: 'var(--slate-12)' }}
         >
-          {t('chat.differentModesOfQuery')}
+          {"Different Modes of Query"}
         </Text>
       )}
 
@@ -61,7 +61,6 @@ interface StrategyModeRowProps {
 
 function StrategyModeRow({ id, isActive, onSelect }: StrategyModeRowProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { t } = useTranslation();
 
   return (
     <Flex
@@ -91,11 +90,11 @@ function StrategyModeRow({ id, isActive, onSelect }: StrategyModeRowProps) {
             weight="medium"
             style={{ color: 'var(--mode-agent-fg)' }}
           >
-            {t(`chat.agentStrategy.modes.${id}.label`)}
+            {AGENT_STRATEGY_LABEL[id]}
           </Text>
         </Flex>
         <Text size="1" style={{ color: 'var(--slate-11)', lineHeight: 1.45 }}>
-          {t(`chat.agentStrategy.modes.${id}.hint`)}
+          {AGENT_STRATEGY_HINT[id]}
         </Text>
       </Flex>
 

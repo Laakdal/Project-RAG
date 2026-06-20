@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Flex, Text, TextField } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,9 +38,8 @@ const EmailField = React.forwardRef<HTMLInputElement, EmailFieldProps>(function 
   onKeyDown,
   onBlur,
 }, ref) {
-  const { t } = useTranslation();
-  const resolvedLabel = label ?? t('auth.common.emailLabel');
-  const resolvedPlaceholder = placeholder ?? t('auth.common.emailPlaceholder');
+  const resolvedLabel = label ?? "Email";
+  const resolvedPlaceholder = placeholder ?? "Enter your email";
 
   return (
     <Flex direction="column" gap="1">

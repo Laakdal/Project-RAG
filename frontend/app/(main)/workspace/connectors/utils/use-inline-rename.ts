@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useToastStore } from '@/lib/store/toast-store';
-import { useTranslation } from 'react-i18next';
 import { ConnectorsApi } from '../api';
 import { useConnectorsStore } from '../store';
 
@@ -16,7 +15,6 @@ interface UseInlineRenameOptions {
 }
 
 export function useInlineRename({ connectorId, currentName }: UseInlineRenameOptions) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const renameConnectorInstance = useConnectorsStore((s) => s.renameConnectorInstance);
 
@@ -76,7 +74,7 @@ export function useInlineRename({ connectorId, currentName }: UseInlineRenameOpt
       renameConnectorInstance(connectorId, trimmed);
       addToast({
         variant: 'success',
-        title: t('workspace.connectors.settingsTab.renameSuccess'),
+        title: "Connector renamed",
         duration: 3000,
       });
     } catch (error: unknown) {
@@ -85,7 +83,7 @@ export function useInlineRename({ connectorId, currentName }: UseInlineRenameOpt
       setIsBusy(false);
       setIsEditing(false);
     }
-  }, [connectorId, currentName, editValue, isBusy, renameConnectorInstance, addToast, t]);
+  }, [connectorId, currentName, editValue, isBusy, renameConnectorInstance, addToast]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

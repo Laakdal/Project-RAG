@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   Flex,
@@ -63,7 +62,6 @@ export function ChangePasswordDialog({
     handleTryAgain,
   } = useChangePassword({ onOpenChange, onSuccess });
 
-  const { t } = useTranslation();
   const isFormValid =
     form.currentPassword.trim() !== '' &&
     form.newPassword.trim() !== '' &&
@@ -105,24 +103,24 @@ export function ChangePasswordDialog({
         }}
       >
         <VisuallyHidden>
-          <Dialog.Title>{t('workspace.profile.changePassword.title')}</Dialog.Title>
+          <Dialog.Title>{"Change Password"}</Dialog.Title>
         </VisuallyHidden>
 
         {view === 'form' ? (
           /* ── Form view ─── */
           <Flex direction="column" gap="4">
             <Text size="5" weight="bold" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.profile.changePassword.title')}
+              {"Change Password"}
             </Text>
 
             {/* Current Password */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.profile.changePassword.currentPassword')}
+                {"Current Password"}
               </Text>
               <TextField.Root
                 type="password"
-                placeholder={t('workspace.profile.changePassword.currentPasswordPlaceholder')}
+                placeholder={"Your current password"}
                 value={form.currentPassword}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -142,14 +140,14 @@ export function ChangePasswordDialog({
             {/* New Password */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.profile.changePassword.newPassword')}
+                {"New Password"}
               </Text>
               <Text size="1" style={{ color: 'var(--gray-10)', fontWeight: 300 }}>
-                {t('workspace.profile.changePassword.passwordRequirement')}
+                {"Must have at least 8 characters with lowercase, uppercase, number and symbol"}
               </Text>
               <TextField.Root
                 type={showNewPassword ? 'text' : 'password'}
-                placeholder={t('workspace.profile.changePassword.newPasswordPlaceholder')}
+                placeholder={"Your new password"}
                 value={form.newPassword}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -163,7 +161,7 @@ export function ChangePasswordDialog({
                       ...prev,
                       confirmPassword:
                         form.confirmPassword !== value
-                          ? t('workspace.profile.changePassword.mismatchError')
+                          ? "This doesn't match with your new password"
                           : undefined,
                     }));
                   }
@@ -197,11 +195,11 @@ export function ChangePasswordDialog({
             {/* Confirm New Password */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.profile.changePassword.confirmPassword')}
+                {"Confirm New Password"}
               </Text>
               <TextField.Root
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder={t('workspace.profile.changePassword.confirmPasswordPlaceholder')}
+                placeholder={"Your new password"}
                 value={form.confirmPassword}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -210,7 +208,7 @@ export function ChangePasswordDialog({
                   if (value && value !== form.newPassword) {
                     setErrors((prev) => ({
                       ...prev,
-                      confirmPassword: t('workspace.profile.changePassword.mismatchError'),
+                      confirmPassword: "This doesn't match with your new password",
                     }));
                   } else {
                     setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
@@ -253,7 +251,7 @@ export function ChangePasswordDialog({
                 disabled={isLoading}
                 style={{ cursor: isLoading ? 'not-allowed' : 'pointer' }}
               >
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
               <LoadingButton
                 variant="solid"
@@ -262,10 +260,10 @@ export function ChangePasswordDialog({
                 onClick={handleSave}
                 disabled={!isFormValid}
                 loading={isLoading}
-                loadingLabel={t('action.saving')}
+                loadingLabel={"Saving..."}
                 style={{ background: isSaveDisabled ? 'var(--gray-6)' : 'var(--emerald-9)' }}
               >
-                {t('action.save')}
+                {"Save"}
               </LoadingButton>
             </Flex>
           </Flex>
@@ -289,7 +287,7 @@ export function ChangePasswordDialog({
 
             <Flex direction="column" gap="2">
               <Text size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.profile.changePassword.updateError')}
+                {"Couldn't update your password"}
               </Text>
               <Text
                 size="2"
@@ -309,7 +307,7 @@ export function ChangePasswordDialog({
                 onClick={handleClose}
                 style={{ cursor: 'pointer' }}
               >
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
               <Button
                 variant="solid"
@@ -318,7 +316,7 @@ export function ChangePasswordDialog({
                 onClick={handleTryAgain}
                 style={{ cursor: 'pointer' }}
               >
-                {t('message.tryAgain')}
+                {"Please try again"}
               </Button>
             </Flex>
           </Flex>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import {
   Background,
   ReactFlow,
@@ -34,14 +34,13 @@ const AGENT_BUILDER_FLOW_FIT = {
 
 function CanvasControlsInner() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const { t } = useTranslation();
   return (
     <Controls showZoom={false} showFitView={false} showInteractive={false}>
       <button
         type="button"
         className="react-flow__controls-button"
         onClick={() => zoomIn()}
-        aria-label={t('agentBuilder.zoomInAria')}
+        aria-label={"Zoom in"}
       >
         <MaterialIcon name="add" size={20} color="currentColor" />
       </button>
@@ -49,7 +48,7 @@ function CanvasControlsInner() {
         type="button"
         className="react-flow__controls-button"
         onClick={() => zoomOut()}
-        aria-label={t('agentBuilder.zoomOutAria')}
+        aria-label={"Zoom out"}
       >
         <MaterialIcon name="remove" size={20} color="currentColor" />
       </button>
@@ -57,7 +56,7 @@ function CanvasControlsInner() {
         type="button"
         className="react-flow__controls-button"
         onClick={() => fitView({ ...AGENT_BUILDER_FLOW_FIT })}
-        aria-label={t('agentBuilder.fitViewAria')}
+        aria-label={"Fit view"}
       >
         <MaterialIcon name="fit_screen" size={20} color="currentColor" />
       </button>
@@ -104,7 +103,6 @@ export function AgentBuilderCanvas(props: {
     readOnly,
   } = props;
 
-  const { t } = useTranslation();
   const rfRef = useRef<ReactFlowInstance<Node<FlowNodeData>> | null>(null);
   /** After `nodes` hydrate from the server, fit once (initial `fitView` on an empty graph does not update). */
   const needsInitialFlowFitRef = useRef(true);
@@ -153,7 +151,6 @@ export function AgentBuilderCanvas(props: {
         configuredConnectors,
         activeAgentConnectors,
         readOnly: Boolean(readOnly),
-        t,
         onError,
       });
     },
@@ -166,7 +163,6 @@ export function AgentBuilderCanvas(props: {
       readOnly,
       setEdges,
       setNodes,
-      t,
     ]
   );
 

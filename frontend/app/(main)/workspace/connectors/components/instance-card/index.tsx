@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, IconButton, Avatar, Switch, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -54,7 +53,6 @@ export function InstanceCard({
   onRefresh,
   isRefreshing = false,
 }: InstanceCardProps) {
-  const { t } = useTranslation();
   const [identityIcon, setIdentityIcon] = useState<string | null>(null);
   const [identityIconError, setIdentityIconError] = useState(false);
   const [enabledByName, setEnabledByName] = useState<string | null>(null);
@@ -196,7 +194,7 @@ export function InstanceCard({
               variant="outline"
               color="gray"
               size="1"
-              aria-label={t('workspace.connectors.refreshInstance')}
+              aria-label="Refresh instance details"
               disabled={isRefreshing}
               onClick={() => {
                 if (!isRefreshing) void onRefresh();
@@ -242,7 +240,7 @@ export function InstanceCard({
               weight="medium"
               style={{ color: 'var(--gray-10)', width: 164, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.04px', lineHeight: '16px' }}
             >
-              {t('workspace.connectors.instanceCard.syncStrategy')}
+              {"Sync Strategy"}
             </Text>
             <Flex align="center" gap="3">
               <Text size="2" style={{ color: 'var(--gray-12)' }}>
@@ -259,7 +257,7 @@ export function InstanceCard({
             </Flex>
           </Flex>
         ) : (
-          <InfoRow label={t('workspace.connectors.instanceCard.syncStrategy')} value="-" />
+          <InfoRow label="Sync Strategy" value="-" />
         )}
 
         {enabledByName ? (
@@ -269,7 +267,7 @@ export function InstanceCard({
               weight="medium"
               style={{ color: 'var(--gray-10)', width: 164, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.04px', lineHeight: '16px' }}
             >
-              {t('workspace.connectors.settingsTab.enabledBy')}
+              {"Enabled By"}
             </Text>
             <Flex align="center" gap="3">
               <Flex align="center" gap="2">
@@ -287,7 +285,7 @@ export function InstanceCard({
             </Flex>
           </Flex>
         ) : (
-          <InfoRow label={t('workspace.connectors.settingsTab.enabledBy')} value="-" />
+          <InfoRow label="Enabled By" value="-" />
         )}
 
         <InfoRow label="LAST SYNCED" value={lastSynced} />
@@ -352,10 +350,10 @@ export function InstanceCard({
         >
           <Flex direction="column" gap="1">
             <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.connectors.instanceCard.authBannerTitle')}
+              {"Authenticate Personal Account"}
             </Text>
             <Text size="1" style={{ color: 'var(--gray-11)' }}>
-              {t('workspace.connectors.instanceCard.authBannerDescription')}
+              {"Connect your account to enable access and workspace configuration"}
             </Text>
           </Flex>
           <ConnectButton onClick={() => onManage?.(instance)} />

@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
 import { Box, Button, Callout, Flex, Heading, SegmentedControl, Spinner, Text, TextField } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -69,9 +68,8 @@ export function ActionTypeDetailsLayout({
   instanceFilter,
   pagination = null,
 }: ActionTypeDetailsLayoutProps) {
-  const { t } = useTranslation();
   const scopeBackLabel =
-    scope === 'team' ? t('workspace.actions.typeDetail.scopeTeam') : t('workspace.actions.typeDetail.scopePersonal');
+    scope === 'team' ? "Actions" : "Your actions";
   const title = registryRow?.displayName || registryRow?.name || '';
   const description = registryRow?.description || '';
 
@@ -79,21 +77,15 @@ export function ActionTypeDetailsLayout({
     ? [
         {
           value: 'all' as const,
-          label: t('workspace.actions.typeDetail.instanceTabs.all', {
-            count: instanceFilter.counts.all,
-          }),
+          label: `All (${instanceFilter.counts.all})`,
         },
         {
           value: 'authenticated' as const,
-          label: t('workspace.actions.typeDetail.instanceTabs.authenticated', {
-            count: instanceFilter.counts.authenticated,
-          }),
+          label: `Authenticated (${instanceFilter.counts.authenticated})`,
         },
         {
           value: 'not_authenticated' as const,
-          label: t('workspace.actions.typeDetail.instanceTabs.notAuthenticated', {
-            count: instanceFilter.counts.notAuthenticated,
-          }),
+          label: `Non-authenticated (${instanceFilter.counts.notAuthenticated})`,
         },
       ]
     : [];
@@ -182,8 +174,8 @@ export function ActionTypeDetailsLayout({
               aria-busy={listRefreshing}
               aria-label={
                 listRefreshing
-                  ? t('workspace.actions.typeDetail.refreshingList')
-                  : t('workspace.actions.typeDetail.refresh')
+                  ? "Updating list…"
+                  : "Refresh list"
               }
               style={{
                 appearance: 'none',
@@ -236,13 +228,13 @@ export function ActionTypeDetailsLayout({
           >
             <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
             <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.actions.documentation')}
+              {"Documentation"}
             </Text>
           </button>
           {onAddInstance ? (
             <Button variant="solid" size="2" onClick={onAddInstance} style={{ cursor: 'pointer' }}>
               <MaterialIcon name="add" size={16} color="white" />
-              {t('workspace.actions.typeDetail.addInstance')}
+              {"Add instance"}
             </Button>
           ) : null}
         </Flex>
@@ -263,7 +255,7 @@ export function ActionTypeDetailsLayout({
             ))}
           </SegmentedControl.Root>
           <TextField.Root
-            placeholder={t('workspace.actions.typeDetail.searchInstances')}
+            placeholder={"Search instances…"}
             value={instanceFilter.search}
             disabled={listRefreshing}
             onChange={(e) => instanceFilter.onSearchChange(e.target.value)}
@@ -280,14 +272,14 @@ export function ActionTypeDetailsLayout({
         <Flex align="center" justify="center" gap="3" style={{ paddingTop: 80 }}>
           <Spinner size="2" style={{ color: 'var(--gray-11)' }} />
           <Text size="2" style={{ color: 'var(--gray-9)' }}>
-            {t('workspace.actions.loading')}
+            {"Loading actions…"}
           </Text>
         </Flex>
       ) : !isLoading && instances.length === 0 ? (
         <Flex direction="column" align="center" justify="center" gap="2" style={{ paddingTop: 80 }}>
           <MaterialIcon name="extension" size={48} color="var(--gray-9)" />
           <Text size="2" style={{ color: 'var(--gray-11)' }}>
-            {t('workspace.actions.typeDetail.empty')}
+            {"No instances for this action yet."}
           </Text>
         </Flex>
       ) : (
@@ -296,7 +288,7 @@ export function ActionTypeDetailsLayout({
             <Flex align="center" gap="2" mb="3" role="status" aria-live="polite">
               <Spinner size="1" style={{ color: 'var(--gray-10)' }} />
               <Text size="1" style={{ color: 'var(--gray-10)', letterSpacing: '0.02em' }}>
-                {t('workspace.actions.typeDetail.refreshingList')}
+                {"Updating list…"}
               </Text>
             </Flex>
           ) : null}
@@ -311,7 +303,7 @@ export function ActionTypeDetailsLayout({
           >
             {instanceFilter ? null : (
               <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }}>
-                {t('workspace.actions.typeDetail.instancesHeading', { count: instances.length })}
+                {`Instances (${instances.length})`}
               </Text>
             )}
             {instances.map((inst) => (
@@ -334,13 +326,10 @@ export function ActionTypeDetailsLayout({
                   disabled={!pagination.hasPrev || listRefreshing}
                   onClick={() => pagination.onPageChange(pagination.page - 1)}
                 >
-                  {t('workspace.actions.typeDetail.paginationPrevious')}
+                  {"Previous"}
                 </Button>
                 <Text size="2" color="gray">
-                  {t('workspace.actions.typeDetail.paginationPage', {
-                    current: pagination.page,
-                    total: pagination.totalPages,
-                  })}
+                  {`Page ${pagination.page} of ${pagination.totalPages}`}
                 </Text>
                 <Button
                   type="button"
@@ -350,7 +339,7 @@ export function ActionTypeDetailsLayout({
                   disabled={!pagination.hasNext || listRefreshing}
                   onClick={() => pagination.onPageChange(pagination.page + 1)}
                 >
-                  {t('workspace.actions.typeDetail.paginationNext')}
+                  {"Next"}
                 </Button>
               </Flex>
             ) : null}
@@ -365,8 +354,8 @@ export function ActionTypeDetailsLayout({
           </Callout.Icon>
           <Callout.Text>
             {scope === 'team'
-              ? t('workspace.actions.typeDetail.teamInstanceInfo')
-              : t('workspace.actions.typeDetail.personalInstanceInfo')}
+              ? "Authenticate against your organization’s action instances. Authenticated actions can be added to your agents."
+              : "Authenticate against your organization’s action instances. Once authenticated, you can use these actions in your agents."}
           </Callout.Text>
         </Callout.Root>
       ) : null}

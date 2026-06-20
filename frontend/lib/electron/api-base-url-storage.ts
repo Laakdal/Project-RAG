@@ -1,10 +1,10 @@
 import { isElectron } from './is-electron';
 
-const API_BASE_URL_STORAGE_KEY = 'PIPESHUB_API_BASE_URL';
-const API_BASE_URL_SESSION_KEY = 'PIPESHUB_API_BASE_URL_SESSION';
+const API_BASE_URL_STORAGE_KEY = 'API_BASE_URL';
+const API_BASE_URL_SESSION_KEY = 'API_BASE_URL_SESSION';
 
 /** Set on successful login; survives restarts. Cleared on explicit workspace logout. */
-const SERVER_URL_LOGIN_ACK_KEY = 'PIPESHUB_SERVER_URL_LOGIN_ACK';
+const SERVER_URL_LOGIN_ACK_KEY = 'SERVER_URL_LOGIN_ACK';
 
 function getStoredApiBaseUrl(): string | null {
   if (typeof window === 'undefined') return null;

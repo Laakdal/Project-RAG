@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api/api-error';
@@ -16,7 +15,6 @@ import { DestructiveTypedConfirmationDialog } from '@/app/(main)/workspace/compo
 import { ProviderGrid, ModelConfigDialog, ModelRolesSection } from './components';
 
 export default function AIModelsPage() {
-  const { t } = useTranslation();
   const router = useRouter();
   const isAdmin = useUserStore(selectIsAdmin);
   const isProfileInitialized = useUserStore(selectIsProfileInitialized);
@@ -36,11 +34,11 @@ export default function AIModelsPage() {
       const data = await AIModelsApi.getRegistry();
       s.setProviders(data.providers);
     } catch {
-      toast.error(t('workspace.aiModels.toastLoadProvidersError'));
+      toast.error("Failed to load AI model providers");
     } finally {
       s.setLoadingProviders(false);
     }
-  }, [t]);
+  }, []);
 
   const loadModels = useCallback(async () => {
     const s = useAIModelsStore.getState();
@@ -49,11 +47,11 @@ export default function AIModelsPage() {
       const data = await AIModelsApi.getAllModels();
       s.setConfiguredModels(data.models as unknown as Record<string, ConfiguredModel[]>);
     } catch {
-      toast.error(t('workspace.aiModels.toastLoadModelsError'));
+      toast.error("Failed to load configured models");
     } finally {
       s.setLoadingModels(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     if (!isProfileInitialized || isAdmin === false) return;
@@ -79,13 +77,13 @@ export default function AIModelsPage() {
     async (modelType: string, modelKey: string) => {
       try {
         await AIModelsApi.setDefault(modelType, modelKey);
-        toast.success(t('workspace.aiModels.toastDefaultUpdated'));
+        toast.success("Default model updated");
         await loadModels();
       } catch {
-        toast.error(t('workspace.aiModels.toastDefaultError'));
+        toast.error("Failed to set default model");
       }
     },
-    [loadModels, t]
+    [loadModels]
   );
 
   const handleDelete = useCallback(async () => {
@@ -94,19 +92,19 @@ export default function AIModelsPage() {
     setIsDeleting(true);
     try {
       await AIModelsApi.deleteProvider(target.modelType, target.modelKey);
-      toast.success(t('workspace.aiModels.toastDeleted', { name: target.modelName }));
+      toast.success(`Deleted ${target.modelName}`);
       useAIModelsStore.getState().closeDeleteDialog();
       await loadModels();
     } catch (error: unknown) {
       const detail =
         isProcessedError(error) && error.message.trim() ? error.message.trim() : undefined;
-      toast.error(t('workspace.aiModels.toastDeleteError'), {
+      toast.error("Failed to delete model", {
         ...(detail ? { description: detail } : {}),
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [loadModels, t]);
+  }, [loadModels]);
 
   const dialogExistingModelsCount = useMemo(() => {
     if (store.dialogMode !== 'add') return 0;
@@ -179,22 +177,18 @@ export default function AIModelsPage() {
         onOpenChange={(open) => {
           if (!open) store.closeDeleteDialog();
         }}
-        heading={t('workspace.aiModels.deleteDialogTitle')}
+        heading={"Delete Model"}
         body={
           <Text size="2" style={{ color: 'var(--slate-12)', lineHeight: '20px' }}>
-            {t('workspace.aiModels.deleteTypedConfirmBody', {
-              name: store.deleteTarget?.modelName ?? '',
-            })}
+            {`You are about to permanently delete the configured model "${store.deleteTarget?.modelName ?? ''}". This cannot be undone.`}
           </Text>
         }
         confirmationKeyword={deleteKeyword}
-        confirmInputLabel={t('workspace.aiModels.typeModelNameToConfirm', {
-          keyword: deleteKeyword,
-        })}
-        primaryButtonText={t('workspace.aiModels.delete')}
-        cancelLabel={t('workspace.aiModels.cancel')}
+        confirmInputLabel={`Type "${deleteKeyword}" to confirm`}
+        primaryButtonText={"Delete"}
+        cancelLabel={"Cancel"}
         isLoading={isDeleting}
-        confirmLoadingLabel={t('action.deleting')}
+        confirmLoadingLabel={"Deleting..."}
         onConfirm={() => void handleDelete()}
       />
     </ServiceGate>

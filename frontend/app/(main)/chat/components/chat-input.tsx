@@ -23,7 +23,6 @@ import {
   AgentStrategyModeSwitcher,
   AgentStrategyModePanel,
 } from '@/chat/components/chat-panel';
-import { MobileQueryOptionsSheet } from '@/chat/components/chat-panel/expansion-panels/mobile-query-options-sheet';
 import { MobileQueryModesSheet } from '@/chat/components/chat-panel/expansion-panels/mobile-query-modes-sheet';
 import { AgentStrategyDropdown } from '@/chat/components/agent-strategy-dropdown';
 import { getQueryModeConfig } from '@/chat/constants';
@@ -32,7 +31,6 @@ import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { useCommandStore } from '@/lib/store/command-store';
 import { toast } from '@/lib/store/toast-store';
 import { streamRegenerateForSlot, cancelStreamForSlot } from '@/chat/streaming';
-import { useTranslation } from 'react-i18next';
 import { useChatSpeechRecognition } from '@/lib/hooks/use-chat-speech-recognition';
 import type {
   UploadedFile,
@@ -103,57 +101,6 @@ function isFileTypeSupported(file: File): boolean {
   return ACCEPTED_EXTENSIONS.includes(ext);
 }
 
-interface SpeechInputButtonProps {
-  tooltip: string;
-  ariaLabel: string;
-  isListening: boolean;
-  isSupported: boolean;
-  isDisabled: boolean;
-  isRegenerateMode: boolean;
-  activeIconColor: string;
-  onToggle: () => void;
-  style?: React.CSSProperties;
-}
-
-function SpeechInputButton({
-  tooltip,
-  ariaLabel,
-  isListening,
-  isSupported,
-  isDisabled,
-  isRegenerateMode,
-  activeIconColor,
-  onToggle,
-  style,
-}: SpeechInputButtonProps) {
-  return (
-    <Tooltip content={tooltip} side="top">
-      <IconButton
-        variant={isListening ? 'soft' : 'ghost'}
-        color={isListening ? 'red' : 'gray'}
-        size="2"
-        disabled={isDisabled}
-        onClick={onToggle}
-        aria-label={ariaLabel}
-        style={{
-          margin: 0,
-          cursor: !isSupported ? 'not-allowed' : isRegenerateMode ? 'default' : 'pointer',
-          ...(isListening && { animation: 'pulse 1.5s ease-in-out infinite' }),
-          ...style,
-        }}
-      >
-        <MaterialIcon
-          name={isListening ? 'mic' : 'mic_none'}
-          size={ICON_SIZES.PRIMARY}
-          color={
-            isDisabled ? 'var(--slate-9)' : isListening ? 'var(--red-11)' : activeIconColor
-          }
-        />
-      </IconButton>
-    </Tooltip>
-  );
-}
-
 export function ChatInput({
   onSend,
   onUploadFile,
@@ -180,9 +127,7 @@ export function ChatInput({
   /** Agent chat: Connectors / Collections / Actions (Figma agent input). */
   const [isAgentResourcesPanelOpen, setIsAgentResourcesPanelOpen] = useState(false);
   const [isModelPanelOpen, setIsModelPanelOpen] = useState(false);
-  const [isModelButtonHovered, setIsModelButtonHovered] = useState(false);
   const [isAddFileButtonHovered, setIsAddFileButtonHovered] = useState(false);
-  const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
   const [isMobileModesOpen, setIsMobileModesOpen] = useState(false);
   const [isCompactToolbar, setIsCompactToolbar] = useState(false);
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false);
@@ -208,23 +153,19 @@ export function ChatInput({
    * doesn't leak across long-lived sessions.
    */
   const uploadControllersRef = useRef<Map<string, AbortController>>(new Map());
-  const { t, i18n } = useTranslation();
-  const resolvedPlaceholder = placeholder ?? t('chat.askAnything');
+  const resolvedPlaceholder = placeholder ?? "Ask anything...";
 
   const {
     isListening,
-    isSupported: isSpeechSupported,
     transcript: speechTranscript,
     interimTranscript,
-    toggle: toggleSpeech,
     stop: stopSpeech,
     resetTranscript,
-    unavailableReason: speechUnavailableReason,
   } = useChatSpeechRecognition({
-    lang: i18n.language,
+    lang: 'en-US',
     onError: (error) => {
       if (error === 'not-allowed') {
-        toast.error(t('chat.voiceError'));
+        toast.error("Could not access microphone");
       }
     },
   });
@@ -253,7 +194,6 @@ export function ChatInput({
   const agentKnowledgeDefaults = useChatStore((s) => s.agentKnowledgeDefaults);
   const setAgentKnowledgeScope = useChatStore((s) => s.setAgentKnowledgeScope);
   const agentStreamToolsSel = useChatStore((s) => s.agentStreamTools);
-  const agentToolCatalogLen = useChatStore((s) => s.agentToolCatalogFullNames.length);
   const agentChatToolGroups = useChatStore((s) => s.agentChatToolGroups);
   const universalAgentStreamTools = useChatStore((s) => s.universalAgentStreamTools);
   const universalAgentToolsLoading = useChatStore((s) => s.universalAgentToolsLoading);
@@ -265,10 +205,6 @@ export function ChatInput({
   const modelCtxKey = ctxKeyFromAgent(agentId);
   const contextSelectedModel = settings.selectedModels[modelCtxKey] ?? null;
   const contextDefaultModel = settings.defaultModels[modelCtxKey] ?? null;
-  const displayModel = contextSelectedModel ?? contextDefaultModel;
-  const displayModelLabel = displayModel
-    ? (displayModel.modelFriendlyName || displayModel.modelName)
-    : t('chat.aiModelsTooltip');
   const handleModelSelect = useCallback(
     (model: ModelOverride | null) => {
       setSelectedModelForCtx(modelCtxKey, model);
@@ -291,10 +227,10 @@ export function ChatInput({
   const handleStopStream = useCallback(() => {
     const sid = useChatStore.getState().activeSlotId;
     if (sid) cancelStreamForSlot(sid);
-    toast.info(t('chat.toasts.stopStreamTitle'), {
-      description: t('chat.toasts.stopStreamDescription'),
+    toast.info("Coming Soon", {
+      description: "Stop Generation is not supported",
     });
-  }, [t]);
+  }, []);
 
   const handleToggleView = useCallback(() => {
     setExpansionViewMode(expansionViewMode === 'inline' ? 'overlay' : 'inline');
@@ -305,18 +241,6 @@ export function ChatInput({
 
   const isSearchMode = settings.mode === 'search' && !isAgentChat;
   const canAcceptDrop = !isRegenerateMode && !isSearchMode && settings.queryMode !== 'web-search';
-  const selectedKbCount = (settings.filters?.apps?.length ?? 0) + (settings.filters?.kb?.length ?? 0);
-  const agentResourcesCustomized =
-    isAgentChat &&
-    (agentKnowledgeScope !== null ||
-      (agentStreamToolsSel !== null &&
-        agentToolCatalogLen > 0 &&
-        (agentStreamToolsSel.length === 0 || agentStreamToolsSel.length < agentToolCatalogLen)));
-
-  /** Universal agent mode has an explicit tool selection (not null = "all tools"). */
-  const universalAgentResourcesCustomized =
-    !isAgentChat && settings.queryMode === 'agent' && universalAgentStreamTools !== null;
-
   /** True when universal agent tool data is loading (disable send while loading). */
   const isUniversalAgentLoading =
     !isAgentChat && settings.queryMode === 'agent' && universalAgentToolsLoading;
@@ -541,14 +465,14 @@ export function ChatInput({
     }
 
     if (activeMessageAction.type === 'editQuery') {
-      toast.info(t('chat.toasts.editComingSoonTitle'), {
-        description: t('chat.toasts.editComingSoonDescription'),
+      toast.info("Coming Soon", {
+        description: "We're building out support for edit",
       });
       setActiveMessageAction(null);
       setRegenModelOverride(null);
       return;
     }
-  }, [activeMessageAction, regenModelOverride, activeSlotId, t]);
+  }, [activeMessageAction, regenModelOverride, activeSlotId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -571,9 +495,9 @@ export function ChatInput({
     const isUrlAgent = Boolean(agentId);
     const isUniversalAgentMode = !agentId && settings.queryMode === 'agent';
     if (isUrlAgent && agentDeprecatedToolNames.length > 0) {
-      toast.error(t('chat.toasts.deprecatedTools'), {
+      toast.error("This agent has tools that are no longer available. Open the Agent Builder to remove them.", {
         action: {
-          label: t('chat.toasts.openAgentBuilder'),
+          label: "Open Agent Builder",
           onClick: () =>
             router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId!)}`),
         },
@@ -598,10 +522,7 @@ export function ChatInput({
 
       if (resolvedCount > 128) {
         toast.error(
-          t('chat.toolValidation.tooManyTools', {
-            defaultValue:
-              'Too many tools selected. Maximum 128 tools are allowed per request due to performance limits.',
-          })
+          'Too many tools selected. Maximum 128 tools are allowed per request due to performance limits.'
         );
         return;
       }
@@ -649,11 +570,7 @@ export function ChatInput({
       if (multiTypes.length > 0) {
         const typeNames = multiTypes.join(', ');
         toast.error(
-          t('chat.toolValidation.multipleInstances', {
-            types: typeNames,
-            defaultValue:
-              `Multiple instances of the same action type (${typeNames}) cannot be used together. Open the Actions panel and select only one instance per type.`,
-          })
+          `Multiple instances of the same action type (${typeNames}) cannot be used together. Open the Actions panel and select only one instance per type.`
         );
         return;
       }
@@ -725,16 +642,14 @@ export function ChatInput({
         if (controller.signal.aborted) return;
         const errorMessage =
           (err as { message?: string })?.message ??
-          t('chat.attachments.uploadFailed', { defaultValue: 'Upload failed' });
+          'Upload failed';
         setUploadedFiles((prev) =>
           prev.map((f) =>
             f.id === file.id ? { ...f, status: 'error', errorMessage, ref: undefined } : f,
           ),
         );
         toast.error(
-          t('chat.attachments.uploadFailedNamed', {
-            defaultValue: `Failed to upload ${file.name}: ${errorMessage}`,
-          }),
+          `Failed to upload ${file.name}: ${errorMessage}`,
         );
       })
       .finally(() => {
@@ -742,7 +657,7 @@ export function ChatInput({
           uploadControllersRef.current.delete(file.id);
         }
       });
-  }, [onUploadFile, t]);
+  }, [onUploadFile]);
 
   const processFiles = useCallback((files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -758,9 +673,7 @@ export function ChatInput({
     }
     if (typeRejected.length > 0) {
       toast.error(
-        t('chat.attachments.unsupportedType', {
-          defaultValue: `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Only PDF, JPEG, and PNG files are supported.`,
-        })
+        `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Only PDF, JPEG, and PNG files are supported.`
       );
     }
 
@@ -775,9 +688,7 @@ export function ChatInput({
     }
     if (sizeRejected.length > 0) {
       toast.error(
-        t('chat.attachments.fileTooLarge', {
-          defaultValue: `File too large: ${sizeRejected.map((f) => f.name).join(', ')}. Maximum size is ${Math.round(CHAT_ATTACHMENT_MAX_BYTES / (1024 * 1024))} MB per file.`,
-        })
+        `File too large: ${sizeRejected.map((f) => f.name).join(', ')}. Maximum size is ${Math.round(CHAT_ATTACHMENT_MAX_BYTES / (1024 * 1024))} MB per file.`
       );
     }
 
@@ -794,9 +705,7 @@ export function ChatInput({
     const toAdd = sizeValid.slice(0, remaining);
     if (toAdd.length < sizeValid.length) {
       toast.error(
-        t('chat.attachments.tooManyFiles', {
-          defaultValue: `Maximum ${CHAT_ATTACHMENT_MAX_FILES} attachments per message.`,
-        })
+        `Maximum ${CHAT_ATTACHMENT_MAX_FILES} attachments per message.`
       );
     }
 
@@ -818,7 +727,7 @@ export function ChatInput({
     }
 
     setShowUploadArea(false);
-  }, [t, startUpload, uploadedFiles]);
+  }, [startUpload, uploadedFiles]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -1028,22 +937,6 @@ export function ChatInput({
     ? message + (message.length > 0 ? ' ' : '') + interimTranscript
     : message;
 
-  const speechTooltip =
-    speechUnavailableReason === 'stt-not-configured'
-      ? t('chat.voiceSttNotConfigured', {
-          defaultValue:
-            'Configure a Speech-to-Text (STT) model in AI Models settings to enable voice input.',
-        })
-      : speechUnavailableReason === 'stt-loading'
-        ? t('chat.voiceSttLoading', {
-            defaultValue: 'Checking speech capabilities…',
-          })
-        : !isSpeechSupported
-          ? t('chat.voiceInputNotSupported')
-          : isListening
-            ? t('chat.listening')
-            : t('chat.micTooltip');
-  const isSpeechButtonDisabled = isRegenerateMode || !isSpeechSupported;
 
   // Compact toolbar: collapse secondary controls when the input box is narrow
   useEffect(() => {
@@ -1328,7 +1221,7 @@ export function ChatInput({
                     />
                     {file.status === 'uploading' ? (
                       <Tooltip
-                        content={t('chat.attachments.uploading', { defaultValue: 'Uploading…' })}
+                        content="Uploading…"
                         side="top"
                       >
                         <Box
@@ -1354,7 +1247,7 @@ export function ChatInput({
                       <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
                         {file.status === 'error' && (
                           <Tooltip
-                            content={t('chat.attachments.retry', { defaultValue: 'Retry upload' })}
+                            content="Retry upload"
                             side="top"
                           >
                             <IconButton
@@ -1413,8 +1306,7 @@ export function ChatInput({
                       }}
                     >
                       {file.status === 'error'
-                        ? file.errorMessage ||
-                          t('chat.attachments.uploadFailed', { defaultValue: 'Upload failed' })
+                        ? file.errorMessage || 'Upload failed'
                         : formatFileSize(file.size)}
                     </Text>
                   </Flex>
@@ -1529,7 +1421,7 @@ export function ChatInput({
       {/* Upload Area */}
       {showUploadArea && (
         <Flex direction="column" gap="2">
-          <Text size="2" style={{ color: 'var(--slate-12)' }}>{t('chat.uploadYourFile')}</Text>
+          <Text size="2" style={{ color: 'var(--slate-12)' }}>{"Upload your File"}</Text>
           <Box
             style={{
               position: 'relative',
@@ -1556,18 +1448,15 @@ export function ChatInput({
                 weight={isDragging ? 'medium' : 'regular'}
                 style={{ color: isDragging ? 'var(--accent-11)' : 'var(--slate-12)' }}
               >
-                {isDragging ? t('chat.dropFilesHere') : t('action.upload')}
+                {isDragging ? "Drop files here" : "Upload"}
               </Text>
               <Text size="1" style={{ color: 'var(--slate-11)' }}>
-                {t('chat.supportsFileTypes', { types: SUPPORTED_FILE_TYPES.join(', ') })}
+                {`Supports: ${SUPPORTED_FILE_TYPES.join(', ')}.`}
               </Text>
               <Text size="1" style={{ color: 'var(--slate-10)' }}>
                 {uploadedFiles.length > 0
-                  ? t('chat.uploadFilesRemaining', {
-                      remaining: CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length,
-                      total: CHAT_ATTACHMENT_MAX_FILES,
-                    })
-                  : t('chat.uploadFilesLimit', { count: CHAT_ATTACHMENT_MAX_FILES })}
+                  ? `${CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length} of ${CHAT_ATTACHMENT_MAX_FILES} files remaining`
+                  : `Up to ${CHAT_ATTACHMENT_MAX_FILES} files per message`}
               </Text>
             </Flex>
           </Box>
@@ -1704,7 +1593,7 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           onFocus={() => setIsInputFocused(true)}
           onBlur={() => setIsInputFocused(false)}
-          placeholder={isListening ? t('chat.listening') : resolvedPlaceholder}
+          placeholder={isListening ? "Listening..." : resolvedPlaceholder}
           disabled={isRegenerateMode}
           rows={1}
           style={{
@@ -1790,27 +1679,22 @@ export function ChatInput({
         {/* Right side - Controls */}
         <Flex align="center" gap="2">
           {isMobile ? (
-            /* Mobile: meatball opens bottom sheet; attach_file and mic stay inline. */
+            /* Mobile: attach file only. */
             <Flex align="center" gap="1">
-              <IconButton
-                variant="ghost"
-                color="gray"
-                size="2"
-                onClick={() => setIsMobileOptionsOpen(true)}
-                style={{ margin: 0, cursor: 'pointer' }}
-              >
-                <MaterialIcon name="more_horiz" size={ICON_SIZES.PRIMARY} color={activeIconColor} />
-              </IconButton>
-              <SpeechInputButton
-                tooltip={speechTooltip}
-                ariaLabel={speechTooltip}
-                isListening={isListening}
-                isSupported={isSpeechSupported}
-                isDisabled={isSpeechButtonDisabled}
-                isRegenerateMode={isRegenerateMode}
-                activeIconColor={activeIconColor}
-                onToggle={toggleSpeech}
-              />
+              {!isSearchMode && settings.queryMode !== 'web-search' && (
+                <Tooltip content={"Attach files"} side="top">
+                  <IconButton
+                    variant={showUploadArea ? 'soft' : 'ghost'}
+                    color="gray"
+                    size="2"
+                    disabled={isRegenerateMode}
+                    onClick={toggleUploadArea}
+                    style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
+                  >
+                    <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Flex>
           ) : isCompactToolbar ? (
             /* Compact desktop: overflow popover with all secondary controls */
@@ -1849,48 +1733,6 @@ export function ChatInput({
                     </Box>
                   )}
 
-                  {/* Collections / Connectors */}
-                  {settings.queryMode !== 'web-search' && (
-                    <Flex
-                      align="center"
-                      gap="2"
-                      onClick={() => {
-                        if (isRegenerateMode) return;
-                        setIsCompactMenuOpen(false);
-                        if (isAgentChat) {
-                          const next = !isAgentResourcesPanelOpen;
-                          if (isAgentResourcesPanelOpen) setExpansionViewMode('inline');
-                          dismissExpansionPanels();
-                          setIsAgentResourcesPanelOpen(next);
-                        } else {
-                          const next = !isCollectionsPanelOpen;
-                          if (isCollectionsPanelOpen) setExpansionViewMode('inline');
-                          dismissExpansionPanels();
-                          setIsCollectionsPanelOpen(next);
-                        }
-                      }}
-                      style={{
-                        padding: 'var(--space-2) var(--space-2)',
-                        borderRadius: 'var(--radius-2)',
-                        cursor: isRegenerateMode ? 'default' : 'pointer',
-                        opacity: isRegenerateMode ? 0.5 : 1,
-                        backgroundColor:
-                          (isAgentChat ? isAgentResourcesPanelOpen || agentResourcesCustomized : isCollectionsPanelOpen || (settings.queryMode === 'agent' ? universalAgentResourcesCustomized : selectedKbCount > 0))
-                            ? 'var(--olive-3)'
-                            : 'transparent',
-                      }}
-                    >
-                      <MaterialIcon name="apps" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
-                      <Text size="2" style={{ color: isRegenerateMode ? 'var(--slate-5)' : 'var(--slate-12)' }}>
-                        {isAgentChat
-                          ? t('chat.agentResourcesTooltip', { defaultValue: 'Connectors & actions' })
-                          : settings.queryMode === 'agent'
-                            ? t('chat.agentResourcesTooltip', { defaultValue: 'Connectors, collections & actions' })
-                            : t('chat.connectorsTooltip', { defaultValue: 'Connectors & collections' })}
-                      </Text>
-                    </Flex>
-                  )}
-
                   {/* Attach file */}
                   {!isSearchMode && settings.queryMode !== 'web-search' && (
                     <Flex
@@ -1911,72 +1753,11 @@ export function ChatInput({
                     >
                       <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
                       <Text size="2" style={{ color: isRegenerateMode ? 'var(--slate-5)' : 'var(--slate-12)' }}>
-                        {t('chat.attachmentTooltip', { defaultValue: 'Attach file' })}
+                        {"Attach files"}
                       </Text>
                     </Flex>
                   )}
 
-                  {/* Model selector */}
-                  <Flex
-                    align="center"
-                    gap="2"
-                    onClick={() => {
-                      setIsCompactMenuOpen(false);
-                      const next = !isModelPanelOpen;
-                      dismissExpansionPanels();
-                      setIsModelPanelOpen(next);
-                    }}
-                    style={{
-                      padding: 'var(--space-2) var(--space-2)',
-                      borderRadius: 'var(--radius-2)',
-                      cursor: 'pointer',
-                      backgroundColor: isModelPanelOpen ? 'var(--olive-3)' : 'transparent',
-                    }}
-                  >
-                    <MaterialIcon name="memory" size={ICON_SIZES.PRIMARY} color={activeIconColor} />
-                    <Text
-                      size="2"
-                      style={{
-                        color: 'var(--slate-12)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '160px',
-                        opacity: displayModel ? 1 : 0.7,
-                      }}
-                    >
-                      {displayModelLabel || t('chat.aiModelsTooltip', { defaultValue: 'AI model' })}
-                    </Text>
-                  </Flex>
-
-                  {/* Speech */}
-                  {isSpeechSupported && (
-                    <Flex
-                      align="center"
-                      gap="2"
-                      onClick={() => {
-                        if (isSpeechButtonDisabled) return;
-                        setIsCompactMenuOpen(false);
-                        toggleSpeech();
-                      }}
-                      style={{
-                        padding: 'var(--space-2) var(--space-2)',
-                        borderRadius: 'var(--radius-2)',
-                        cursor: isSpeechButtonDisabled ? 'default' : 'pointer',
-                        opacity: isSpeechButtonDisabled ? 0.5 : 1,
-                        backgroundColor: isListening ? 'var(--olive-3)' : 'transparent',
-                      }}
-                    >
-                      <MaterialIcon
-                        name={isListening ? 'mic' : 'mic_none'}
-                        size={ICON_SIZES.PRIMARY}
-                        color={isListening ? activeToggleColor : activeIconColor}
-                      />
-                      <Text size="2" style={{ color: 'var(--slate-12)' }}>
-                        {isListening ? t('chat.stopListening', { defaultValue: 'Stop listening' }) : t('chat.voiceInput', { defaultValue: 'Voice input' })}
-                      </Text>
-                    </Flex>
-                  )}
                 </Flex>
               </Popover.Content>
             </Popover.Root>
@@ -1993,72 +1774,9 @@ export function ChatInput({
 
               {/* Action buttons group */}
               <Flex align="center" gap="1">
-                  
-                {!isAgentChat && settings.queryMode !== 'web-search' ? (
-                  <Tooltip
-                  content={
-                    settings.queryMode === 'agent'
-                      ? t('chat.agentResourcesTooltip', { defaultValue: 'Connectors, collections & actions' })
-                      : t('chat.connectorsTooltip')
-                  }
-                  side="top"
-                >
-                    <IconButton
-                      variant={
-                        isCollectionsPanelOpen ||
-                        (settings.queryMode === 'agent'
-                          ? universalAgentResourcesCustomized
-                          : selectedKbCount > 0)
-                          ? 'soft'
-                          : 'ghost'
-                      }
-                      color="gray"
-                      size="2"
-                      disabled={isRegenerateMode}
-                      onClick={() => {
-                        setIsCollectionsPanelOpen((prev) => {
-                          if (prev) setExpansionViewMode('inline');
-                          return !prev;
-                        });
-                        setIsModePanelOpen(false);
-                        setIsAgentStrategyPanelOpen(false);
-                        setIsModelPanelOpen(false);
-                        setShowUploadArea(false);
-                      }}
-                      style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer' }}
-                    >
-                      <MaterialIcon name="apps" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
-                    </IconButton>
-                  </Tooltip>
-                ) : isAgentChat ? (
-                  <Tooltip content={t('chat.agentResourcesTooltip')} side="top">
-                    <IconButton
-                      variant={
-                        isAgentResourcesPanelOpen || agentResourcesCustomized ? 'soft' : 'ghost'
-                      }
-                      color="gray"
-                      size="2"
-                      disabled={isRegenerateMode}
-                      onClick={() => {
-                        setIsAgentResourcesPanelOpen((prev) => {
-                          if (prev) setExpansionViewMode('inline');
-                          return !prev;
-                        });
-                        setIsModePanelOpen(false);
-                        setIsAgentStrategyPanelOpen(false);
-                        setIsCollectionsPanelOpen(false);
-                        setIsModelPanelOpen(false);
-                        setShowUploadArea(false);
-                      }}
-                      style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer' }}
-                    >
-                      <MaterialIcon name="apps" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
-                    </IconButton>
-                  </Tooltip>
-                ) : null}
                 {/* Attach file button */}
                 {!isSearchMode && settings.queryMode !== 'web-search' && (
-                  <Tooltip content={t('chat.attachmentTooltip', { defaultValue: 'Attach file' })} side="top">
+                  <Tooltip content={"Attach files"} side="top">
                     <IconButton
                       variant={showUploadArea ? 'soft' : 'ghost'}
                       color="gray"
@@ -2071,64 +1789,6 @@ export function ChatInput({
                     </IconButton>
                   </Tooltip>
                 )}
-                {/* Model selector button — icon + current model name so the active model is always visible */}
-                <Tooltip content={t('chat.aiModelsTooltip')} side="top">
-                  <Flex
-                    align="center"
-                    gap="2"
-                    onClick={() => {
-                      const next = !isModelPanelOpen;
-                      dismissExpansionPanels();
-                      setIsModelPanelOpen(next);
-                    }}
-                    style={{
-                      height: '32px',
-                      paddingLeft: 'var(--space-2)',
-                      paddingRight: 'var(--space-2)',
-                      borderRadius: 'var(--radius-2)',
-                      cursor: 'pointer',
-                      backgroundColor: isModelPanelOpen
-                        ? 'var(--olive-4)'
-                        : isModelButtonHovered
-                          ? 'var(--olive-3)'
-                          : 'transparent',
-                      transition: 'background-color 0.12s ease',
-                      maxWidth: isMobile ? '32px' : '180px',
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={() => setIsModelButtonHovered(true)}
-                    onMouseLeave={() => setIsModelButtonHovered(false)}
-                  >
-                    <MaterialIcon name="memory" size={ICON_SIZES.PRIMARY} color={activeIconColor} />
-                    {!isMobile && (
-                      <Text
-                        size="1"
-                        weight="medium"
-                        style={{
-                          color: activeIconColor,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxWidth: '140px',
-                          opacity: displayModel ? 1 : 0.7,
-                        }}
-                      >
-                        {displayModelLabel}
-                      </Text>
-                    )}
-                  </Flex>
-                </Tooltip>
-                <SpeechInputButton
-                  tooltip={speechTooltip}
-                  ariaLabel={speechTooltip}
-                  isListening={isListening}
-                  isSupported={isSpeechSupported}
-                  isDisabled={isSpeechButtonDisabled}
-                  isRegenerateMode={isRegenerateMode}
-                  activeIconColor={activeIconColor}
-                  onToggle={toggleSpeech}
-                  style={{ '--accent-a3': modeColors.bg } as React.CSSProperties}
-                />
               </Flex>
             </>
           )}
@@ -2192,31 +1852,20 @@ export function ChatInput({
         >
           <MaterialIcon name="file_upload" size={36} color="var(--accent-9)" />
           <Text size="3" weight="medium" style={{ color: 'var(--accent-11)' }}>
-            {t('chat.dropFilesHere')}
+            {"Drop files here"}
           </Text>
           <Text size="1" style={{ color: 'var(--slate-11)' }}>
-            {t('chat.supportsFileTypes', { types: SUPPORTED_FILE_TYPES.join(', ') })}
+            {`Supports: ${SUPPORTED_FILE_TYPES.join(', ')}.`}
           </Text>
           <Text size="1" style={{ color: 'var(--slate-10)' }}>
             {uploadedFiles.length > 0
-              ? t('chat.uploadFilesRemaining', {
-                  remaining: CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length,
-                  total: CHAT_ATTACHMENT_MAX_FILES,
-                })
-              : t('chat.uploadFilesLimit', { count: CHAT_ATTACHMENT_MAX_FILES })}
+              ? `${CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length} of ${CHAT_ATTACHMENT_MAX_FILES} files remaining`
+              : `Up to ${CHAT_ATTACHMENT_MAX_FILES} files per message`}
           </Text>
         </Box>
       )}
     </Flex>
     </Flex>
-
-    {/* Mobile query options sheet — meatball → sheet flow */}
-    <MobileQueryOptionsSheet
-      open={isMobileOptionsOpen}
-      onOpenChange={setIsMobileOptionsOpen}
-      isAgentChat={isAgentChat}
-      agentId={agentId}
-    />
 
     {/* Mobile query modes sheet — mode switcher → sheet flow */}
     <MobileQueryModesSheet

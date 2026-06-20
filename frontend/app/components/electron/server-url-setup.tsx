@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Box, Text, Heading, Button } from '@radix-ui/themes';
 import { ELECTRON_SERVER_URL_NAVIGATION_EVENT } from '@/lib/store/auth-store';
 import { getApiBaseUrl } from '@/lib/utils/api-base-url';
@@ -63,7 +62,6 @@ export function ServerUrlGuard({ children }: { children: React.ReactNode }) {
 }
 
 function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
-  const { t } = useTranslation();
   const existing = typeof window !== 'undefined' ? getApiBaseUrl() : '';
   const [url, setUrl] = useState(existing);
   const [error, setError] = useState('');
@@ -74,7 +72,7 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
 
     const trimmed = url.trim().replace(/\/+$/, '');
     if (!trimmed) {
-      setError(t('electron.serverUrlSetup.errors.empty'));
+      setError("Please enter a server URL.");
       return;
     }
 
@@ -82,7 +80,7 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
     try {
       parsed = new URL(trimmed);
     } catch {
-      setError(t('electron.serverUrlSetup.errors.invalid'));
+      setError("Please enter a valid URL (e.g. http://localhost:3000).");
       return;
     }
 
@@ -90,7 +88,7 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
     // axios.baseURL and string-concatenated into fetch() URLs, so anything
     // other than http(s) is unsafe.
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      setError(t('electron.serverUrlSetup.errors.protocol'));
+      setError("Server URL must use http:// or https://.");
       return;
     }
 
@@ -127,12 +125,12 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
             height={56}
           />
           <Heading size="5" align="center">
-            {t('electron.serverUrlSetup.title')}
+            {"Connect to Project RAG Server"}
           </Heading>
           <Text size="2" color="gray" align="center">
             {existing
-              ? t('electron.serverUrlSetup.subtitleExisting')
-              : t('electron.serverUrlSetup.subtitleFirstRun')}
+              ? "Confirm or update your Project RAG server URL."
+              : "Enter the URL of your Project RAG server to get started."}
           </Text>
         </Flex>
 
@@ -141,7 +139,7 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
           <Flex direction="column" gap="4">
             <Flex direction="column" gap="1">
               <Text as="label" size="2" weight="medium" htmlFor="server-url">
-                {t('electron.serverUrlSetup.label')}
+                {"Server URL"}
               </Text>
               <input
                 id="server-url"
@@ -178,7 +176,7 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
               size="3"
               style={{ width: '100%', cursor: 'pointer' }}
             >
-              {t('electron.serverUrlSetup.submit')}
+              {"Connect"}
             </Button>
           </Flex>
         </form>

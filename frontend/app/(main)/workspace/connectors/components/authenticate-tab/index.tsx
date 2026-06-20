@@ -26,7 +26,6 @@ import {
   readRegistrationValueForAuthField,
 } from '../../utils/oauth-registration-values';
 import { getConnectorInfoText, getConnectorDocumentationUrl } from '../../utils/connector-metadata';
-import { useTranslation } from 'react-i18next';
 
 export function AuthenticateTab() {
   const panelBodyPortal = useContext(WorkspaceRightPanelBodyPortalContext);
@@ -51,8 +50,6 @@ export function AuthenticateTab() {
     setSelectedAuthType,
     oauthCredentialBaselineTick,
   } = useConnectorsStore();
-
-  const { t } = useTranslation();
 
   const isCreateMode = !panelConnectorId;
   const connectorTypeName =
@@ -266,10 +263,10 @@ export function AuthenticateTab() {
         <Flex direction="column" gap="2" style={{ width: '100%', minWidth: 0 }}>
           <Flex direction="column" gap="1">
             <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.connectors.authTab.redirectCallbackUrlLabel')}
+              {"Redirect/Callback URL"}
             </Text>
             <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
-              {t('workspace.connectors.authTab.redirectUrlDescription')}
+              {"Add this exact URL to the allowed redirect/callback list on your identity provider."}
             </Text>
           </Flex>
           <Flex
@@ -301,7 +298,7 @@ export function AuthenticateTab() {
             >
               <code>{callbackUrl}</code>
             </Box>
-            <Tooltip content={t('workspace.connectors.authTab.copyRedirectCallbackUrl')}>
+            <Tooltip content={"Copy redirect/callback URL"}>
               <IconButton
                 type="button"
                 size="1"
@@ -309,14 +306,14 @@ export function AuthenticateTab() {
                 color="gray"
                 radius="full"
                 style={{ flexShrink: 0, cursor: 'pointer' }}
-                aria-label={t('workspace.connectors.authTab.copyRedirectCallbackUrl')}
+                aria-label={"Copy redirect/callback URL"}
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(callbackUrl);
                     addToast({
                       variant: 'success',
-                      title: t('workspace.connectors.authTab.redirectCallbackUrlCopied'),
-                      description: t('workspace.connectors.authTab.redirectCallbackUrlCopiedDescription'),
+                      title: "Redirect/Callback URL copied",
+                      description: "Add it to your identity provider's allowed redirect/callback list.",
                       duration: 2500,
                     });
                   } catch {
@@ -346,18 +343,18 @@ export function AuthenticateTab() {
           <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
             {isCreateMode
               ? isAdmin === true
-                ? t('workspace.connectors.authTab.oauthCreateHelperAdmin')
-                : t('workspace.connectors.authTab.oauthCreateHelperNonAdmin')
+                ? "If saved OAuth apps exist, pick one above, or choose Create new OAuth app and enter client credentials below. Register this redirect/callback URL in your IdP first."
+                : "Select a saved OAuth app that your administrator registered. You do not enter client secrets here. Register this redirect/callback URL in your IdP if your organization requires it."
               : isAdmin === true
-                ? t('workspace.connectors.authTab.oauthEditHelperAdmin')
-                : t('workspace.connectors.authTab.oauthEditHelperNonAdmin')}
+                ? "Choose a saved OAuth app above. If you switch to a different app and save your changes, then use the Authorize tab to sign in again."
+                : "Choose a saved OAuth app above (your administrator may offer more than one). If you switch to a different app and save your changes, then use the Authorize tab to sign in again."}
           </Text>
         </>
       )}
 
       {selectedAuthType !== 'OAUTH' && callbackUrl && displayRedirect !== false && (
         <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
-          {t('workspace.connectors.authTab.redirectUrlHelperNonOauth')}
+          {"Register the redirect/callback URL in your identity provider, then complete the fields below."}
         </Text>
       )}
     </>
@@ -366,15 +363,13 @@ export function AuthenticateTab() {
   const credentialsSubtext = (() => {
     if (isOAuthType(selectedAuthType) && isProfileInitialized) {
       if (isAdmin === true) {
-        return t('workspace.connectors.authTab.oauthCredentialsSubtextAdmin', {
-          name: panelConnector.name,
-        });
+        return "Enter or review client credentials (for a new registration or a saved app selected above).";
       }
       if (isAdmin === false || isAdmin === null) {
-        return t('workspace.connectors.authTab.oauthCredentialsSubtextNonAdmin');
+        return "The selected OAuth app is used for this instance. Client secrets are managed by administrators; you do not need to enter them here.";
       }
     }
-    return t('workspace.connectors.authTab.credentialsSubtext', { name: panelConnector.name });
+    return `Enter your ${panelConnector.name} authentication details`;
   })();
 
   const authCredentialBlockInner =
@@ -382,9 +377,7 @@ export function AuthenticateTab() {
       <>
         <Flex direction="column" gap="1">
           <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.connectors.authTab.credentialsHeading', {
-              name: formatAuthTypeName(selectedAuthType),
-            })}
+            {`${formatAuthTypeName(selectedAuthType)} Credentials`}
           </Text>
           <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
             {credentialsSubtext}
@@ -441,7 +434,7 @@ export function AuthenticateTab() {
                       cursor: 'pointer',
                     }}
                   >
-                    {t('workspace.connectors.authTab.emailVisibilityDocLink')}
+                    {"Email visibility setup guide →"}
                   </a>
                 </>
               )}
@@ -457,7 +450,7 @@ export function AuthenticateTab() {
       {isCreateMode && connectorSchema && (
         <Box data-ph-connector-instance-name>
           <FormField
-            label={t('workspace.actions.instanceName')}
+            label={"Instance name"}
             required
             error={instanceNameError ?? undefined}
           >
@@ -466,7 +459,7 @@ export function AuthenticateTab() {
               data-ph-connector-instance-name
               value={instanceName}
               onChange={(e) => setInstanceName(e.target.value)}
-              placeholder={t('workspace.actions.instanceNamePlaceholder', { name: connectorTypeName })}
+              placeholder={"e.g. Production Slack"}
               aria-invalid={instanceNameError ? true : undefined}
               style={{
                 height: 32,
@@ -502,7 +495,7 @@ export function AuthenticateTab() {
           >
             <Select.Trigger
               style={{ width: '100%', height: 32 }}
-              placeholder={t('workspace.connectors.authTab.methodPlaceholder')}
+              placeholder={"Select auth type..."}
             />
             <Select.Content
               position="popper"
@@ -557,7 +550,7 @@ export function AuthenticateTab() {
         >
           <MaterialIcon name="check_circle" size={16} color="var(--green-a11)" />
           <Text size="2" style={{ color: 'var(--green-a11)' }}>
-            {t('workspace.connectors.authTab.noAuthRequired')}
+            {"No authentication required for this connector"}
           </Text>
         </Flex>
       )}

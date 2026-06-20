@@ -21,7 +21,7 @@ export const useSidebarWidthStore = create<SidebarWidthState>()(
       setNavCollapsed: (collapsed) => set({ isNavCollapsed: collapsed }),
     }),
     {
-      name: 'pipeshub-sidebar-width',
+      name: 'sidebar-width',
       storage: createJSONStorage(() => localStorage),
       // Only persist sidebarWidth; collapse state is intentionally session-only
       partialize: (state) => ({ sidebarWidth: state.sidebarWidth }),

@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Box, Flex, Text, Badge, Button } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useUserStore } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
@@ -36,7 +35,6 @@ export function TeamDetailSidebar({
 }: {
   onUpdateSuccess?: () => void;
 }) {
-  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const profile = useUserStore((s) => s.profile);
   const addToast = useToastStore((s) => s.addToast);
@@ -351,14 +349,8 @@ export function TeamDetailSidebar({
 
       addToast({
         variant: 'success',
-        title: t('workspace.teams.edit.deleteSuccess', 'Team deleted'),
-        description: t(
-          'workspace.teams.edit.deleteSuccessDescription',
-          {
-            name: detailTeam.name,
-            defaultValue: `"${detailTeam.name}" has been deleted`,
-          }
-        ),
+        title: "Team deleted",
+        description: `"${detailTeam.name}" has been deleted`,
         duration: 3000,
       });
 
@@ -367,16 +359,13 @@ export function TeamDetailSidebar({
     } catch {
       addToast({
         variant: 'error',
-        title: t(
-          'workspace.teams.edit.deleteError',
-          'Failed to delete team'
-        ),
+        title: "Failed to delete team",
         duration: 5000,
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [detailTeam, closeDetailPanel, onUpdateSuccess, addToast, t]);
+  }, [detailTeam, closeDetailPanel, onUpdateSuccess, addToast]);
 
   // Handle saving edits
   const handleSaveEdits = useCallback(async () => {
@@ -416,24 +405,18 @@ export function TeamDetailSidebar({
 
       addToast({
         variant: 'success',
-        title: t('workspace.teams.edit.saveSuccess', 'Team updated!'),
-        description: t(
-          'workspace.teams.edit.saveSuccessDescription',
-          {
-            name: detailTeam.name,
-            defaultValue: `Changes to '${detailTeam.name}' saved successfully`,
-          }
-        ),
+        title: "Team updated!",
+        description: `Changes to '${detailTeam.name}' saved successfully`,
         duration: 3000,
       });
       onUpdateSuccess?.();
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
-        ?? t('workspace.teams.edit.saveErrorDescription', 'Could not update team. Please try again.');
+        ?? 'Could not update team. Please try again.';
       addToast({
         variant: 'error',
-        title: t('workspace.teams.edit.saveError', 'Failed to update team'),
+        title: "Failed to update team",
         description: message,
         duration: 5000,
       });
@@ -453,7 +436,6 @@ export function TeamDetailSidebar({
     openDetailPanel,
     onUpdateSuccess,
     addToast,
-    t,
   ]);
 
   const canEditTeam = Boolean(detailTeam?.canEdit);
@@ -494,10 +476,10 @@ export function TeamDetailSidebar({
       icon="groups"
       primaryLabel={
         isEditMode
-          ? t('workspace.teams.edit.save', 'Save Edits')
-          : t('workspace.teams.edit.edit', 'Edit Team')
+          ? "Save Edits"
+          : "Edit Team"
       }
-      secondaryLabel={t('workspace.teams.edit.cancel', 'Cancel')}
+      secondaryLabel={"Cancel"}
       primaryDisabled={isEditMode && isSavingEdit}
       primaryLoading={isSavingEdit}
       onPrimaryClick={handlePrimaryClick}
@@ -518,7 +500,7 @@ export function TeamDetailSidebar({
       >
         {/* Team Name */}
         <FormField
-          label={t('workspace.teams.detail.nameLabel', 'Team Name')}
+          label={"Team Name"}
         >
           <input
             type="text"
@@ -557,10 +539,7 @@ export function TeamDetailSidebar({
 
         {/* Team Description */}
         <FormField
-          label={t(
-            'workspace.teams.detail.descriptionLabel',
-            'Team Description'
-          )}
+          label={"Team Description"}
         >
           <textarea
             value={
@@ -574,10 +553,7 @@ export function TeamDetailSidebar({
             readOnly={!isEditMode}
             placeholder={
               isEditMode
-                ? t(
-                    'workspace.teams.detail.descriptionPlaceholder',
-                    'Describe the purpose of this team'
-                  )
+                ? "Describe the purpose of this team"
                 : ''
             }
             rows={4}
@@ -627,7 +603,7 @@ export function TeamDetailSidebar({
             weight="medium"
             style={{ color: 'var(--slate-12)' }}
           >
-            {t('workspace.teams.detail.createdBy', 'Created By')}
+            {"Created By"}
           </Text>
           {creatorUser ? (
             <AvatarCell
@@ -661,7 +637,7 @@ export function TeamDetailSidebar({
             weight="medium"
             style={{ color: 'var(--slate-12)' }}
           >
-            {t('workspace.teams.detail.members', 'Members')}
+            {"Members"}
           </Text>
 
           <PaginatedMembersList<TeamMember>
@@ -669,8 +645,8 @@ export function TeamDetailSidebar({
             ref={membersListRef}
             fetcher={fetchTeamMembersFn}
             keyExtractor={(m) => m.id}
-            searchPlaceholder={t('workspace.teams.detail.searchMembers', 'Search members...')}
-            emptyText={t('workspace.teams.detail.noMembers', 'No members in this team')}
+            searchPlaceholder="Search members..."
+            emptyText={"No members in this team"}
             maxHeight={320}
             listClassName="team-member-scroll-area"
             onFetched={(items) => setTeamMembers(items)}
@@ -738,8 +714,8 @@ export function TeamDetailSidebar({
                         }}
                       >
                         {isPendingRemove
-                          ? t('workspace.teams.edit.undo', 'Undo')
-                          : t('workspace.teams.edit.remove', 'Remove')}
+                          ? "Undo"
+                          : "Remove"}
                       </Text>
                     )}
                   </Flex>
@@ -768,10 +744,10 @@ export function TeamDetailSidebar({
                 weight="medium"
                 style={{ color: 'var(--slate-12)' }}
               >
-                {t('workspace.teams.edit.addUsersLabel', 'Add Members')}
+                {"Add Members"}
               </Text>
               <Badge variant="soft" color="gray" size="1">
-                {t('workspace.common.selected', { count: editAddUserIds.length, defaultValue: '{{count}} Selected' })}
+                {`${editAddUserIds.length} Selected`}
               </Badge>
             </Flex>
 
@@ -780,7 +756,7 @@ export function TeamDetailSidebar({
                 out of view. */}
             <Flex align="center" justify="between" gap="2" wrap="wrap">
               <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-                {t('workspace.teams.detail.roleLabel', 'Default Role')}
+                {"Role"}
               </Text>
               <Flex align="center" gap="2">
                 <RoleDropdownMenu
@@ -795,7 +771,7 @@ export function TeamDetailSidebar({
                   onClick={handleApplyRoleToAll}
                   disabled={editAddUserIds.length === 0}
                 >
-                  {t('workspace.teams.edit.applyToAll', 'Apply to all')}
+                  {"Apply to all"}
                 </Button>
               </Flex>
             </Flex>
@@ -804,11 +780,8 @@ export function TeamDetailSidebar({
               options={availableUserOptions}
               selectedIds={editAddUserIds}
               onSelectionChange={handleAddSelectionChange}
-              placeholder={t(
-                'workspace.teams.edit.addUsersPlaceholder',
-                'Search or select user(s) to add to this team'
-              )}
-              emptyText={t('workspace.common.noUsersAvailable', 'No users available')}
+              placeholder={"Search or select user(s) to add to this team"}
+              emptyText={"No users available"}
               showAvatar
               onSearch={handleUserSearch}
               onLoadMore={handleUserLoadMore}
@@ -820,7 +793,7 @@ export function TeamDetailSidebar({
             {selectedAddsOrdered.length > 0 && (
               <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-2)' }}>
                 <Text size="1" weight="medium" style={{ color: 'var(--slate-11)' }}>
-                  {t('workspace.teams.edit.newMemberRoles', 'New Member Roles')}
+                  {"New Member Roles"}
                 </Text>
                 <Flex
                   direction="column"
@@ -878,16 +851,10 @@ export function TeamDetailSidebar({
           <Flex align="center" justify="between">
             <Flex direction="column" gap="1">
               <Text size="3" weight="medium" style={{ color: 'var(--slate-12)' }}>
-                {t('workspace.teams.edit.deleteTitle', {
-                  name: detailTeam?.name,
-                  defaultValue: `Delete '${detailTeam?.name}' Team`,
-                })}
+                {`Delete '${detailTeam?.name}' Team`}
               </Text>
               <Text size="1" style={{ color: 'var(--slate-10)' }}>
-                {t(
-                  'workspace.teams.edit.deleteDescription',
-                  'Permanently remove this team from the workspace'
-                )}
+                {"Permanently remove this team from the workspace"}
               </Text>
             </Flex>
             <LoadingButton
@@ -896,10 +863,10 @@ export function TeamDetailSidebar({
               size="1"
               onClick={handleDeleteTeam}
               loading={isDeleting}
-              loadingLabel={t('workspace.teams.edit.deleting', 'Deleting...')}
+              loadingLabel={"Deleting..."}
               style={{ flexShrink: 0 }}
             >
-              {t('workspace.teams.edit.deleteButton', 'Delete Team')}
+              {"Delete Team"}
             </LoadingButton>
           </Flex>
         </Box>

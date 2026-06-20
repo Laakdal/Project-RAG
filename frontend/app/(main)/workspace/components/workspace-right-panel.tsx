@@ -15,7 +15,6 @@ import React, {
 import { createPortal } from 'react-dom';
 import { Theme, Flex, Box, Text, Button, IconButton, VisuallyHidden, Tooltip } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { useTranslation } from 'react-i18next';
 
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 
@@ -179,13 +178,12 @@ export function WorkspaceRightPanel({
   style,
   secondaryVariant = 'outline',
 }: WorkspaceRightPanelProps) {
-  const { t } = useTranslation();
   const primaryButtonTooltipText =
     primaryTooltip ??
     (primaryLoading
-      ? t('workspace.rightPanel.primaryLoadingHint')
+      ? "Please wait…"
       : primaryDisabled
-        ? t('workspace.rightPanel.primaryDisabledHint')
+        ? "Scroll up and complete the required fields (marked with *) to continue."
         : undefined);
   const showPrimaryButtonTooltip = Boolean(
     (primaryDisabled || primaryLoading) && primaryButtonTooltipText

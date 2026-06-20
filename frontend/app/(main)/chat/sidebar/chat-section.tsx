@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { ChatSectionHeader } from './chat-section-header';
@@ -84,7 +83,6 @@ export function ChatSection({
   isCollapsible = false,
   defaultCollapsed = false,
 }: ChatSectionProps) {
-  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   const isTimeGrouped = !!timeGroups;
@@ -102,7 +100,7 @@ export function ChatSection({
         <ChatSectionHeader
           title={title ?? ''}
           onAdd={onAdd}
-          addAriaLabel={onAdd ? t('chat.newChat') : undefined}
+          addAriaLabel={onAdd ? "New Chat" : undefined}
           onTitleClick={!isCollapsible && hasMore ? onMore : undefined}
           isCollapsed={isCollapsible ? isCollapsed : undefined}
           onToggleCollapse={isCollapsible ? () => setIsCollapsed((c) => !c) : undefined}
@@ -112,7 +110,7 @@ export function ChatSection({
       {!isCollapsed && hasError ? (
         <Flex direction="column" gap="2" style={{ padding: 'var(--space-2) var(--space-3)' }}>
           <Text size="1" style={{ color: '#ef4444' }}>
-            {t('chat.failedToLoad')}
+            {"Failed to load"}
           </Text>
           <StartChatButton onClick={onNewChat} />
         </Flex>
@@ -199,11 +197,10 @@ export function ChatSection({
  * more chats than MAX_VISIBLE_CHATS.
  */
 function MoreButton({ onClick }: { onClick?: () => void }) {
-  const { t } = useTranslation();
   return (
     <SidebarItem
       icon={<MaterialIcon name="more_horiz" size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-      label={t('common.more')}
+      label={"More"}
       onClick={onClick}
     />
   );

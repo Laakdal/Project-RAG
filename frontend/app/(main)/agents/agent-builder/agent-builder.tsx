@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+
 import {
   ReactFlowProvider,
   useNodesState,
@@ -83,7 +83,6 @@ function serializeEdges(edges: Edge[]): string {
 
 export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
   const router = useRouter();
-  const { t } = useTranslation();
   const editingKey = agentKey;
 
   const {
@@ -162,9 +161,9 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
   const paletteDragBlockedMessage = useMemo(() => {
     if (!isAgentStructureLocked) return '';
     return isServiceAccountToolsetOrgLocked
-      ? t('agentBuilder.paletteActionBlockedViewOnly')
-      : t('agentBuilder.viewerPaletteDragBlocked');
-  }, [isAgentStructureLocked, isServiceAccountToolsetOrgLocked, t]);
+      ? "View only. This org service agent cannot be changed here."
+      : "View only. Flow is locked; authenticate toolsets under Tools.";
+  }, [isAgentStructureLocked, isServiceAccountToolsetOrgLocked]);
 
   type DeprecatedToolEntry = { fullName: string; toolName: string; toolsetLabel: string };
 
@@ -326,8 +325,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     const initialModel = selectPreferredModel(availableModels);
     if (!initialModel) return;
 
-    const systemPrompt = t('agentBuilder.defaultSystemPrompt');
-    const startMessage = t('agentBuilder.defaultStartMessage');
+    const systemPrompt = "You are a helpful assistant.";
+    const startMessage = "Hello! I am ready to assist you. How can I help you today?";
 
     const initialNodes: Node<FlowNodeData>[] = [
       {
@@ -337,10 +336,10 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         data: {
           id: 'chat-input-1',
           type: 'user-input',
-          label: t('agentBuilder.nodeLabelChatInput'),
-          description: t('agentBuilder.nodeDescUserMessages'),
+          label: "Chat input",
+          description: "User messages",
           icon: 'chat',
-          config: { placeholder: t('agentBuilder.chatInputPlaceholder') },
+          config: { placeholder: "Type your message…" },
           inputs: [],
           outputs: ['message'],
           isConfigured: true,
@@ -378,8 +377,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         data: {
           id: 'agent-core-1',
           type: 'agent-core',
-          label: normalizeDisplayName(t('agentBuilder.coreNodeTitle')),
-          description: t('agentBuilder.coreNodeSubtitle'),
+          label: normalizeDisplayName("Agent"),
+          description: "Orchestrator",
           icon: 'auto_awesome',
           config: {
             systemPrompt,
@@ -400,8 +399,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         data: {
           id: 'chat-response-1',
           type: 'chat-response',
-          label: t('agentBuilder.nodeLabelChatOutput'),
-          description: t('agentBuilder.nodeDescChatReply'),
+          label: "Chat output",
+          description: "User-visible reply",
           icon: 'reply',
           config: { format: 'text' },
           inputs: ['response'],
@@ -454,7 +453,6 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     reconstructFlowFromAgent,
     setEdges,
     setNodes,
-    t,
   ]);
 
   const onConnect = useCallback(
@@ -462,9 +460,9 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       if (isAgentStructureLocked) return;
       const sourceNode = nodes.find((n) => n.id === connection.source);
       const targetNode = nodes.find((n) => n.id === connection.target);
-      const msgKey = connectionError(sourceNode, targetNode, connection);
-      if (msgKey) {
-        setBanner(t(msgKey));
+      const msg = connectionError(sourceNode, targetNode, connection);
+      if (msg) {
+        setBanner(msg);
         return;
       }
       setEdges((eds) =>
@@ -479,7 +477,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         )
       );
     },
-    [isAgentStructureLocked, nodes, setEdges, t]
+    [isAgentStructureLocked, nodes, setEdges]
   );
 
   const onEdgeClick = useCallback(
@@ -502,7 +500,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     const q = new URLSearchParams(window.location.search);
     if (q.get('sa') !== '1') return;
     saWelcomeShownRef.current = true;
-    setSuccess(t('agentBuilder.serviceAccountCreated'));
+    setSuccess("Service agent created. Configure each toolset with the key icon in the palette.");
     q.delete('sa');
     const path = window.location.pathname;
     const rest = q.toString();
@@ -548,7 +546,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       // Guard against re-entry: the history.back() below queues another
       // popstate that would fire before Next.js unmounts the page.
       if (!historyGuardActive.current) return;
-      const confirmed = window.confirm(t('agentBuilder.unsavedChangesConfirm'));
+      const confirmed = window.confirm("You have unsaved changes. Are you sure you want to leave?");
       if (confirmed) {
         // User chose to leave: clear flag and go back past the guard entry.
         historyGuardActive.current = false;
@@ -561,7 +559,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
 
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
-  }, [isDirty, t]);
+  }, [isDirty]);
 
   // Clear the back-stack sentinel when the page becomes clean
   // (e.g., after a successful save or full undo). Without this,
@@ -606,24 +604,22 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
 
   /** Inline error + focus — shared by save, service-account entry, and confirm edge cases. */
   const showInlineAgentNameRequired = useCallback(() => {
-    setAgentNameError(t('agentBuilder.nameRequired'));
+    setAgentNameError("Enter a name to continue.");
     focusAgentNameInput();
-  }, [focusAgentNameInput, t]);
+  }, [focusAgentNameInput]);
 
   const notifyServiceAccountToolsetBlocked = useCallback(() => {
     const converting = Boolean(loadedAgent);
-    toast.error(t('agentBuilder.svcAcctRemoveToolsetsTitle'), {
-      description: t('agentBuilder.svcAcctRemoveToolsetsDesc', {
-        action: converting ? t('agentBuilder.svcAcctConvertAction') : t('agentBuilder.svcAcctCreateAction'),
-      }),
+    toast.error("Remove toolset nodes from the canvas first", {
+      description: `Toolset nodes on the flow still use per-user credentials, which cannot be combined with a service agent. Remove them from the canvas, then ${converting ? "convert" : "create"} the agent. Add the toolsets again and set agent-level credentials using the key icon in the palette.`,
       duration: SVC_ACCT_TOOLSET_BLOCK_TOAST_MS,
     });
-  }, [loadedAgent, t]);
+  }, [loadedAgent]);
 
   const handleRequestServiceAccount = useCallback(() => {
     if (!agentName.trim()) {
-      toast.error(t('agentBuilder.nameRequired'), {
-        description: t('agentBuilder.svcAcctNameRequired'),
+      toast.error("Enter a name to continue.", {
+        description: "Please enter an agent name before enabling service agent mode.",
       });
       showInlineAgentNameRequired();
       return;
@@ -633,7 +629,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       return;
     }
     setServiceAccountConfirmOpen(true);
-  }, [agentName, hasToolsets, notifyServiceAccountToolsetBlocked, showInlineAgentNameRequired, t]);
+  }, [agentName, hasToolsets, notifyServiceAccountToolsetBlocked, showInlineAgentNameRequired]);
 
   const handleSave = useCallback(async () => {
     if (!canPersist) return;
@@ -682,11 +678,11 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
           agentName: agentName.trim(),
           shareWithOrg,
         });
-        setSuccess(t('agentBuilder.agentCreated'));
+        setSuccess("Agent created");
         router.replace(`/agents/edit?agentKey=${encodeURIComponent(created._key)}`);
       }
     } catch (e: unknown) {
-      setError(extractErrorMessage(e, t('agentBuilder.saveFailed')));
+      setError(extractErrorMessage(e, "Save failed"));
     } finally {
       setSaving(false);
       saveRef.current = false;
@@ -706,7 +702,6 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     setSaving,
     setSuccess,
     shareWithOrg,
-    t,
   ]);
 
   const handleConfirmServiceAccount = useCallback(async () => {
@@ -714,8 +709,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     if (!agentName.trim()) {
       setServiceAccountConfirmOpen(false);
       setServiceAccountError(null);
-      toast.error(t('agentBuilder.nameRequired'), {
-        description: t('agentBuilder.svcAcctNameRequired'),
+      toast.error("Enter a name to continue.", {
+        description: "Please enter an agent name before enabling service agent mode.",
       });
       showInlineAgentNameRequired();
       return;
@@ -752,7 +747,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
           agentName: agentName.trim(),
           shareWithOrg: true,
         });
-        setSuccess(t('agentBuilder.serviceAccountConverted'));
+        setSuccess("Agent converted to a service agent. Configure toolset credentials with the key icon in the palette.");
       } else {
         const created = await AgentsApi.createAgent(agentConfig);
         invalidateModelsForContext(created._key);
@@ -766,7 +761,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         router.replace(`/agents/edit?agentKey=${encodeURIComponent(created._key)}&sa=1`);
       }
     } catch (e: unknown) {
-      setServiceAccountError(extractErrorMessage(e, t('agentBuilder.svcAcctEnableFailed')));
+      setServiceAccountError(extractErrorMessage(e, "Failed to enable service agent mode."));
     } finally {
       setServiceAccountCreating(false);
     }
@@ -783,7 +778,6 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
     setCleanSnapshot,
     setSuccess,
     showInlineAgentNameRequired,
-    t,
   ]);
 
   const confirmDelete = useCallback(async () => {
@@ -812,11 +806,11 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       setAgentDeleteDialogOpen(false);
       router.replace('/chat/');
     } catch (e: unknown) {
-      setError(extractErrorMessage(e, t('agentBuilder.deleteAgentFailed')));
+      setError(extractErrorMessage(e, "Failed to delete agent"));
     } finally {
       setIsDeletingAgent(false);
     }
-  }, [loadedAgent, router, setError, t]);
+  }, [loadedAgent, router, setError]);
 
   // Look up the label of the node pending deletion for the confirmation dialog.
   const nodeToDeleteLabel = useMemo(() => {
@@ -827,11 +821,11 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
 
   const handleGoBack = useCallback(() => {
     if (isDirty) {
-      const confirmed = window.confirm(t('agentBuilder.unsavedChangesConfirm'));
+      const confirmed = window.confirm("You have unsaved changes. Are you sure you want to leave?");
       if (!confirmed) return;
     }
     router.push('/chat');
-  }, [isDirty, router, t]);
+  }, [isDirty, router]);
 
   return (
     <ReactFlowProvider>
@@ -874,8 +868,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
               <Callout.Root color="blue" variant="surface" size="1">
                 <Callout.Text style={{ flex: 1, minWidth: 0 }}>
                   {isServiceAccount
-                    ? t('chat.viewAgentTooltipServiceAccount')
-                    : t('chat.viewAgentTooltipIndividual')}
+                    ? "View-only: this organization service agent is locked. You can look around, but nothing here can be edited or reconfigured."
+                    : "View-only: you can't change this agent's configuration, but you can connect tools with your own sign-in so they work in your chats with this agent."}
                 </Callout.Text>
               </Callout.Root>
             ) : null}
@@ -884,7 +878,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 <Flex align="start" justify="between" gap="3" wrap="wrap">
                   <Callout.Text style={{ flex: 1, minWidth: 0 }}>{error}</Callout.Text>
                   <Button variant="soft" color="gray" size="1" onClick={() => setError(null)}>
-                    {t('agentBuilder.dismiss')}
+                    {"Dismiss"}
                   </Button>
                 </Flex>
               </Callout.Root>
@@ -894,7 +888,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 <Flex align="start" justify="between" gap="3" wrap="wrap">
                   <Callout.Text style={{ flex: 1, minWidth: 0 }}>{banner}</Callout.Text>
                   <Button variant="soft" color="gray" size="1" onClick={() => setBanner(null)}>
-                    {t('common.ok')}
+                    {"OK"}
                   </Button>
                 </Flex>
               </Callout.Root>
@@ -919,10 +913,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                   <Callout.Root color="amber" variant="surface" size="1">
                     <Flex align="start" justify="between" gap="3" wrap="wrap">
                       <Callout.Text style={{ flex: 1, minWidth: 0 }}>
-                        {t('agentBuilder.deprecatedToolsBanner', {
-                          count: totalCount,
-                          tools: toolsWithSuffix,
-                        })}
+                        {`${totalCount} tool(s) on this agent are deprecated remove them : ${toolsWithSuffix}`}
                         {hasMoreThanPreview ? (
                           <Button
                             type="button"
@@ -939,8 +930,8 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                             }}
                           >
                             {deprecatedListExpanded
-                              ? t('agentBuilder.showLess')
-                              : t('agentBuilder.showMore')}
+                              ? "Show less"
+                              : "Show more"}
                           </Button>
                         ) : null}
                       </Callout.Text>
@@ -950,7 +941,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                         size="1"
                         onClick={handleRemoveDeprecatedTools}
                       >
-                        {t('agentBuilder.removeDeprecatedTools')}
+                        {"Remove Deprecated Tools"}
                       </Button>
                     </Flex>
                   </Callout.Root>
@@ -962,7 +953,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 <Flex align="start" justify="between" gap="3" wrap="wrap">
                   <Callout.Text style={{ flex: 1, minWidth: 0 }}>{success}</Callout.Text>
                   <Button variant="soft" color="gray" size="1" onClick={() => setSuccess(null)}>
-                    {t('agentBuilder.dismiss')}
+                    {"Dismiss"}
                   </Button>
                 </Flex>
               </Callout.Root>
@@ -993,7 +984,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 ? undefined
                 : (ts) => {
                     if (!effectiveAgentKey) {
-                      setBanner(t('agentBuilder.saveAsServiceAccountFirst'));
+                      setBanner("Save the agent as a service agent first, then configure toolset credentials.");
                       return;
                     }
                     if (!ts.instanceId) return;
@@ -1045,14 +1036,14 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 size={18}
                 color="var(--slate-11)"
               />
-              {sidebarOpen ? t('agentBuilder.hidePalette') : t('agentBuilder.showPalette')}
+              {sidebarOpen ? "Hide palette" : "Show palette"}
             </Flex>
           </Button>
           {loadedAgent ? (
             <Button variant="soft" color="green" onClick={() => router.push(buildChatHref({ agentId: loadedAgent._key }))}>
               <Flex align="center" gap="2">
                 <MaterialIcon name="chat" size={18} />
-                {t('agentBuilder.openInChat')}
+                {"Open in chat"}
               </Flex>
             </Button>
           ) : null}
@@ -1062,20 +1053,20 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       {/* ── Delete node dialog ── */}
       <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <Dialog.Content style={{ maxWidth: 400 }}>
-          <Dialog.Title>{t('agentBuilder.removeNodeTitle')}</Dialog.Title>
+          <Dialog.Title>{"Remove node?"}</Dialog.Title>
           <Text size="2" mb="3">
             {nodeToDeleteLabel
-              ? <>{t('agentBuilder.removeNodeWithName', { name: nodeToDeleteLabel })}</>
-              : t('agentBuilder.removeNodeFallback')}
+              ? <>{`Remove ${nodeToDeleteLabel} and its connections?`}</>
+              : "This removes the node and all its connections."}
           </Text>
           <Flex gap="2" justify="end">
             <Dialog.Close>
               <Button variant="soft" color="gray">
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
             </Dialog.Close>
             <Button color="red" onClick={confirmDelete} disabled={deleting}>
-              {t('agentBuilder.remove')}
+              {"Remove"}
             </Button>
           </Flex>
         </Dialog.Content>
@@ -1090,14 +1081,14 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
         }}
       >
         <Dialog.Content style={{ maxWidth: 400 }}>
-          <Dialog.Title>{t('agentBuilder.removeConnectionTitle')}</Dialog.Title>
+          <Dialog.Title>{"Remove connection?"}</Dialog.Title>
           <Text size="2" mb="3">
-            {t('agentBuilder.removeConnectionDesc')}
+            {"This removes the link between two nodes. You can reconnect them from the handles."}
           </Text>
           <Flex gap="2" justify="end">
             <Dialog.Close>
               <Button variant="soft" color="gray">
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
             </Dialog.Close>
             <Button
@@ -1110,7 +1101,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 setEdgeToDelete(null);
               }}
             >
-              {t('agentBuilder.remove')}
+              {"Remove"}
             </Button>
           </Flex>
         </Dialog.Content>
@@ -1156,7 +1147,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
       {/* ── Post-update dialog ── */}
       <Dialog.Root open={showPostUpdateDialog} onOpenChange={setShowPostUpdateDialog}>
         <Dialog.Content style={{ maxWidth: 360 }}>
-          <VisuallyHidden><Dialog.Title>{t('agentBuilder.agentUpdated')}</Dialog.Title></VisuallyHidden>
+          <VisuallyHidden><Dialog.Title>{"Agent updated"}</Dialog.Title></VisuallyHidden>
           <Flex direction="column" gap="4">
             <Flex align="center" gap="3">
               <Box
@@ -1176,10 +1167,10 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
               </Box>
               <Box>
                 <Text size="3" weight="bold" style={{ color: 'var(--olive-12)', display: 'block', lineHeight: 1.3 }}>
-                  {t('agentBuilder.agentUpdated')}
+                  {"Agent updated"}
                 </Text>
                 <Text size="2" style={{ color: 'var(--olive-11)', display: 'block', lineHeight: 1.4 }}>
-                  {t('agentBuilder.agentUpdatedDesc')}
+                  {"Your changes have been saved."}
                 </Text>
               </Box>
             </Flex>
@@ -1190,7 +1181,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
                 size="2"
                 onClick={() => setShowPostUpdateDialog(false)}
               >
-                {t('agentBuilder.continueEditing')}
+                {"Continue editing"}
               </Button>
               <Button
                 size="2"
@@ -1202,7 +1193,7 @@ export function AgentBuilder({ agentKey }: { agentKey: string | null }) {
               >
                 <Flex align="center" gap="2">
                   <MaterialIcon name="chat" size={16} />
-                  {t('agentBuilder.openInChat')}
+                  {"Open in chat"}
                 </Flex>
               </Button>
             </Flex>

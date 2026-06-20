@@ -3,7 +3,6 @@
 import React, { useCallback, useContext, useEffect, useMemo } from 'react';
 import { Callout, Flex, Text, Select, Spinner, TextField } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
 import { WorkspaceRightPanelBodyPortalContext } from '@/app/(main)/workspace/components/workspace-right-panel';
 import { FormField } from '@/app/(main)/workspace/components/form-field';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
@@ -39,7 +38,6 @@ function oauthConfigPayload(full: Record<string, unknown>): Record<string, unkno
 // ========================================
 
 export function OAuthAppSelector() {
-  const { t } = useTranslation();
   const panelBodyPortal = useContext(WorkspaceRightPanelBodyPortalContext);
   const isAdmin = useUserStore(selectIsAdmin);
   const isProfileInitialized = useUserStore(selectIsProfileInitialized);
@@ -414,7 +412,7 @@ export function OAuthAppSelector() {
             <MaterialIcon name="warning" size={14} color="var(--amber-11)" />
           </Callout.Icon>
           <Callout.Text>
-            {t('workspace.connectors.authTab.oauthAppChangeReauthWarning')}
+            {"Changing the OAuth app or its credentials will require you to authenticate your connector again."}
           </Callout.Text>
         </Callout.Root>
       ) : null}
@@ -422,7 +420,7 @@ export function OAuthAppSelector() {
       {showNewOAuthAppName ? (
         <Flex direction="column" gap="1" style={{ width: '100%' }} data-ph-oauth-app-name>
           <FormField
-            label={t('workspace.connectors.authTab.oauthAppNameLabel')}
+            label={"OAuth app name"}
             required
             error={oauthInstanceNameError ?? undefined}
           >
@@ -431,16 +429,14 @@ export function OAuthAppSelector() {
               type="text"
               value={oauthInstanceName ?? ''}
               onChange={(e) => setAuthFormValue('oauthInstanceName', e.target.value)}
-              placeholder={t('workspace.connectors.authTab.oauthAppNamePlaceholder', {
-                name: panelConnector.name,
-              })}
+              placeholder={`e.g., ${panelConnector.name} OAuth`}
               aria-invalid={oauthInstanceNameError ? true : undefined}
               color={oauthInstanceNameError ? 'red' : undefined}
               style={{ width: '100%' }}
             />
           </FormField>
           <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: 1.55 }}>
-            {t('workspace.connectors.authTab.oauthAppNameHelper')}
+            {"This name is stored with the OAuth registration and appears when users pick a saved app for other instances."}
           </Text>
         </Flex>
       ) : null}

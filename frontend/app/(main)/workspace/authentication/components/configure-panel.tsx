@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Text, Button } from '@radix-ui/themes';
 import { WorkspaceRightPanel } from '../../components/workspace-right-panel';
 import type { ConfigurableMethod } from '../types';
@@ -35,12 +34,18 @@ const METHOD_ICONS: Record<ConfigurableMethod, string> = {
   oauth: 'vpn_key',
 };
 
+const METHOD_TITLES: Record<ConfigurableMethod, string> = {
+  google: 'Configure Google Authentication',
+  microsoft: 'Configure Microsoft Authentication',
+  samlSso: 'Configure SAML SSO',
+  oauth: 'Configure OAuth 2.0',
+};
+
 // ========================================
 // Component
 // ========================================
 
 export function ConfigurePanel({ open, method, onClose, onSaveSuccess }: ConfigurePanelProps) {
-  const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
 
@@ -66,8 +71,6 @@ export function ConfigurePanel({ open, method, onClose, onSaveSuccess }: Configu
 
   if (!method) return null;
 
-  const panelTitleKey = `workspace.authentication.panels.${method}` as const;
-
   const docButton = (
     <Button
       variant="outline"
@@ -77,7 +80,7 @@ export function ConfigurePanel({ open, method, onClose, onSaveSuccess }: Configu
       style={{ cursor: 'pointer', gap: 'var(--space-1)' }}
     >
       <span className="material-icons-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-      <Text size="1">{t('workspaceMenu.documentation')}</Text>
+      <Text size="1">{"Documentation"}</Text>
     </Button>
   );
 
@@ -85,11 +88,11 @@ export function ConfigurePanel({ open, method, onClose, onSaveSuccess }: Configu
     <WorkspaceRightPanel
       open={open}
       onOpenChange={(o) => { if (!o) onClose(); }}
-      title={t(panelTitleKey)}
+      title={METHOD_TITLES[method]}
       icon={METHOD_ICONS[method]}
       headerActions={docButton}
-      primaryLabel={t('action.save')}
-      secondaryLabel={t('action.cancel')}
+      primaryLabel={"Save"}
+      secondaryLabel={"Cancel"}
       primaryDisabled={!isFormValid}
       primaryLoading={isSaving}
       onPrimaryClick={handleSave}

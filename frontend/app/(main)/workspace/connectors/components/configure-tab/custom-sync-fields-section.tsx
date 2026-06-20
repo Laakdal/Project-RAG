@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text } from '@radix-ui/themes';
 import { SchemaFormField } from '../schema-form-field';
 import type { ConnectorConfig, SyncCustomField } from '../../types';
@@ -24,7 +23,6 @@ export function CustomSyncFieldsSection({
   onChange: (key: string, value: unknown) => void;
   connectorConfig: ConnectorConfig | null;
 }) {
-  const { t } = useTranslation();
   return (
     <Flex
       direction="column"
@@ -38,10 +36,10 @@ export function CustomSyncFieldsSection({
     >
       <Flex direction="column" gap="1">
         <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.connectors.configTab.additionalSettings')}
+          {"Additional Settings"}
         </Text>
         <Text size="1" style={{ color: 'var(--gray-10)' }}>
-          {t('workspace.connectors.configTab.additionalSettingsDescription')}
+          {"Configure connector-specific sync options"}
         </Text>
       </Flex>
 
@@ -58,8 +56,8 @@ export function CustomSyncFieldsSection({
             disabledTooltip={
               locked
                 ? field.fieldType === 'URL'
-                  ? t('workspace.connectors.configTab.nonEditableUrlFieldTooltip')
-                  : t('workspace.connectors.configTab.nonEditableLockedFieldTooltip')
+                  ? "The website URL can't be changed after it's set."
+                  : "This value can't be changed after it's set."
                 : undefined
             }
           />

@@ -2,13 +2,11 @@
 
 import React from 'react';
 import { Box, Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
-import { LottieLoader } from '@/app/components/ui/lottie-loader';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AuthTitleSectionProps {
-  /** Main heading. Defaults to "Welcome to Pipeshub". */
+  /** Main heading. Defaults to "Welcome to Project RAG". */
   title?: string;
   /** Subtitle below the heading. Defaults to the tagline. */
   subtitle?: string;
@@ -29,16 +27,13 @@ export default function AuthTitleSection({
   subtitle,
   marginBottom = '28px',
 }: AuthTitleSectionProps) {
-  const { t } = useTranslation();
-  const resolvedTitle = title ?? t('auth.titleSection.defaultTitle');
-  const resolvedSubtitle = subtitle !== undefined ? subtitle : t('auth.titleSection.defaultSubtitle');
+  const resolvedTitle = title ?? 'Welcome to Project RAG';
+  const resolvedSubtitle =
+    subtitle !== undefined
+      ? subtitle
+      : "Your organization's knowledge, finally searchable and connected.";
   return (
     <Box style={{ marginBottom }}>
-      {/* ── Logo mark ─────────────────────────────────────────── */}
-      <Box style={{ marginBottom: 'var(--space-4)' }}>
-        <LottieLoader autoplay size={40} />
-      </Box>
-
       {/* ── Heading + subtitle ────────────────────────────────── */}
       <Flex direction="column" gap="1">
         <Text

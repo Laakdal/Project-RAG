@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import {
   Box,
   Flex,
@@ -35,7 +35,6 @@ interface ReadOnlyGeneralPageProps {
 }
 
 function ReadOnlyGeneralPage({ form, logoUrl }: ReadOnlyGeneralPageProps) {
-  const { t } = useTranslation();
   const logoInitial = form.displayName
     ? form.displayName.charAt(0).toUpperCase()
     : form.registeredName
@@ -47,15 +46,15 @@ function ReadOnlyGeneralPage({ form, logoUrl }: ReadOnlyGeneralPageProps) {
       <Box style={{ padding: '64px 100px' }}>
         <Box style={{ marginBottom: 'var(--space-6)' }}>
           <Heading size="5" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.sidebar.nav.general')}
+            {"General"}
           </Heading>
           <Text size="2" style={{ color: 'var(--gray-10)', marginTop: 'var(--space-1)', display: 'block' }}>
-            {t('workspace.general.subtitle')}
+            {"Your company general information"}
           </Text>
         </Box>
 
-        <SettingsSection title={t('workspace.general.companyProfile')}>
-          <SettingsRow label={t('workspace.general.logoLabel')} description={t('workspace.general.logoDescription')}>
+        <SettingsSection title={"Company Profile"}>
+          <SettingsRow label={"Logo"} description={"Recommended size is 256px by 256px"}>
             <Avatar
               src={logoUrl ?? undefined}
               fallback={logoInitial}
@@ -65,20 +64,20 @@ function ReadOnlyGeneralPage({ form, logoUrl }: ReadOnlyGeneralPageProps) {
             />
           </SettingsRow>
 
-          <SettingsRow label={t('workspace.general.registeredName')} description={t('workspace.general.registeredNameDescription')}>
+          <SettingsRow label={"Registered Name"} description={"Legal name of the company"}>
             <TextField.Root value={form.registeredName} readOnly />
           </SettingsRow>
 
           <SettingsRow
-            label={t('workspace.general.displayName')}
-            description={t('workspace.general.displayNameDescription')}
+            label={"Display Name"}
+            description={"This is how your company name will be displayed"}
           >
             <TextField.Root value={form.displayName} readOnly />
           </SettingsRow>
 
           <SettingsRow
-            label={t('workspace.general.contactEmail')}
-            description={t('workspace.general.contactEmailDescription')}
+            label={"Contact Email"}
+            description={"Primary contact email from the company"}
           >
             <TextField.Root value={form.contactEmail} readOnly />
           </SettingsRow>
@@ -93,7 +92,6 @@ function ReadOnlyGeneralPage({ form, logoUrl }: ReadOnlyGeneralPageProps) {
 // ========================================
 
 export default function GeneralPage() {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const isAdmin = useUserStore(selectIsAdmin);
   const isProfileInitialized = useUserStore(selectIsProfileInitialized);
@@ -185,8 +183,8 @@ export default function GeneralPage() {
       } catch {
         addToast({
           variant: 'error',
-          title: t('workspace.general.toasts.loadError'),
-          description: t('workspace.general.toasts.loadErrorDescription'),
+          title: "Failed to load organization",
+          description: "Could not fetch your organization details",
         });
       } finally {
         setLoading(false);
@@ -200,10 +198,10 @@ export default function GeneralPage() {
   const validate = useCallback((): boolean => {
     const newErrors: { contactEmail?: string; zipCode?: string } = {};
     if (form.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail)) {
-      newErrors.contactEmail = t('form.invalidEmail');
+      newErrors.contactEmail = "Invalid email address";
     }
     if (form.zipCode && !/^[A-Za-z0-9\s\-]{3,10}$/.test(form.zipCode)) {
-      newErrors.zipCode = t('workspace.general.errors.invalidPostalCode');
+      newErrors.zipCode = "Please add a valid postal code";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -235,14 +233,14 @@ export default function GeneralPage() {
       markSaved();
       addToast({
         variant: 'success',
-        title: t('workspace.general.toasts.saveSuccess'),
-        description: t('workspace.general.toasts.saveSuccessDescription'),
+        title: "Company profile details saved",
+        description: "You can also edit it in the future",
       });
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.general.toasts.saveError'),
-        description: t('workspace.general.toasts.saveErrorDescription'),
+        title: "Failed to save",
+        description: "Could not update organization details",
       });
     }
   }, [form, savedForm, validate, markSaved, addToast]);
@@ -256,8 +254,8 @@ export default function GeneralPage() {
     discardChanges();
     addToast({
       variant: 'success',
-      title: t('workspace.general.toasts.discardSuccess'),
-      description: t('workspace.general.toasts.discardSuccessDescription'),
+      title: "Discarded edits",
+      description: "You can fill the input fields again",
     });
   }, [discardChanges, addToast]);
 
@@ -282,16 +280,16 @@ export default function GeneralPage() {
         if (previousSavedUrl?.startsWith('blob:')) URL.revokeObjectURL(previousSavedUrl);
         addToast({
           variant: 'success',
-          title: t('workspace.general.toasts.logoUpdated'),
-          description: t('workspace.general.toasts.logoUpdatedDescription'),
+          title: "Logo updated",
+          description: "Your organization logo has been saved",
         });
       } catch {
         if (previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
         setLogoUrl(savedLogoUrlRef.current);
         addToast({
           variant: 'error',
-          title: t('workspace.general.toasts.logoUploadError'),
-          description: t('workspace.general.toasts.logoUploadErrorDescription'),
+          title: "Failed to upload logo",
+          description: "Could not update the organization logo",
         });
       } finally {
         setLogoUploading(false);
@@ -313,14 +311,14 @@ export default function GeneralPage() {
       setHasServerLogo(false);
       addToast({
         variant: 'success',
-        title: t('workspace.general.toasts.logoRemoved'),
-        description: t('workspace.general.toasts.logoRemovedDescription'),
+        title: "Logo removed",
+        description: "Your organization logo has been deleted",
       });
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.general.toasts.logoRemoveError'),
-        description: t('workspace.general.toasts.logoRemoveErrorDescription'),
+        title: "Failed to remove logo",
+        description: "Could not delete the organization logo",
       });
     } finally {
       setLogoDeleting(false);
@@ -365,18 +363,18 @@ export default function GeneralPage() {
         {/* Page header */}
         <Box style={{ marginBottom: 'var(--space-6)' }}>
           <Heading size="5" weight="medium" style={{ color: 'var(--slate-12)' }}>
-            {t('workspace.sidebar.nav.general')}
+            {"General"}
           </Heading>
           <Text size="2" style={{ color: 'var(--slate-10)', marginTop: 'var(--space-1)', display: 'block' }}>
-           {t('workspace.general.manageSubtitle')}
+           {"Manage your company profile"}
           </Text>
         </Box>
 
         {/* ── Company Profile Section ── */}
         <Box style={{ marginBottom: 'var(--space-5)' }}>
-          <SettingsSection title={t('workspace.general.companyProfile')}>
+          <SettingsSection title={"Company Profile"}>
             {/* Logo */}
-            <SettingsRow label={t('workspace.general.logoLabel')} description={t('workspace.general.logoDescription')}>
+            <SettingsRow label={"Logo"} description={"Recommended size is 256px by 256px"}>
               <Flex align="center" justify="end" style={{ width: '100%' }}>
                 <AvatarUploadWidget
                   src={logoUrl}
@@ -387,15 +385,15 @@ export default function GeneralPage() {
                     fileInputRef.current?.click();
                   }}
                   onDeleteClick={hasServerLogo ? handleDeleteLogo : undefined}
-                  triggerAriaLabel={t('workspace.general.editLogoAria')}
+                  triggerAriaLabel={"Edit organization logo"}
                 />
               </Flex>
             </SettingsRow>
 
             {/* Registered Name */}
-            <SettingsRow label={t('workspace.general.registeredName')} description={t('workspace.general.registeredNameDescription')}>
+            <SettingsRow label={"Registered Name"} description={"Legal name of the company"}>
               <TextField.Root
-                placeholder={t('workspace.general.registeredNamePlaceholder')}
+                placeholder={"eg: Paypal Co. LLC"}
                 value={form.registeredName}
                 onChange={(e) => setField('registeredName', e.target.value)}
               />
@@ -403,11 +401,11 @@ export default function GeneralPage() {
 
             {/* Display Name */}
             <SettingsRow
-              label={t('workspace.general.displayName')}
-              description={t('workspace.general.displayNameDescription')}
+              label={"Display Name"}
+              description={"This is how your company name will be displayed"}
             >
               <TextField.Root
-                placeholder={t('workspace.general.displayNamePlaceholder')}
+                placeholder={"eg: Paypal"}
                 value={form.displayName}
                 onChange={(e) => setField('displayName', e.target.value)}
               />
@@ -415,12 +413,12 @@ export default function GeneralPage() {
 
             {/* Contact Email */}
             <SettingsRow
-              label={t('workspace.general.contactEmail')}
-              description={t('workspace.general.contactEmailDescription')}
+              label={"Contact Email"}
+              description={"Primary contact email from the company"}
             >
               <Flex direction="column" gap="1">
                 <TextField.Root
-                  placeholder={t('workspace.general.contactEmailPlaceholder')}
+                  placeholder={"eg: elon@paypal.com"}
                   value={form.contactEmail}
                   onChange={(e) => setField('contactEmail', e.target.value)}
                   color={errors.contactEmail ? 'red' : undefined}
@@ -437,38 +435,38 @@ export default function GeneralPage() {
 
         {/* ── Company Address Section ── */}
         <Box style={{ marginBottom: 'var(--space-5)' }}>
-          <SettingsSection title={t('workspace.general.companyAddress')}>
+          <SettingsSection title={"Company Address"}>
             {/* Street Address */}
-            <SettingsRow label={t('workspace.general.streetAddress')} description={t('workspace.general.streetAddressDescription')}>
+            <SettingsRow label={"Street Address"} description={"Company's location address"}>
               <TextField.Root
-                placeholder={t('workspace.general.streetAddressPlaceholder')}
+                placeholder={"Street Address"}
                 value={form.streetAddress}
                 onChange={(e) => setField('streetAddress', e.target.value)}
               />
             </SettingsRow>
 
             {/* Country */}
-            <SettingsRow label={t('workspace.general.country')} description={t('workspace.general.countryDescription')}>
+            <SettingsRow label={"Country"} description={"Company's country"}>
               <TextField.Root
-                placeholder={t('workspace.general.countryPlaceholder')}
+                placeholder={"eg: United States"}
                 value={form.country}
                 onChange={(e) => setField('country', e.target.value)}
               />
             </SettingsRow>
 
             {/* State/Province */}
-            <SettingsRow label={t('workspace.general.stateProvince')} description={t('workspace.general.stateProvinceDescription')}>
+            <SettingsRow label={"State/Province"} description={"Company's state or province"}>
               <TextField.Root
-                placeholder={t('workspace.general.stateProvincePlaceholder')}
+                placeholder={"eg: California"}
                 value={form.state}
                 onChange={(e) => setField('state', e.target.value)}
               />
             </SettingsRow>
 
             {/* City */}
-            <SettingsRow label={t('workspace.general.city')} description={t('workspace.general.cityDescription')}>
+            <SettingsRow label={"City"} description={"Company's city"}>
               <TextField.Root
-                placeholder={t('workspace.general.cityPlaceholder')}
+                placeholder={"eg: San Francisco"}
                 value={form.city}
                 onChange={(e) => setField('city', e.target.value)}
               />
@@ -476,12 +474,12 @@ export default function GeneralPage() {
 
             {/* Zip/Postal Code */}
             <SettingsRow
-              label={t('workspace.general.postalCode')}
-              description={t('workspace.general.postalCodeDescription')}
+              label={"Zip/Postal Code"}
+              description={"Write your company's postal code"}
             >
               <Flex direction="column" gap="1">
                 <TextField.Root
-                  placeholder={t('workspace.general.postalCodePlaceholder')}
+                  placeholder={"eg: 94107"}
                   value={form.zipCode}
                   onChange={(e) => setField('zipCode', e.target.value)}
                   color={errors.zipCode ? 'red' : undefined}
@@ -500,7 +498,7 @@ export default function GeneralPage() {
         {/* Extra bottom padding so save bar doesn't overlap last section */}
         <Box style={{ marginBottom: 80 }}>
           <SettingsSection
-            title={t('workspace.general.dataCollection')}
+            title={"Data Collection Settings"}
             rightAction={
               <Flex align="center" gap="2">
                 <Switch
@@ -509,7 +507,7 @@ export default function GeneralPage() {
                   size="1"
                 />
                 <Text size="2" style={{ color: 'var(--slate-11)' }}>
-                  {t('workspace.general.enableDataCollection')}
+                  {"Enable"}
                 </Text>
               </Flex>
             }
@@ -519,15 +517,15 @@ export default function GeneralPage() {
                 size="2"
                 style={{ color: 'var(--slate-11)', display: 'block', marginBottom: 'var(--space-3)' }}
               >
-                {t('workspace.general.dataCollectionDescription')}
+                {"Project RAG collects and processes personal information for a variety of business purposes."}
               </Text>
               <Flex direction="column" gap="2" style={{ paddingLeft: 'var(--space-1)' }}>
                 {[
-                  t('workspace.general.dataCollectionReason1'),
-                  t('workspace.general.dataCollectionReason2'),
-                  t('workspace.general.dataCollectionReason3'),
-                  t('workspace.general.dataCollectionReason4'),
-                  t('workspace.general.dataCollectionReason5'),
+                  "To provide customer service and support for our products",
+                  "To send marketing communications",
+                  "To manage your subscription to newsletters or other updates",
+                  "For security and fraud prevention purposes",
+                  "To personalize your user experience",
                 ].map((item) => (
                   <Flex key={item} align="start" gap="2">
                     <Box
@@ -555,10 +553,10 @@ export default function GeneralPage() {
       <ConfirmationDialog
         open={discardDialogOpen}
         onOpenChange={setDiscardDialogOpen}
-        title={t('workspace.general.discardDialog.title')}
-        message={t('workspace.general.discardDialog.message')}
-        confirmLabel={t('workspace.general.discardDialog.confirm')}
-        cancelLabel={t('workspace.general.discardDialog.cancel')}
+        title={"Discard changes?"}
+        message={"If you discard, your edits won't be saved"}
+        confirmLabel={"Discard"}
+        cancelLabel={"Continue Editing"}
         confirmVariant="danger"
         onConfirm={handleDiscardConfirm}
       />

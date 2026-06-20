@@ -25,7 +25,6 @@ import {
   shouldHideIndexingStatusForHubRecord,
   shouldShowDownloadForTableItem,
 } from '../utils/kb-table-item-actions';
-import { useTranslation } from 'react-i18next';
 import {
   getReindexMenuState,
   getReindexNodeForTableItem,
@@ -158,7 +157,6 @@ function TableRow({
   onDelete,
   onDownload,
 }: TableRowProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -586,7 +584,7 @@ function TableRow({
             !isFolder && onDownload && shouldShowDownloadForTableItem(item) && { icon: 'file_download', label: 'Download', onClick: () => onDownload(item) },
             onRename && { icon: 'edit', label: 'Rename', onClick: () => startEditing() },
             ...(showReindexMenu
-              ? mapReindexOptionsToMenuActions(reindexMenuOptions, t, (statusFilters) =>
+              ? mapReindexOptionsToMenuActions(reindexMenuOptions, (statusFilters) =>
                   onReindex!(item, statusFilters),
                 )
               : []),

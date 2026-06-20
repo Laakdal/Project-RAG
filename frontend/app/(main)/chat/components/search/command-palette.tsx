@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
-import { useTranslation } from 'react-i18next';
 import { getModifierSymbol } from '@/lib/utils/platform';
 
 interface CommandPaletteProps {
@@ -16,7 +15,6 @@ interface CommandPaletteProps {
  * Extensible: additional command palette actions can be added here later.
  */
 export function CommandPalette({ onClick }: CommandPaletteProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const modKey = getModifierSymbol();
 
@@ -42,7 +40,7 @@ export function CommandPalette({ onClick }: CommandPaletteProps) {
           color="var(--slate-11)"
         />
         <Text size="2" weight="medium" style={{ color: 'var(--slate-11)' }}>
-          {t('chat.newChat')}
+          {"New Chat"}
         </Text>
       </Flex>
       <Text size="1" 

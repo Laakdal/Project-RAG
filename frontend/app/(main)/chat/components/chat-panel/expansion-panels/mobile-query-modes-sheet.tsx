@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { MobileBottomSheet } from '@/app/components/ui/mobile-bottom-sheet';
 import { QueryModePanel } from '@/chat/components/chat-panel/expansion-panels/query-mode-panel';
 import { AgentStrategyModePanel } from '@/chat/components/chat-panel/expansion-panels/agent-strategy-mode-panel';
@@ -29,7 +28,6 @@ export function MobileQueryModesSheet({
   onOpenChange,
   agentChat = false,
 }: MobileQueryModesSheetProps) {
-  const { t } = useTranslation();
   const settings = useChatStore((s) => s.settings);
   const setQueryMode = useChatStore((s) => s.setQueryMode);
   const setMode = useChatStore((s) => s.setMode);
@@ -50,7 +48,7 @@ export function MobileQueryModesSheet({
     <MobileBottomSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={t('chat.differentModesOfQuery', { defaultValue: 'Different Modes of Query' })}
+      title={"Different Modes of Query"}
     >
       {agentChat ? (
         <AgentStrategyModePanel

@@ -4,7 +4,7 @@ import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { useThemeAppearance } from '@/app/components/theme-provider';
-import { useTranslation } from 'react-i18next';
+
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { MenuItem } from './menu-item';
 
@@ -37,11 +37,10 @@ export function SettingsSection({
   isAppearanceActive,
   onLogout,
 }: SettingsSectionProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const { appearance } = useThemeAppearance();
 
-  const appearanceLabel = appearance === 'dark' ? t('workspaceMenu.darkMode') : t('workspaceMenu.lightMode');
+  const appearanceLabel = appearance === 'dark' ? "Dark Mode" : "Light Mode";
 
   return (
     <Flex direction="column" gap="1">
@@ -53,7 +52,7 @@ export function SettingsSection({
         }
         label={
           <Flex align="center" gap="1">
-            {t('workspaceMenu.appearance')}
+            {"Appearance"}
             <Text style={{ color: 'var(--slate-6)' }}>•</Text>
             <Text size="2" weight="medium" style={{ color: 'var(--slate-10)' }}>{appearanceLabel}</Text>
           </Flex>
@@ -78,7 +77,7 @@ export function SettingsSection({
               color="var(--slate-11)"
             />
           }
-          label={t('workspaceMenu.workspaceSettings')}
+          label={"Workspace Settings"}
           href="/workspace/"
           onClick={onWorkspaceSettings}
         />
@@ -92,7 +91,7 @@ export function SettingsSection({
             color="var(--red-11)"
           />
         }
-        label={t('workspaceMenu.logOut')}
+        label={"Log Out"}
         textColor="var(--red-11)"
         onClick={onLogout}
       />

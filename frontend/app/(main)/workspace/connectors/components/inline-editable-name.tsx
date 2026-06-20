@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useInlineRename, INLINE_RENAME_MAX_LENGTH } from '../utils/use-inline-rename';
@@ -33,7 +32,6 @@ export function InlineEditableName({
   truncate = false,
   style,
 }: InlineEditableNameProps) {
-  const { t } = useTranslation();
   const {
     isEditing,
     editValue,
@@ -65,7 +63,7 @@ export function InlineEditableName({
       {isEditing ? (
         <input
           ref={inputRef}
-          aria-label={t('workspace.connectors.settingsTab.instanceName')}
+          aria-label="Instance Name"
           value={editValue}
           maxLength={INLINE_RENAME_MAX_LENGTH}
           onChange={handleChange}

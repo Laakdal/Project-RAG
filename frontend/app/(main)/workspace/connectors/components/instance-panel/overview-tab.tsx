@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import { Flex, Text, Box, Badge } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -97,7 +96,6 @@ export function OverviewTab({
   connectorConfig,
   localSyncStatus,
 }: OverviewTabProps) {
-  const { t } = useTranslation();
   const router = useRouter();
   const closeInstancePanel = useConnectorsStore((s) => s.closeInstancePanel);
   const instanceConfigs = useConnectorsStore((s) => s.instanceConfigs);
@@ -156,7 +154,7 @@ export function OverviewTab({
       await fetchInstanceStats(connectorId, { force: true });
       addToast({
         variant: 'success',
-        title: t('workspace.connectors.overview.refreshStatsSuccess'),
+        title: "Record status updated",
       });
       if (isElectron() && isLocalFsConnectorType(instance.type)) {
         const rootPath = extractLocalFsRootPath(instanceConfigs[connectorId]);
@@ -180,7 +178,7 @@ export function OverviewTab({
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.overview.refreshStatsError'),
+        title: "Failed to refresh record status",
       });
     } finally {
       setIsRefreshStatsBusy(false);
@@ -191,7 +189,6 @@ export function OverviewTab({
     instance.name,
     isRefreshStatsBusy,
     addToast,
-    t,
     instanceConfigs,
     setLocalSyncStatus,
     fetchInstanceStats,
@@ -267,7 +264,7 @@ export function OverviewTab({
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between">
             <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.connectors.overview.progressPercent', { n: instance.syncProgress.percentage ?? 0 })}
+              {`${instance.syncProgress.percentage ?? 0}% Complete`}
             </Text>
           </Flex>
           <Box
@@ -305,7 +302,7 @@ export function OverviewTab({
       >
         <Flex align="start" gap="2">
           <Text size="3" weight="medium" style={{ color: 'var(--gray-12)', flex: 1, minWidth: 0 }}>
-            {t('workspace.connectors.overview.recordsStatus')}
+            {"Records Status"}
           </Text>
           {instance.isActive && (
             <Flex
@@ -323,7 +320,7 @@ export function OverviewTab({
                   loading={isHeaderSyncBusy}
                 />
                 <StatusActionButton
-                  label={t('action.refresh')}
+                  label="Refresh"
                   icon="refresh"
                   onClick={() => void handleOverviewRefreshStats()}
                   disabled={isRefreshStatsBusy || reindexActionsBusy}
@@ -363,14 +360,10 @@ export function OverviewTab({
         {localSyncStatus && (
           <Flex align="center" justify="between" style={{ marginBottom: 4 }}>
             <Text size="1" style={{ color: 'var(--gray-10)' }}>
-              {t('workspace.connectors.overview.localWatcherLabel')}
+              {"LOCAL WATCHER"}
             </Text>
             <Text size="1" style={{ color: 'var(--gray-11)' }}>
-              {t('workspace.connectors.overview.localWatcherStatus', {
-                state: localSyncStatus.watcherState,
-                pending: localSyncStatus.pendingCount,
-                failed: localSyncStatus.failedCount,
-              })}
+              {`${localSyncStatus.watcherState} · ${localSyncStatus.pendingCount} pending · ${localSyncStatus.failedCount} failed`}
             </Text>
           </Flex>
         )}
@@ -382,64 +375,64 @@ export function OverviewTab({
           {/* Row 1: Total + Completed */}
           <Flex gap="2" style={{ width: '100%' }}>
             <StatCard
-              label={t('workspace.connectors.overview.statTotal')}
+              label="Total"
               value={recordsStatus.total}
-              subtitle={t('workspace.connectors.overview.statTotalSub')}
+              subtitle="Total records"
               onClick={() => navigateToRecords()}
             />
             <StatCard
-              label={t('workspace.connectors.overview.statCompleted')}
+              label="Completed"
               value={recordsStatus.completed}
-              subtitle={t('workspace.connectors.overview.statCompletedSub')}
+              subtitle="Indexed and searchable"
               onClick={() => navigateToRecords(['COMPLETED'])}
             />
           </Flex>
           {/* Row 2: Failed, Processing, Queued, Manual indexing */}
           <Flex gap="2" style={{ width: '100%' }}>
             <StatCard
-              label={t('status.failed')}
+              label="Failed"
               value={recordsStatus.failed}
-              subtitle={t('workspace.connectors.overview.statFailedSub')}
+              subtitle="Errors (API / permission issues)"
               valueColor={recordsStatus.failed > 0 ? 'var(--red-11)' : undefined}
               onClick={() => navigateToRecords(['FAILED'])}
             />
             <StatCard
-              label={t('status.processing')}
+              label="Processing"
               value={recordsStatus.inProgress}
-              subtitle={t('workspace.connectors.overview.statInProgressSub')}
+              subtitle="Still being indexed"
               onClick={() => navigateToRecords(['IN_PROGRESS'])}
             />
             <StatCard
-              label={t('workspace.connectors.overview.statQueued')}
+              label="Queued"
               value={recordsStatus.queued}
-              subtitle={t('workspace.connectors.overview.statQueuedSub')}
+              subtitle="Waiting to be indexed"
               onClick={() => navigateToRecords(['QUEUED'])}
             />
             <StatCard
-              label={t('workspace.connectors.overview.statManualIndexing')}
+              label="Manual indexing"
               value={recordsStatus.autoIndexOff}
-              subtitle={t('workspace.connectors.overview.statManualIndexingSub')}
+              subtitle="Synced but not indexed yet"
               onClick={() => navigateToRecords(['AUTO_INDEX_OFF'])}
             />
           </Flex>
           {/* Row 3 (last): Empty, Unsupported, Not started */}
           <Flex gap="2" style={{ width: '100%' }}>
             <StatCard
-              label={t('workspace.connectors.overview.statEmpty')}
+              label="Empty"
               value={recordsStatus.empty}
-              subtitle={t('workspace.connectors.overview.statEmptySub')}
+              subtitle="No extractable content"
               onClick={() => navigateToRecords(['EMPTY'])}
             />
             <StatCard
-              label={t('workspace.connectors.overview.statUnsupported')}
+              label="Unsupported"
               value={recordsStatus.unsupported}
-              subtitle={t('workspace.connectors.overview.statUnsupportedSub')}
+              subtitle="Can't be processed"
               onClick={() => navigateToRecords(['FILE_TYPE_NOT_SUPPORTED'])}
             />
             <StatCard
-              label={t('workspace.connectors.overview.statNotStarted')}
+              label="Not Started"
               value={recordsStatus.notStarted}
-              subtitle={t('workspace.connectors.overview.statNotStartedSub')}
+              subtitle="Awaiting connector sync"
               onClick={() => navigateToRecords(['NOT_STARTED'])}
             />
           </Flex>
@@ -451,7 +444,7 @@ export function OverviewTab({
       <Flex direction="column" gap="3">
         <Flex align="center" justify="between">
           <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.connectors.overview.recordsByType')}
+            {"Records by Type"}
           </Text>
           {showStatsShimmer ? (
             <OverviewTypesBadgeShimmer />
@@ -466,7 +459,7 @@ export function OverviewTab({
           <OverviewRecordTypesShimmer />
         ) : byRecordType.length === 0 ? (
           <Text size="2" style={{ color: 'var(--gray-9)' }}>
-            {t('workspace.connectors.overview.noRecordTypes')}
+            {"No record types available"}
           </Text>
         ) : (
           <Flex direction="column" gap="1">

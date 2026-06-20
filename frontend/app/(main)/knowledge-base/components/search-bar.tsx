@@ -3,8 +3,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Flex, IconButton, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
-
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
@@ -18,9 +16,8 @@ export function SearchBar({
   onClose,
   placeholder,
 }: SearchBarProps) {
-  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
-  const defaultPlaceholder = placeholder || t('kb.searchPlaceholder');
+  const defaultPlaceholder = placeholder || "eg: Sales Docs";
 
   // Auto-focus input when search bar opens
   useEffect(() => {
@@ -110,7 +107,7 @@ export function SearchBar({
           }}
         >
           <Text size="1" color="red">
-            {t('kb.searchMinChars')}
+            {"Minimum 2 characters required for search"}
           </Text>
         </Flex>
       )}

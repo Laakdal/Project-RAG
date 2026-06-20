@@ -8,7 +8,6 @@ import { MOBILE_HAMBURGER_GUTTER_PX } from '@/app/components/sidebar';
 import { useKnowledgeBaseStore } from '../store';
 import type { ViewMode, PageViewMode, Breadcrumb } from '../types';
 import { FolderIcon } from '@/app/components/ui';
-import { useTranslation } from 'react-i18next';
 import { ShareHeaderGroup } from '@/app/components/share';
 import type { SharedAvatarMember } from '@/app/components/share';
 
@@ -178,7 +177,6 @@ export function Header({
   onRename,
   isSearchActive,
 }: KBHeaderProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const { viewMode, setViewMode, tableData } = useKnowledgeBaseStore();
   const isCollectionsMode = pageViewMode === 'collections';
@@ -338,23 +336,23 @@ export function Header({
         {/* Common actions - always shown. Icon-only on mobile to save room. */}
         <Flex align="center" gap={isMobile ? '1' : '5'}>
           {isMobile ? (
-            <IconButton variant="ghost" size="2" color="gray" onClick={onFind} style={{ cursor: 'pointer' }} aria-label={t('action.find')}>
+            <IconButton variant="ghost" size="2" color="gray" onClick={onFind} style={{ cursor: 'pointer' }} aria-label={"Find"}>
               <MaterialIcon name="search" size={18} color="var(--slate-11)" />
             </IconButton>
           ) : (
             <Button variant="ghost" size="1" color="gray" onClick={onFind} style={{ cursor: 'pointer', fontSize: '14px' }}>
               <MaterialIcon name="search" size={16} color="var(--slate-11)" />
-              {t('action.find')}
+              {"Find"}
             </Button>
           )}
           {isMobile ? (
-            <IconButton variant="ghost" size="2" color="gray" onClick={onRefresh} style={{ cursor: 'pointer' }} aria-label={t('action.refresh')}>
+            <IconButton variant="ghost" size="2" color="gray" onClick={onRefresh} style={{ cursor: 'pointer' }} aria-label={"Refresh"}>
               <MaterialIcon name="refresh" size={18} color="var(--slate-11)" />
             </IconButton>
           ) : (
             <Button variant="ghost" size="1" color="gray" onClick={onRefresh} style={{ cursor: 'pointer', fontSize: '14px' }}>
               <MaterialIcon name="refresh" size={16} color="var(--slate-11)" />
-              {t('action.refresh')}
+              {"Refresh"}
             </Button>
           )}
         </Flex>
@@ -367,24 +365,24 @@ export function Header({
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                   {isMobile ? (
-                    <IconButton variant="solid" size="2" style={{ cursor: 'pointer' }} aria-label={t('action.new')}>
+                    <IconButton variant="solid" size="2" style={{ cursor: 'pointer' }} aria-label={"New"}>
                       <MaterialIcon name="add" size={18} color="white" />
                     </IconButton>
                   ) : (
                     <Button variant="solid" size="1" style={{ cursor: 'pointer' }}>
                       <MaterialIcon name="add" size={16} color="white" />
-                      {t('action.new')}
+                      {"New"}
                     </Button>
                   )}
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content align="end">
                   <DropdownMenu.Item onClick={() => onCreateFolder?.()}>
                     <MaterialIcon name="create_new_folder" size={16} color="var(--slate-11)" />
-                    {t('kb.newFolder')}
+                    {"New Folder"}
                   </DropdownMenu.Item>
                   <DropdownMenu.Item onClick={() => onUpload?.()}>
                     <MaterialIcon name="file_upload" size={16} color="var(--slate-11)" />
-                    {t('dialog.uploadData')}
+                    {"Upload Data"}
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>

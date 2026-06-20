@@ -5,7 +5,6 @@ import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon, FilterDropdown, DateRangePicker, type DateFilterType } from '@/app/components/ui';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { useKnowledgeBaseStore } from '../store';
-import { useTranslation } from 'react-i18next';
 import type {
   PageViewMode,
   SizeRange,
@@ -23,7 +22,6 @@ interface KBFilterBarProps {
 }
 
 export function FilterBar({ pageViewMode }: KBFilterBarProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const {
     // Collections mode state and actions
@@ -148,9 +146,9 @@ export function FilterBar({ pageViewMode }: KBFilterBarProps) {
 
   // Common size options (hardcoded - not from API)
   const SIZE_OPTIONS = [
-    { value: 'lt1mb', label: t('filter.lt1mb') },
-    { value: '1to10mb', label: t('filter.1to10mb') },
-    { value: '10to100mb', label: t('filter.10to100mb') },
+    { value: 'lt1mb', label: "< 1 MB" },
+    { value: '1to10mb', label: "1-10 MB" },
+    { value: '10to100mb', label: "10-100 MB" },
   ];
 
   // Unified handlers — work for both modes via updateFilter
@@ -235,45 +233,45 @@ export function FilterBar({ pageViewMode }: KBFilterBarProps) {
 
       {/* Type Filter */}
       <FilterDropdown
-        label={t('filter.type')}
+        label={"Type"}
         icon="source"
         options={typeOptions}
         selectedValues={activeFilter.recordTypes || []}
         onSelectionChange={handleTypeChange}
         disabled={typeOptions.length === 0}
         searchable
-        pluralLabel={t('filter.types')}
+        pluralLabel={"Types"}
       />
 
       {/* Status Filter */}
       <FilterDropdown
-        label={t('filter.status')}
+        label={"Status"}
         icon="contrast"
         options={statusOptions}
         selectedValues={activeFilter.indexingStatus || []}
         onSelectionChange={handleStatusChange}
         disabled={statusOptions.length === 0}
-        pluralLabel={t('filter.statuses')}
+        pluralLabel={"Statuses"}
       />
 
       {/* Source Filter — All Records mode only */}
       {!isCollectionsMode && (
         <FilterDropdown
-          label={t('filter.source')}
+          label={"Source"}
           icon="cloud_upload"
           options={sourceOptions}
           selectedValues={activeFilter.origins || []}
           onSelectionChange={handleSourceChange}
           searchable
           disabled={sourceOptions.length === 0}
-          pluralLabel={t('filter.sources')}
+          pluralLabel={"Sources"}
         />
       )}
 
       {/* Connector instances — All Records only */}
       {!isCollectionsMode && (
         <FilterDropdown
-          label={t('filter.connector')}
+          label={"Connector"}
           icon="hub"
           options={connectorOptions}
           selectedValues={activeFilter.connectorIds || []}
@@ -282,23 +280,23 @@ export function FilterBar({ pageViewMode }: KBFilterBarProps) {
           disabled={
             connectorOptions.length === 0 && (activeFilter.connectorIds?.length ?? 0) === 0
           }
-          pluralLabel={t('filter.connectors')}
+          pluralLabel={"Connectors"}
         />
       )}
 
       {/* Size Filter */}
       <FilterDropdown
-        label={t('filter.size')}
+        label={"Size"}
         icon="layers"
         options={SIZE_OPTIONS}
         selectedValues={activeFilter.sizeRanges || []}
         onSelectionChange={handleSizeChange}
-        pluralLabel={t('filter.sizes')}
+        pluralLabel={"Sizes"}
       />
 
       {/* Date Created Filter */}
       <DateRangePicker
-        label={t('filter.dateCreated')}
+        label={"Date Created"}
         icon="calendar_today"
         startDate={activeFilter.createdAfter}
         endDate={activeFilter.createdBefore}
@@ -310,7 +308,7 @@ export function FilterBar({ pageViewMode }: KBFilterBarProps) {
 
       {/* Last Updated Filter */}
       <DateRangePicker
-        label={t('filter.lastUpdated')}
+        label={"Last Updated"}
         icon="calendar_today"
         startDate={activeFilter.updatedAfter}
         endDate={activeFilter.updatedBefore}
@@ -335,7 +333,7 @@ export function FilterBar({ pageViewMode }: KBFilterBarProps) {
           }}
         >
           <Text size="1" style={{ color: 'var(--gray-11)', whiteSpace: 'nowrap' }}>
-            {t('filter.clearFilter')}
+            {"Clear Filter"}
           </Text>
           <MaterialIcon name="backspace" size={16} color="var(--gray-11)" />
         </Flex>

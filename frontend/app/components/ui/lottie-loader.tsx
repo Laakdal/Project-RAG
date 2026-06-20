@@ -50,7 +50,7 @@ class LottieErrorBoundary extends React.Component<
   }
 }
 
-export type LottieVariant = 'loader' | 'listening' | 'thinking' | 'still';
+export type LottieVariant = 'loader' | 'thinking';
 
 interface LottieLoaderProps {
   variant?: LottieVariant;
@@ -64,9 +64,7 @@ interface LottieLoaderProps {
 
 const LOTTIE_MAP: Record<LottieVariant, string> = {
   loader: '/lottie-files/Loader.lottie',
-  listening: '/lottie-files/Listening.lottie',
   thinking: '/lottie-files/Thinking.lottie',
-  still: '/lottie-files/Still.lottie',
 };
 
 export function LottieLoader({

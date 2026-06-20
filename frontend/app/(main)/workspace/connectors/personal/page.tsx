@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useCallback, useMemo, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { useToastStore } from '@/lib/store/toast-store';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { isElectron } from '@/lib/electron';
@@ -47,12 +46,11 @@ function PersonalConnectorsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const addToast = useToastStore((s) => s.addToast);
-  const { t } = useTranslation();
 
   const personalTabs = [
-    { value: 'all', label: t('workspace.actions.tabs.all') },
-    { value: 'active', label: t('status.active') },
-    { value: 'inactive', label: t('status.inactive') },
+    { value: 'all', label: "All" },
+    { value: 'active', label: "Active" },
+    { value: 'inactive', label: "Inactive" },
   ];
 
   const managedWatcherIdsRef = useRef<Set<string>>(new Set());
@@ -109,11 +107,11 @@ function PersonalConnectorsPageContent() {
   const showLocalFsDesktopRequiredToast = useCallback(() => {
     addToast({
       variant: 'info',
-      title: t('workspace.connectors.personal.desktopRequiredTitle'),
-      description: t('workspace.connectors.personal.desktopRequiredDescription'),
+      title: "Desktop app required",
+      description: "Local filesystem connector is only available in the Project RAG desktop app. Please use the desktop app to set up this connector.",
       duration: LOCAL_FS_DESKTOP_REQUIRED_TOAST_DURATION_MS,
     });
-  }, [addToast, t]);
+  }, [addToast]);
 
   // ── URL → Store: sync tab from query param ───────────────────
   useEffect(() => {
@@ -146,10 +144,10 @@ function PersonalConnectorsPageContent() {
       }
 
       if (registryRes.status === 'rejected' && activeRes.status === 'rejected') {
-        setError(t('workspace.connectors.toasts.loadError'));
+        setError("Failed to load connectors");
         addToast({
           variant: 'error',
-          title: t('workspace.connectors.toasts.loadError'),
+          title: "Failed to load connectors",
         });
       }
     } catch {
@@ -301,7 +299,7 @@ function PersonalConnectorsPageContent() {
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.toasts.refreshInstancesError'),
+        title: "Failed to refresh connector instances",
       });
     } finally {
       setIsRefreshingAllInstances(false);
@@ -312,7 +310,6 @@ function PersonalConnectorsPageContent() {
     refreshConnectorsListsQuiet,
     refreshInstanceDetailsForPage,
     addToast,
-    t,
   ]);
 
   useEffect(() => {
@@ -487,14 +484,14 @@ function PersonalConnectorsPageContent() {
       }
       addToast({
         variant: 'success',
-        title: t('workspace.connectors.toasts.syncStarted', { name: connectorTypeInfo?.name ?? 'connector' }),
-        description: t('workspace.connectors.toasts.syncStartedLongDescription'),
+        title: `${connectorTypeInfo?.name ?? 'connector'} is now syncing`,
+        description: "This may take a few minutes. You'll be notified when it's done.",
         duration: 3000,
       });
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.toasts.syncError'),
+        title: "Failed to start sync",
       });
     }
   }, [
@@ -507,7 +504,6 @@ function PersonalConnectorsPageContent() {
     setShowConfigSuccessDialog,
     setNewlyConfiguredConnectorId,
     instanceConfigs,
-    t,
   ]);
 
   const handleDoLater = useCallback(() => {
@@ -522,7 +518,7 @@ function PersonalConnectorsPageContent() {
         <ConnectorDetailsLayout
           connector={connectorTypeInfo}
           scope="personal"
-          scopeLabel={t('workspace.sidebar.nav.connectors')}
+          scopeLabel={"Connectors"}
           instances={instances}
           instanceConfigs={instanceConfigs}
           isLoading={isLoadingInstances}
@@ -555,8 +551,8 @@ function PersonalConnectorsPageContent() {
   return (
     <>
       <ConnectorCatalogLayout
-        title={t('workspace.sidebar.nav.yourConnectors')}
-        subtitle={t('workspace.connectors.subtitle')}
+        title={"Your Personal Connectors"}
+        subtitle={"Connect and manage integrations with external services"}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         tabs={personalTabs}

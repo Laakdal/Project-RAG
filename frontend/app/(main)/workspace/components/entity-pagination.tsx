@@ -3,7 +3,6 @@
 import React from 'react';
 import { Flex, Box, Text, DropdownMenu } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
 
 export interface EntityPaginationProps {
   /** Current page (1-based) */
@@ -32,8 +31,6 @@ export function EntityPagination({
   onPageChange,
   onLimitChange,
 }: EntityPaginationProps) {
-  const { t } = useTranslation();
-
   const totalPages = Math.max(1, Math.ceil(totalCount / limit));
   const from = totalCount === 0 ? 0 : (page - 1) * limit + 1;
   const to = Math.min(page * limit, totalCount);
@@ -54,7 +51,7 @@ export function EntityPagination({
     >
       {/* Left: showing count */}
       <Text size="2" style={{ color: 'var(--slate-9)' }}>
-        {t('workspace.pagination.showing', { from, to, total: totalCount })}
+        {`Showing ${from}-${to} of ${totalCount} Item`}
       </Text>
 
       {/* Right: pagination controls */}
@@ -71,7 +68,7 @@ export function EntityPagination({
           }}
         >
           <MaterialIcon name="chevron_left" size={16} />
-          <Text size="2">{t('workspace.pagination.previous')}</Text>
+          <Text size="2">{"Previous"}</Text>
         </Flex>
 
         {/* Page number */}
@@ -100,7 +97,7 @@ export function EntityPagination({
             color: 'var(--slate-11)',
           }}
         >
-          <Text size="2">{t('workspace.pagination.next')}</Text>
+          <Text size="2">{"Next"}</Text>
           <MaterialIcon name="chevron_right" size={16} />
         </Flex>
 

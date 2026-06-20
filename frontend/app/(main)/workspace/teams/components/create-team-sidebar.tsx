@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { WorkspaceRightPanel } from '../../components';
 import { useTeamsStore } from '../store';
 import {
@@ -19,7 +18,6 @@ export function CreateTeamSidebar({
 }: {
   onCreateSuccess?: () => void;
 }) {
-  const { t } = useTranslation();
   const isCreatePanelOpen = useTeamsStore((s) => s.isCreatePanelOpen);
   const closeCreatePanel = useTeamsStore((s) => s.closeCreatePanel);
 
@@ -40,10 +38,10 @@ export function CreateTeamSidebar({
       onOpenChange={(open) => {
         if (!open) closeCreatePanel();
       }}
-      title={t('workspace.teams.create.title', 'Create Team')}
+      title={"Create Team"}
       icon="groups"
-      primaryLabel={t('workspace.teams.create.submit', 'Create Team')}
-      secondaryLabel={t('workspace.teams.create.cancel', 'Cancel')}
+      primaryLabel={"Create Team"}
+      secondaryLabel={"Cancel"}
       primaryDisabled={!formState.isValid}
       primaryLoading={formState.isSubmitting}
       onPrimaryClick={() => formRef.current?.submit()}

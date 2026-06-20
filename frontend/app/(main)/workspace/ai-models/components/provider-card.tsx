@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ThemeableAssetIcon } from '@/app/components/ui/themeable-asset-icon';
-import { useTranslation } from 'react-i18next';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import type { AIModelProvider } from '../types';
 import { isRegistryBadgeCapability } from '../types';
@@ -69,7 +68,6 @@ interface ProviderRowProps {
  * Horizontal provider row for the Model Providers grid (+ Configure uses active capability tab).
  */
 export function ProviderRow({ provider, onConfigure, hideCapabilityBadges = false }: ProviderRowProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [hover, setHover] = useState(false);
 
@@ -101,14 +99,14 @@ export function ProviderRow({ provider, onConfigure, hideCapabilityBadges = fals
               {provider.name}
             </Text>
             <Text size="1" style={{ color: 'var(--gray-10)' }}>
-              {t('workspace.aiModels.modelProviderKind')}
+              {"Model Provider"}
             </Text>
           </Flex>
 
           {hideCapabilityBadges ? null : (
             <Flex gap="2" wrap="wrap" style={{ marginTop: 2 }}>
               {badgeCaps.map((cap) => {
-                const label = aiModelsCapabilityBadge(t, cap);
+                const label = aiModelsCapabilityBadge(cap);
                 if (!label) return null;
                 const st = BADGE_STYLE[cap] ?? DEFAULT_BADGE_STYLE;
                 return (
@@ -164,7 +162,7 @@ export function ProviderRow({ provider, onConfigure, hideCapabilityBadges = fals
         }}
       >
         <MaterialIcon name="add" size={16} color="var(--gray-11)" />
-        {t('workspace.aiModels.configure')}
+        {"Configure"}
       </button>
     </Flex>
   );

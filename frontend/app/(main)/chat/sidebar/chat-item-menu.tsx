@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { DropdownMenu, Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
 
 interface ChatItemMenuProps {
   /** Whether the parent item is hovered (controls meatball visibility) */
@@ -33,7 +32,6 @@ export function ChatItemMenu({
   showRename = true,
   showArchive = true,
 }: ChatItemMenuProps) {
-  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMeatballHovered, setIsMeatballHovered] = useState(false);
   const visible = isParentHovered || isOpen;
@@ -86,7 +84,7 @@ export function ChatItemMenu({
           >
             <Flex align="center" gap="1">
               <MaterialIcon name="drive_file_rename_outline" size={16} color="var(--slate-11)" />
-              <Text size="2" style={{ color: 'var(--slate-11)' }}>{t('chat.rename')}</Text>
+              <Text size="2" style={{ color: 'var(--slate-11)' }}>{"Rename"}</Text>
             </Flex>
           </DropdownMenu.Item>
         )}
@@ -99,7 +97,7 @@ export function ChatItemMenu({
           >
             <Flex align="center" gap="1">
               <MaterialIcon name="archive" size={16} color="var(--slate-11)" />
-              <Text size="2" style={{ color: 'var(--slate-11)' }}>{t('chat.archive')}</Text>
+              <Text size="2" style={{ color: 'var(--slate-11)' }}>{"Archive"}</Text>
             </Flex>
           </DropdownMenu.Item>
         )}
@@ -112,7 +110,7 @@ export function ChatItemMenu({
         >
           <Flex align="center" gap="1">
             <MaterialIcon name="delete" size={16} color="var(--red-11)" />
-            <Text size="2" style={{ color: 'var(--red-11)' }}>{t('chat.deleteChat')}</Text>
+            <Text size="2" style={{ color: 'var(--red-11)' }}>{"Delete"}</Text>
           </Flex>
         </DropdownMenu.Item>
       </DropdownMenu.Content>

@@ -48,13 +48,11 @@ const LABEL_FALLBACKS: Record<ReindexMenuLabelKey, string> = {
   'menu.reindex': 'Reindex',
 };
 
-/** Resolve menu label with English fallback when i18n key is missing. */
+/** Resolve menu label from the English fallback table. */
 export function getReindexMenuLabel(
   option: ReindexMenuOption,
-  t: (key: string) => string,
 ): string {
-  const translated = t(option.labelKey);
-  return translated === option.labelKey ? LABEL_FALLBACKS[option.labelKey] : translated;
+  return LABEL_FALLBACKS[option.labelKey];
 }
 
 /** Build a reindex node from hub/sidebar API fields (same shape as table rows). */
@@ -82,7 +80,6 @@ export function getReindexMenuState(
 /** Map reindex options to ItemActionMenu entries (shared by list/grid and sidebar). */
 export function mapReindexOptionsToMenuActions(
   options: ReindexMenuOption[],
-  t: (key: string) => string,
   onSelect: (statusFilters?: ('FAILED' | 'AUTO_INDEX_OFF')[]) => void,
 ): Array<{
   icon: string;
@@ -94,7 +91,7 @@ export function mapReindexOptionsToMenuActions(
 }> {
   return options.map((option) => ({
     icon: option.icon,
-    label: getReindexMenuLabel(option, t),
+    label: getReindexMenuLabel(option),
     labelKey: option.labelKey,
     statusFilters: option.statusFilters,
     disabled: option.disabled,

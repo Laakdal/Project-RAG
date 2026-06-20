@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { Flex, Tabs, Box, Button, Text } from '@radix-ui/themes';
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { ConnectorIcon, MaterialIcon } from '@/app/components/ui';
@@ -82,7 +81,6 @@ function scrollToFirstSyncCustomFieldError(
 
 export function ConnectorPanel() {
   const router = useRouter();
-  const { t } = useTranslation();
   const isAdmin = useUserStore(selectIsAdmin);
   const isProfileInitialized = useUserStore(selectIsProfileInitialized);
   const addToast = useToastStore((s) => s.addToast);
@@ -355,7 +353,7 @@ export function ConnectorPanel() {
 
   const resolveAuthenticateOrReturn = useCallback((): boolean => {
     if (!connectorSchema) {
-      setSaveError(t('workspace.connectors.loadingConfig'));
+      setSaveError("Loading configuration…");
       return false;
     }
     const { linkedOAuthAppId: oauthConfigIdStr, oauthFieldVisibility } = resolveOAuthFieldVisibility(
@@ -411,10 +409,8 @@ export function ConnectorPanel() {
         if (listReady && oauthSnap.oauthAppsList.length === 0) {
           addToast({
             variant: 'warning',
-            title: t('workspace.connectors.toasts.oauthAppUnavailableTitle'),
-            description: t('workspace.connectors.toasts.oauthAppUnavailableDescription', {
-              name: connectorTypeName || t('workspace.connectors.toasts.thisConnectorFallback'),
-            }),
+            title: "No OAuth apps are available for this connector",
+            description: `Ask your workspace administrator to create an OAuth app for ${connectorTypeName || "this connector"} first, then try again.`,
             duration: 4500,
           });
         }
@@ -426,7 +422,7 @@ export function ConnectorPanel() {
       const oauthAppName = (formData.auth.oauthInstanceName as string | undefined)?.trim();
       if (!oauthAppName) {
         mergeFormErrors({
-          oauthInstanceName: t('workspace.connectors.authTab.oauthAppNameRequired'),
+          oauthInstanceName: "Enter a name for the new OAuth app.",
         });
         requestAnimationFrame(() => {
           document
@@ -438,7 +434,7 @@ export function ConnectorPanel() {
     }
 
     if (isCreateMode && !instanceName.trim()) {
-      setInstanceNameError(t('workspace.actions.errors.instanceNameRequired'));
+      setInstanceNameError("Enter an instance name.");
       requestAnimationFrame(() => {
         document
           .querySelector('[data-ph-connector-instance-name]')
@@ -450,8 +446,8 @@ export function ConnectorPanel() {
     const fieldErrs = collectAuthFieldErrors(
       vFields,
       formData.auth,
-      (f) => t('workspace.actions.validation.fieldRequired', { field: f.displayName }),
-      (f) => t('workspace.actions.validation.fieldMustBeTrue', { field: f.displayName })
+      (f) => `${f.displayName} is required`,
+      (f) => `${f.displayName} must be true`
     );
     if (Object.keys(fieldErrs).length > 0) {
       mergeFormErrors(fieldErrs);
@@ -482,7 +478,6 @@ export function ConnectorPanel() {
     setInstanceNameError,
     setSaveError,
     addToast,
-    t,
   ]);
 
   const handleSaveAuth = useCallback(async () => {
@@ -523,9 +518,7 @@ export function ConnectorPanel() {
 
         addToast({
           variant: 'success',
-          title: t('workspace.connectors.toasts.createSuccess', {
-            name: instanceName.trim(),
-          }),
+          title: `Connector instance '${instanceName.trim()}' created successfully`,
           duration: 3000,
         });
 
@@ -559,7 +552,7 @@ export function ConnectorPanel() {
           setPanelActiveTab('configure');
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : t('workspace.connectors.toasts.createError');
+        const message = err instanceof Error ? err.message : "Failed to create connector";
         setSaveError(message);
       } finally {
         setIsSavingAuth(false);
@@ -608,7 +601,7 @@ export function ConnectorPanel() {
           setPanelActiveTab('configure');
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : t('workspace.connectors.toasts.authSaveError');
+        const message = err instanceof Error ? err.message : "Failed to save auth configuration";
         setSaveError(message);
       } finally {
         setIsSavingAuth(false);
@@ -631,7 +624,6 @@ export function ConnectorPanel() {
     setIsSavingAuth,
     setSaveError,
     addToast,
-    t,
     selectedScope,
   ]);
 
@@ -717,7 +709,7 @@ export function ConnectorPanel() {
         );
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('workspace.connectors.toasts.configSaveError');
+      const message = err instanceof Error ? err.message : "Failed to save configuration";
       setSaveError(message);
     } finally {
       setIsSavingConfig(false);
@@ -735,7 +727,6 @@ export function ConnectorPanel() {
     bumpCatalogRefresh,
     setSaveError,
     setIsSavingConfig,
-    t,
   ]);
 
   const handleSaveConfig = useCallback(() => {
@@ -851,17 +842,17 @@ export function ConnectorPanel() {
     onNext: handleSaveAuth,
     onSave: handleSaveConfig,
     labels: {
-      next: t('common.next'),
-      saving: t('action.saving'),
-      cancel: t('action.cancel'),
-      loadingConfig: t('workspace.connectors.loadingConfig'),
-      saveConfig: t('workspace.connectors.saveConfig'),
-      completeAuthForSave: t('workspace.connectors.tooltips.authFirst'),
-      continueToConfigure: t('workspace.connectors.continueToConfiguration'),
-      oauthInProgress: t('workspace.connectors.oauthSigningIn'),
-      authBeforeConfigure: t('workspace.connectors.authRequiredBeforeConfig'),
-      backToAuth: t('workspace.connectors.backToCredentials'),
-      backFromConfigure: t('workspace.connectors.backFromConfigure'),
+      next: "Next",
+      saving: "Saving...",
+      cancel: "Cancel",
+      loadingConfig: "Loading configuration…",
+      saveConfig: "Save Configuration",
+      completeAuthForSave: "Complete authentication first to save configuration",
+      continueToConfigure: "Continue to configuration →",
+      oauthInProgress: "Finish signing in with your provider…",
+      authBeforeConfigure: "Complete OAuth authorization before configuring sync and filters",
+      backToAuth: "← Back to credentials",
+      backFromConfigure: "← Back",
     },
     onContinueFromAuthorize: async () => {
       await refreshPanelFromServer();
@@ -884,14 +875,14 @@ export function ConnectorPanel() {
       variant="outline"
       color="gray"
       size="1"
-      aria-label={t('workspace.actions.documentation')}
+      aria-label="Documentation"
       onClick={() => {
         window.open(documentationUrl, '_blank', 'noopener,noreferrer');
       }}
       style={{ cursor: 'pointer', gap: 'var(--space-1)' }}
     >
       <MaterialIcon name="open_in_new" size={14} color="var(--gray-11)" />
-      <Text size="1">{t('workspace.actions.documentation')}</Text>
+      <Text size="1">{"Documentation"}</Text>
     </Button>
   ) : null;
 
@@ -908,7 +899,7 @@ export function ConnectorPanel() {
       onOpenChange={(open) => {
         if (!open) closePanel();
       }}
-      title={t('workspace.connectors.configPanelTitle', { name: connectorTypeName })}
+      title={`${connectorTypeName} Configuration`}
       icon={panelIcon}
       onBack={sourceInstance ? handleBackToInstance : undefined}
       headerActions={headerActions}
@@ -927,7 +918,7 @@ export function ConnectorPanel() {
           justify="center"
           style={{ height: 200 }}
         >
-          <LottieLoader variant="loader" size={48} showLabel label={t('workspace.connectors.loadingConfig')} />
+          <LottieLoader variant="loader" size={48} showLabel label="Loading configuration…" />
         </Flex>
       ) : panelView === 'select-records' ? (
         <SelectRecordsPage />
@@ -948,7 +939,7 @@ export function ConnectorPanel() {
               }}
             >
               <Tabs.Trigger value="authenticate">
-                {t('workspace.connectors.tabs.authenticate')}
+                {"Authenticate Instance"}
               </Tabs.Trigger>
               {showAuthorizeTab ? (
                 <Tabs.Trigger value="authorize">Authorize</Tabs.Trigger>
@@ -958,7 +949,7 @@ export function ConnectorPanel() {
                 disabled={!configureTabEnabled}
                 style={!configureTabEnabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
-                {t('workspace.connectors.tabs.configureRecords')}
+                {"Configure Records"}
               </Tabs.Trigger>
             </Tabs.List>
 
@@ -987,14 +978,14 @@ export function ConnectorPanel() {
       open={syncSaveConfirmOpen}
       onOpenChange={setSyncSaveConfirmOpen}
       container={connectorPanelNestedModalHost}
-      title={t('workspace.connectors.syncSaveConfirm.title')}
+      title="Start sync process?"
       message={
         syncSaveConfirmKind === 'manual'
-          ? t('workspace.connectors.syncSaveConfirm.manualMessage')
-          : t('workspace.connectors.syncSaveConfirm.wideSyncMessage')
+          ? "You have enabled Manual indexing for this connector. Records will be synced but won't be searchable by AI until you index them. You can select which records to index manually from All records. Do you want to proceed?"
+          : "This process could sync a large number of records. Are you sure you want to start the sync? Consider adding filters through the Filters section to reduce the number of records to sync."
       }
-      confirmLabel={t('workspace.connectors.syncSaveConfirm.confirm')}
-      cancelLabel={t('workspace.connectors.syncSaveConfirm.cancel')}
+      confirmLabel="Confirm"
+      cancelLabel="Cancel"
       confirmVariant="primary"
       onConfirm={handleConfirmSyncSave}
     />
@@ -1004,7 +995,7 @@ export function ConnectorPanel() {
         onOpenChange={setDisableFirstConfigSaveOpen}
         connectorId={panelConnectorId}
         connectorName={connectorName || connectorTypeName}
-        actionLabel={t('workspace.connectors.disableFirstDialog.actions.saveConfig')}
+        actionLabel="save configuration changes"
         onProceed={performSaveConfig}
         container={connectorPanelNestedModalHost}
       />

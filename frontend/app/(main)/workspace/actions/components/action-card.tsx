@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -27,7 +26,6 @@ export function ActionCard({
   onCta,
   onCardClick,
 }: ActionCardProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   const isMergedType = item.rowKind === 'byToolsetType';
@@ -103,7 +101,7 @@ export function ActionCard({
             >
               <MaterialIcon name="vpn_key" size={12} color="var(--amber-11)" />
               <Text size="1" weight="medium" style={{ color: 'var(--amber-11)' }}>
-                {t('workspace.actions.card.authNeededBadge')}
+                {"Authentication needed"}
               </Text>
             </button>
           ) : null}
@@ -189,7 +187,6 @@ function ToolsetInstanceSummaryBar({
   onAdd: (e: React.MouseEvent) => void;
   onBadgeClick: (e: React.MouseEvent) => void;
 }) {
-  const { t } = useTranslation();
   const [isAddHovered, setIsAddHovered] = useState(false);
   const onlyOnePill = (authenticatedCount > 0) !== (needsAuthCount > 0);
 
@@ -218,8 +215,8 @@ function ToolsetInstanceSummaryBar({
           >
             <Text size="1" weight="medium" style={{ color: 'var(--green-a11)', whiteSpace: 'nowrap' }}>
               {authenticatedCount === 1
-                ? t('workspace.actions.card.activeOne')
-                : t('workspace.actions.card.activeMany', { count: authenticatedCount })}
+                ? "1 active instance"
+                : `${authenticatedCount} active instances`}
             </Text>
           </Flex>
         )}
@@ -240,8 +237,8 @@ function ToolsetInstanceSummaryBar({
           >
             <Text size="1" weight="medium" style={{ color: 'var(--amber-a11)', whiteSpace: 'nowrap' }}>
               {needsAuthCount === 1
-                ? t('workspace.actions.card.inactiveOne')
-                : t('workspace.actions.card.inactiveMany', { count: needsAuthCount })}
+                ? "1 in-active instance"
+                : `${needsAuthCount} in-active instances`}
             </Text>
           </Flex>
         )}

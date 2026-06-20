@@ -4,7 +4,6 @@ import React from 'react';
 import { Flex, Text, IconButton } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { CollectionsTab, type CollectionScopeSelection } from './collections-tab';
-import { useTranslation } from 'react-i18next';
 
 /** View mode controlling which container wraps this panel */
 type ExpansionViewMode = 'inline' | 'overlay';
@@ -33,14 +32,12 @@ export function ConnectorsCollectionsPanel({
   onToggleView,
   viewMode = 'inline',
 }: ConnectorsCollectionsPanelProps) {
-  const { t } = useTranslation();
-
   return (
     <Flex direction="column" gap="4" style={{ flex: 1, overflow: 'hidden' }}>
       {/* Header: title + expand/collapse toggle */}
       <Flex align="center" justify="between" style={{ width: '100%' }}>
         <Text size="1" weight="medium" style={{ color: 'var(--slate-12)' }}>
-          {t('chat.connectorsCollectionsTitle', { defaultValue: 'Connectors and Collections' })}
+          {"Connectors and Collections"}
         </Text>
         <IconButton
           variant="ghost"

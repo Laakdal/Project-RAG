@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Button } from '@radix-ui/themes';
 
 // ========================================
@@ -25,7 +24,6 @@ export function ConfigSuccessDialog({
   onStartSyncing,
   onDoLater,
 }: ConfigSuccessDialogProps) {
-  const { t } = useTranslation();
   if (!open) return null;
 
   return (
@@ -65,12 +63,12 @@ export function ConfigSuccessDialog({
         }}
       >
         <Text size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.connectors.successDialog.title')}
+          {"Instance is configured and ready to sync!"}
         </Text>
 
         <Text size="2" style={{ color: 'var(--gray-11)', lineHeight: '20px' }}>
-          {t('workspace.connectors.successDialog.description', { name: connectorName })}{' '}
-          {t('workspace.connectors.successDialog.descriptionSuffix')}
+          {`You can start syncing your ${connectorName} data with Project RAG now,`}{' '}
+          {"or choose to do it later from settings."}
         </Text>
 
         <Flex align="center" gap="3" style={{ marginTop: 4 }}>
@@ -81,7 +79,7 @@ export function ConfigSuccessDialog({
             onClick={onDoLater}
             style={{ cursor: 'pointer' }}
           >
-            {t('workspace.connectors.successDialog.later')}
+            {"I'll do it later"}
           </Button>
           <Button
             variant="solid"
@@ -89,7 +87,7 @@ export function ConfigSuccessDialog({
             onClick={onStartSyncing}
             style={{ cursor: 'pointer' }}
           >
-            {t('workspace.connectors.successDialog.startSync')}
+            {"Start Syncing Now"}
           </Button>
         </Flex>
       </Flex>

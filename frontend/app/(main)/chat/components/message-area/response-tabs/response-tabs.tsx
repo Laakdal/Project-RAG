@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Flex, Text, Box } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import type { ResponseTab } from '@/chat/types';
 
 interface ResponseTabsProps {
@@ -96,7 +95,6 @@ export function ResponseTabs({
   sourcesCount,
   citationCount,
 }: ResponseTabsProps) {
-  const { t } = useTranslation();
   return (
     <Flex
       align="center"
@@ -107,19 +105,19 @@ export function ResponseTabs({
       }}
     >
       <TabItem
-        label={t('chat.answer')}
+        label={"Answer"}
         isActive={activeTab === 'answer'}
         onClick={() => onTabChange('answer')}
       />
       <TabItem
-        label={t('chat.sources')}
+        label={"Sources"}
         count={sourcesCount}
         isActive={activeTab === 'sources'}
         isDisabled={!sourcesCount || sourcesCount === 0}
         onClick={() => onTabChange('sources')}
       />
       <TabItem
-        label={t('chat.citation')}
+        label={"Citation"}
         count={citationCount}
         isActive={activeTab === 'citation'}
         isDisabled={!citationCount || citationCount === 0}

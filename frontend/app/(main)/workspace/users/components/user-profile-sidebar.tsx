@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Flex, Text, Avatar, Box } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { WorkspaceRightPanel } from '../../components';
 import { useUsersStore } from '../store';
@@ -74,7 +73,6 @@ function ProfileField({ label, value, valueColor }: ProfileFieldProps) {
 // ========================================
 
 export function UserProfileSidebar() {
-  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
 
   const { isProfilePanelOpen, profileUser, closeProfilePanel } = useUsersStore();
@@ -104,7 +102,7 @@ export function UserProfileSidebar() {
       onOpenChange={(open) => {
         if (!open) closeProfilePanel();
       }}
-      title={t('workspace.users.profile.title')}
+      title={"Profile"}
       icon="person"
       hideFooter
     >
@@ -121,7 +119,7 @@ export function UserProfileSidebar() {
           <Flex align="center" justify="between">
             <Flex direction="column" gap="1">
               <Text size="1" style={{ color: 'var(--slate-9)' }}>
-                {t('workspace.users.profile.name')}
+                {"Name"}
               </Text>
               <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
                 {nameWithSuffix}
@@ -137,40 +135,40 @@ export function UserProfileSidebar() {
         </Box>
 
         <ProfileField
-          label={t('workspace.users.profile.email')}
+          label={"Email"}
           value={profileUser.email || '-'}
         />
         <ProfileField
-          label={t('workspace.users.profile.role')}
+          label={"Role"}
           value={profileUser.role || 'Member'}
         />
         <ProfileField
-          label={t('workspace.users.profile.companyDesignation')}
+          label={"Company Designation"}
           value="-"
         />
         <ProfileField
-          label={t('workspace.users.profile.groupsCount')}
+          label={"No. of groups part of"}
           value={String(groupsCount)}
         />
         <ProfileField
-          label={t('workspace.users.profile.teamsCount')}
+          label={"No. of teams part of"}
           value="-"
         />
         <ProfileField
-          label={t('workspace.users.profile.status')}
+          label={"Status"}
           value={status}
           valueColor={statusColor}
         />
         <ProfileField
-          label={t('workspace.users.profile.lastActive')}
+          label={"Last Active"}
           value={formatDateTime(profileUser.updatedAtTimestamp)}
         />
         <ProfileField
-          label={t('workspace.users.profile.dateJoined')}
+          label={"Date Joined"}
           value={formatDateTime(profileUser.createdAtTimestamp)}
         />
         <ProfileField
-          label={t('workspace.users.profile.invitedBy')}
+          label={"Invited By"}
           value="-"
         />
       </Flex>

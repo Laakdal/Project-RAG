@@ -2,7 +2,6 @@
 
 import React, { useRef, useState } from 'react';
 import { Box, Flex, Text, Callout } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'next/navigation';
 import { isValidEmail } from '@/lib/utils/validators';
 import { LoadingButton } from '@/app/components/ui/loading-button';
@@ -24,7 +23,6 @@ export interface SingleProviderProps {
  * sign in (no self-service sign-up or password reset).
  */
 export default function SingleProvider({ hideTitle = false }: SingleProviderProps) {
-  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -38,12 +36,12 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
   const ensureValidEmail = () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setEmailError(t('auth.common.emailRequired'));
+      setEmailError("Email is required.");
       emailRef.current?.focus();
       return false;
     }
     if (!isValidEmail(trimmedEmail)) {
-      setEmailError(t('auth.common.emailInvalid'));
+      setEmailError("Please enter a valid email address.");
       emailRef.current?.focus();
       return false;
     }
@@ -55,7 +53,7 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
     e.preventDefault();
     if (!ensureValidEmail()) return;
     if (!password) {
-      setPasswordRequiredError(t('auth.common.passwordRequired'));
+      setPasswordRequiredError("Password is required.");
       passwordRef.current?.focus();
       return;
     }
@@ -66,7 +64,7 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
   const inlinePasswordError =
     passwordRequiredError ||
     (auth.error?.type === 'wrongPassword'
-      ? t('auth.common.incorrectPassword')
+      ? "Incorrect password."
       : undefined);
 
   return (
@@ -111,10 +109,10 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
             size="3"
             disabled={!password || !email.trim() || !isValidEmail(email.trim())}
             loading={auth.loading}
-            loadingLabel={t('auth.common.signingIn')}
+            loadingLabel={"Signing in…"}
             style={{ flex: 1, backgroundColor: 'var(--accent-9)', color: 'white', fontWeight: 500 }}
           >
-            {t('auth.common.signIn')}
+            {"Sign In"}
           </LoadingButton>
         </Flex>
       </form>

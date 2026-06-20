@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { Box, Flex, Text, Badge } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
+
 import { useToastStore } from '@/lib/store/toast-store';
 import {
   WorkspaceRightPanel,
@@ -22,7 +22,6 @@ export function CreateGroupSidebar({
 }: {
   onCreateSuccess?: () => void;
 }) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
 
   const {
@@ -76,14 +75,8 @@ export function CreateGroupSidebar({
       // Show success toast
       addToast({
         variant: 'success',
-        title: t('workspace.groups.create.successTitle', 'Group created!'),
-        description: t(
-          'workspace.groups.create.successDescription',
-          {
-            name: newGroup.name,
-            defaultValue: `"${newGroup.name}" has been created successfully`,
-          }
-        ),
+        title: "Group created!",
+        description: `"${newGroup.name}" has been created successfully`,
         duration: 3000,
       });
 
@@ -93,10 +86,7 @@ export function CreateGroupSidebar({
     } catch {
       addToast({
         variant: 'error',
-        title: t(
-          'workspace.groups.create.errorGeneric',
-          'Failed to create group'
-        ),
+        title: "Failed to create group",
         duration: 5000,
       });
     } finally {
@@ -110,7 +100,6 @@ export function CreateGroupSidebar({
     closeCreatePanel,
     onCreateSuccess,
     addToast,
-    t,
   ]);
 
   return (
@@ -119,10 +108,10 @@ export function CreateGroupSidebar({
       onOpenChange={(open) => {
         if (!open) closeCreatePanel();
       }}
-      title={t('workspace.groups.create.title', 'Create Group')}
+      title={"Create Group"}
       icon="group"
-      primaryLabel={t('workspace.groups.create.submit', 'Create Group')}
-      secondaryLabel={t('workspace.groups.create.cancel', 'Cancel')}
+      primaryLabel={"Create Group"}
+      secondaryLabel={"Cancel"}
       primaryDisabled={!isFormValid}
       primaryLoading={isCreating}
       onPrimaryClick={handleSubmit}
@@ -141,16 +130,13 @@ export function CreateGroupSidebar({
       >
         {/* Group Name */}
         <FormField
-          label={t('workspace.groups.create.nameLabel', 'Group Name')}
+          label={"Group Name"}
         >
           <input
             type="text"
             value={createGroupName}
             onChange={(e) => setCreateGroupName(e.target.value)}
-            placeholder={t(
-              'workspace.groups.create.namePlaceholder',
-              'e.g. Data Engineering'
-            )}
+            placeholder={"e.g. Data Engineering"}
             style={{
               width: '100%',
               height: 'var(--space-8)',
@@ -184,21 +170,18 @@ export function CreateGroupSidebar({
               weight="medium"
               style={{ color: 'var(--slate-12)' }}
             >
-              {t('workspace.groups.create.addUsersLabel', 'Add Users')}
+              {"Add Users"}
             </Text>
             <Badge variant="soft" color="gray" size="1">
-              {t('workspace.common.selected', { count: createGroupUserIds.length, defaultValue: '{{count}} Selected' })}
+              {`${createGroupUserIds.length} Selected`}
             </Badge>
           </Flex>
           <SearchableCheckboxDropdown
             options={userOptions}
             selectedIds={createGroupUserIds}
             onSelectionChange={setCreateGroupUserIds}
-            placeholder={t(
-              'workspace.groups.create.addUsersPlaceholder',
-              'Search or select user(s) to add to this group'
-            )}
-            emptyText={t('workspace.common.noUsersAvailable', 'No users available')}
+            placeholder={"Search or select user(s) to add to this group"}
+            emptyText={"No users available"}
             showAvatar
             onSearch={handleUserSearch}
             onLoadMore={handleUserLoadMore}
@@ -210,13 +193,10 @@ export function CreateGroupSidebar({
         {/* Access Permissions (coming soon) */}
         <Flex direction="column" gap="1">
           <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-            {t('workspace.groups.create.accessLabel', 'Access Permissions')}
+            {"Access Permissions"}
           </Text>
           <Text size="2" style={{ color: 'var(--slate-9)' }}>
-            {t(
-              'workspace.groups.create.accessComingSoon',
-              'Access Permissions Coming Soon'
-            )}
+            {"Access Permissions Coming Soon"}
           </Text>
         </Flex>
       </Box>

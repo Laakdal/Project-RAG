@@ -3,7 +3,6 @@
 import { Suspense } from 'react';
 import { Box, Text } from '@radix-ui/themes';
 import { useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { AgentBuilder } from '@/app/(main)/agents/agent-builder/agent-builder';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 
@@ -14,7 +13,6 @@ import { ServiceGate } from '@/app/components/ui/service-gate';
  * URL: `/agents/edit?agentKey=<uuid>`
  */
 function EditAgentContent() {
-  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const agentKey = searchParams.get('agentKey')?.trim() || '';
 
@@ -22,7 +20,7 @@ function EditAgentContent() {
     return (
       <Box p="4">
         <Text size="2" color="gray">
-          {t('agents.missingAgentKey')}
+          {"Missing agent key. Open an agent from the chat sidebar or use a valid link."}
         </Text>
       </Box>
     );
@@ -32,11 +30,10 @@ function EditAgentContent() {
 }
 
 function EditPageSuspenseFallback() {
-  const { t } = useTranslation();
   return (
     <Box p="4">
       <Text size="2" color="gray">
-        {t('agents.loading')}
+        {"Loading…"}
       </Text>
     </Box>
   );

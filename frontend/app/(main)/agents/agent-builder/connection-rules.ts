@@ -2,13 +2,13 @@ import type { Connection, Edge, Node } from '@xyflow/react';
 import type { FlowNodeData } from './types';
 import { FLOW_EDGE } from './flow-theme';
 
-/** i18n keys under `agentBuilder.*` — translate where shown to the user. */
+/** Returns a plain-English error message, or null if the connection is valid. */
 export function connectionError(
   sourceNode: Node<FlowNodeData> | undefined,
   targetNode: Node<FlowNodeData> | undefined,
   connection: Connection
 ): string | null {
-  if (!sourceNode || !targetNode) return 'agentBuilder.connectionInvalid';
+  if (!sourceNode || !targetNode) return "Invalid connection";
   const st = sourceNode.data?.type ?? '';
   const tt = targetNode.data?.type ?? '';
 
@@ -16,43 +16,43 @@ export function connectionError(
     (st === 'kb-group' || st === 'app-group') &&
     (tt !== 'agent-core' || connection.targetHandle !== 'knowledge')
   ) {
-    return 'agentBuilder.connectionGroupKnowledge';
+    return "Group nodes must connect to the agent knowledge handle";
   }
   if (st.startsWith('kb-') && st !== 'kb-group' && (tt !== 'agent-core' || connection.targetHandle !== 'knowledge')) {
-    return 'agentBuilder.connectionKbToKnowledgeHandle';
+    return "Knowledge nodes must connect to the agent knowledge handle";
   }
   if (st.startsWith('app-') && st !== 'app-group' && (tt !== 'agent-core' || connection.targetHandle !== 'knowledge')) {
-    return 'agentBuilder.connectionAppToKnowledgeHandle';
+    return "App nodes must connect to the agent knowledge handle";
   }
   if (st.startsWith('llm-') && (tt !== 'agent-core' || connection.targetHandle !== 'llms')) {
-    return 'agentBuilder.connectionLlmToModelsHandle';
+    return "Model nodes must connect to the agent models handle";
   }
   if (st === 'user-input' && (tt !== 'agent-core' || connection.targetHandle !== 'input')) {
-    return 'agentBuilder.connectionChatInputToInput';
+    return "Connect chat input to the agent input handle";
   }
   if (st.startsWith('tool-group-') && (tt !== 'agent-core' || connection.targetHandle !== 'toolsets')) {
-    return 'agentBuilder.connectionToolGroupToToolsets';
+    return "Tool groups must connect to the agent toolsets handle";
   }
   if (st.startsWith('toolset-') && (tt !== 'agent-core' || connection.targetHandle !== 'toolsets')) {
-    return 'agentBuilder.connectionToolsetToToolsets';
+    return "Toolsets must connect to the agent toolsets handle";
   }
   if (st === 'web-search' && (tt !== 'agent-core' || connection.targetHandle !== 'toolsets')) {
-    return 'agentBuilder.connectionWebSearchToToolsets';
+    return "Toolsets must connect to the agent toolsets handle";
   }
   if (
     st.startsWith('tool-') &&
     !st.startsWith('tool-group-') &&
     (tt !== 'agent-core' || connection.targetHandle !== 'toolsets')
   ) {
-    return 'agentBuilder.connectionToolToToolsets';
+    return "Tools must connect to the agent toolsets handle";
   }
   if (st === 'agent-core') {
     if (tt !== 'chat-response' || connection.sourceHandle !== 'response') {
-      return 'agentBuilder.connectionAgentResponseToOutput';
+      return "Connect the agent response handle to chat output";
     }
   }
   if (st !== 'agent-core' && tt !== 'agent-core' && tt !== 'chat-response') {
-    return 'agentBuilder.connectionThroughAgent';
+    return "Nodes must connect through the agent";
   }
   return null;
 }

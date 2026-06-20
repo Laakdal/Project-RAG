@@ -5,7 +5,6 @@ import { Flex, Box, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { SECTION_PADDING_BOTTOM, SECTION_HEADER_PADDING } from '@/app/components/sidebar';
 import { FolderTreeItem } from './section-element';
-import { useTranslation } from 'react-i18next';
 import type {
   FolderTreeNode,
   NodeType,
@@ -212,8 +211,6 @@ export function CollectionsMode({
   onCollectionsRootLoadMore,
   collectionsRootLoadMoreLoading = false,
 }: CollectionsModeProps) {
-  const { t } = useTranslation();
-
   // Filter out app nodes (only show folders/collections)
   const filteredSharedTree = sharedTree.filter(
     (node) => !('nodeType' in node) || node.nodeType !== 'app'
@@ -249,18 +246,18 @@ export function CollectionsMode({
     <>
       {/* Shared section */}
       <CollectionTreeSection
-        title={t('nav.shared')}
+        title={"Shared"}
         nodes={filteredSharedTree}
-        emptyMessage={t('sidebar.sharedWithYou')}
+        emptyMessage={"Company data shared with you will be shown here"}
         sectionType="shared"
         {...treeProps}
       />
 
       {/* Private section */}
       <CollectionTreeSection
-        title={t('nav.private')}
+        title={"Private"}
         nodes={filteredPrivateTree}
-        emptyMessage={t('sidebar.noPrivateYet')}
+        emptyMessage={"No private files or folders have been added yet"}
         sectionType="private"
         actionButton={onAddPrivate ? <AddButton onClick={onAddPrivate} /> : undefined}
         {...treeProps}

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Flex, Text, Badge, Spinner, RadioGroup, Button } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -46,7 +45,6 @@ export function ModelSelectorPanel({
   hideHeader = false,
   agentId,
 }: ModelSelectorPanelProps) {
-  const { t } = useTranslation();
   const router = useRouter();
   const isAdmin = useUserStore(selectIsAdmin);
 
@@ -75,8 +73,8 @@ export function ModelSelectorPanel({
         if (fresh.length === 0) {
           setError(
             ctxKey === ASSISTANT_CTX
-              ? t('chat.noModelsAvailable')
-              : t('chat.agentNoModelsConfigured'),
+              ? 'No models available'
+              : 'No models configured for this agent',
           );
         }
       })
@@ -85,8 +83,8 @@ export function ModelSelectorPanel({
         console.error('Failed to fetch models:', err);
         setError(
           ctxKey === ASSISTANT_CTX
-            ? t('chat.failedToLoadModels')
-            : t('chat.failedToLoadAgentConfig'),
+            ? 'Failed to load models'
+            : 'Failed to load agent configuration',
         );
       })
       .finally(() => {
@@ -99,7 +97,7 @@ export function ModelSelectorPanel({
     // `cached` intentionally excluded — including it would force a refetch
     // every time the cache writes back, defeating the dedupe in the util.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxKey, t]);
+  }, [ctxKey]);
 
   // NOTE: We intentionally do NOT auto-select the default model here.
   // The chat-input pill already falls back to `defaultModels[ctxKey]` when
@@ -131,7 +129,7 @@ export function ModelSelectorPanel({
       {!hideHeader && (
         <Flex align="center" justify="between">
           <Text size="1" weight="medium" style={{ color: 'var(--slate-12)' }}>
-            {t('chat.configuredModels', 'Configured Models')}
+            {"Configured Models"}
           </Text>
           {isAdmin && (
             <span
@@ -150,7 +148,7 @@ export function ModelSelectorPanel({
                 lineHeight: 'inherit',
               }}
             >
-              {t('chat.openModels', 'Open Models')}
+              {"Open Models"}
             </span>
           )}
         </Flex>
@@ -193,16 +191,16 @@ export function ModelSelectorPanel({
             >
               {error}
             </Text>
-            {error === t('chat.agentNoModelsConfigured') && agentId && (
-              <Button 
-                variant="soft" 
+            {error === 'No models configured for this agent' && agentId && (
+              <Button
+                variant="soft"
                 size="2"
                 onClick={() => {
                   router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId)}`);
                 }}
               >
                 <MaterialIcon name="settings" size={16} />
-                {t('chat.configureModels')}
+                {"Configure Models"}
               </Button>
             )}
           </Flex>

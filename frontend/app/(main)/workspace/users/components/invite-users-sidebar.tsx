@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Button } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useToastStore } from '@/lib/store/toast-store';
 import {
@@ -51,7 +50,6 @@ export function InviteUsersSidebar({
 }: {
   onInviteSuccess?: () => void;
 }) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
 
   const {
@@ -194,14 +192,8 @@ export function InviteUsersSidebar({
 
         addToast({
           variant: 'success',
-          title: t('workspace.users.invite.editSuccessTitle', 'Invite updated'),
-          description: t(
-            'workspace.users.invite.editSuccessDescription',
-            {
-              email: editingInviteUser.email,
-              defaultValue: `Invite for ${editingInviteUser.email} has been updated`,
-            }
-          ),
+          title: 'Invite updated',
+          description: `Invite for ${editingInviteUser.email} has been updated`,
           duration: 3000,
         });
       } else {
@@ -214,11 +206,8 @@ export function InviteUsersSidebar({
             : `${validEmails.length} users`;
         addToast({
           variant: 'success',
-          title: t('workspace.users.invite.successTitle', 'Invite sent!'),
-          description: t('workspace.users.invite.successDescription', {
-            email: emailDisplay,
-            defaultValue: `${emailDisplay} has been invited`,
-          }),
+          title: "Invite sent!",
+          description: `${emailDisplay} has been invited`,
           duration: 3000,
         });
       }
@@ -230,8 +219,8 @@ export function InviteUsersSidebar({
       addToast({
         variant: 'error',
         title: isEditMode
-          ? t('workspace.users.invite.editError', 'Failed to update invite')
-          : t('workspace.users.invite.errorGeneric', 'Failed to send invite'),
+          ? 'Failed to update invite'
+          : "Failed to send invite",
         duration: 5000,
       });
     } finally {
@@ -249,17 +238,16 @@ export function InviteUsersSidebar({
     closeInvitePanel,
     onInviteSuccess,
     addToast,
-    t,
   ]);
 
   // Panel title & button labels change in edit mode
   const panelTitle = isEditMode
-    ? t('workspace.users.invite.editTitle', 'Edit Invite')
-    : t('workspace.users.invite.title', 'Invite User(s)');
+    ? 'Edit Invite'
+    : "Invite User(s)";
 
   const primaryLabel = isEditMode
-    ? t('workspace.users.invite.update', 'Update Invite')
-    : t('workspace.users.invite.send', 'Send Invite');
+    ? 'Update Invite'
+    : "Send Invite";
 
   return (
     <WorkspaceRightPanel
@@ -279,12 +267,12 @@ export function InviteUsersSidebar({
             style={{ cursor: 'not-allowed', opacity: 0.5 }}
           >
             <MaterialIcon name="upload" size={16} />
-            {t('workspace.users.invite.importCsv', 'Import CSV')}
+            {"Import CSV"}
           </Button>
         ) : undefined
       }
       primaryLabel={primaryLabel}
-      secondaryLabel={t('workspace.users.invite.cancel', 'Cancel')}
+      secondaryLabel={"Cancel"}
       primaryDisabled={!isFormValid}
       primaryLoading={isInviting}
       onPrimaryClick={handleSubmit}
@@ -302,17 +290,14 @@ export function InviteUsersSidebar({
         }}
       >
         {/* Email input */}
-        <FormField label={t('workspace.users.invite.emailLabel', 'Invite to')}>
+        <FormField label={"Invite to"}>
           <TagInput
             tags={inviteEmails}
             onTagsChange={isEditMode ? undefined : setInviteEmails}
             placeholder={
               isEditMode
                 ? ''
-                : t(
-                    'workspace.users.invite.emailPlaceholder',
-                    'Enter one or more email addresses'
-                  )
+                : "Enter one or more email addresses"
             }
             validate={validateEmail}
             disabled={isEditMode}
@@ -334,20 +319,14 @@ export function InviteUsersSidebar({
 
         {/* Groups dropdown */}
         <FormField
-          label={t(
-            'workspace.users.invite.groupLabel',
-            'Add to a User Group'
-          )}
+          label={"Add to a User Group"}
           optional
         >
           <SearchableCheckboxDropdown
             options={groupOptions}
             selectedIds={inviteGroupIds}
             onSelectionChange={setInviteGroupIds}
-            placeholder={t(
-              'workspace.users.invite.groupPlaceholder',
-              'Search or select user group(s)'
-            )}
+            placeholder={"Search or select user group(s)"}
             emptyText={
               isLoadingGroups
                 ? 'Loading groups...'

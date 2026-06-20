@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, DropdownMenu, Flex, Text, Tooltip } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useChatStore } from '@/chat/store';
 import { useMobileSidebarStore } from '@/lib/store/mobile-sidebar-store';
@@ -22,20 +21,19 @@ interface AgentChatHeaderProps {
  */
 export function AgentChatHeader({ agentId, displayName, isMobile, hasExpandButton }: AgentChatHeaderProps) {
   const router = useRouter();
-  const { t } = useTranslation();
   const toggleAgentsSidebar = useChatStore((s) => s.toggleAgentsSidebar);
   const closeAgentsSidebar = useChatStore((s) => s.closeAgentsSidebar);
   const access = useChatStore((s) => s.agentContextAccess);
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const openMobileSidebar = useMobileSidebarStore((s) => s.open);
 
-  const title = displayName?.trim() || t('chat.agentNameLoading');
+  const title = displayName?.trim() || "Loading…";
   const canEdit = Boolean(access?.canEdit);
   const showViewAgent = Boolean(access?.showViewAgent);
   const viewTooltip = showViewAgent
     ? access?.viewAgentTooltipVariant === 'service_account'
-      ? t('chat.viewAgentTooltipServiceAccount')
-      : t('chat.viewAgentTooltipIndividual')
+      ? "View-only: this organization service agent is locked. You can look around, but nothing here can be edited or reconfigured."
+      : "View-only: you can't change this agent's configuration, but you can connect tools with your own sign-in so they work in your chats with this agent."
     : '';
 
   const handleNewAgentChat = () => {
@@ -88,7 +86,7 @@ export function AgentChatHeader({ agentId, displayName, isMobile, hasExpandButto
               cursor: 'pointer',
               fontFamily: 'var(--default-font-family, Manrope, sans-serif)',
             }}
-            aria-label={t('chat.agentHeaderMenuAria')}
+            aria-label={"Agent options"}
           >
             <span
               style={{
@@ -109,20 +107,20 @@ export function AgentChatHeader({ agentId, displayName, isMobile, hasExpandButto
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="start" size="2">
           <DropdownMenu.Item onSelect={handleNewAgentChat}>
-            {t('chat.agentMenuNewChat')}
+            {"New chat"}
           </DropdownMenu.Item>
           <DropdownMenu.Item onSelect={handleAllChats}>
-            {t('chat.agentMenuAllChats')}
+            {"All chats"}
           </DropdownMenu.Item>
           <DropdownMenu.Item onSelect={handleBrowseAgents}>
-            {t('chat.moreAgents')}
+            {"More agents"}
           </DropdownMenu.Item>
           {(canEdit || showViewAgent) && <DropdownMenu.Separator />}
           {canEdit && (
             <DropdownMenu.Item onSelect={handleOpenBuilder}>
               <Flex align="center" gap="2">
                 <MaterialIcon name="edit" size={16} color="var(--slate-11)" />
-                <Text size="2">{t('chat.editAgent')}</Text>
+                <Text size="2">{"Edit agent"}</Text>
               </Flex>
             </DropdownMenu.Item>
           )}
@@ -131,7 +129,7 @@ export function AgentChatHeader({ agentId, displayName, isMobile, hasExpandButto
               <Tooltip content={viewTooltip} delayDuration={400}>
                 <Flex align="center" gap="2" style={{ maxWidth: 280 }}>
                   <MaterialIcon name="visibility" size={16} color="var(--slate-11)" />
-                  <Text size="2">{t('chat.viewAgent')}</Text>
+                  <Text size="2">{"View agent"}</Text>
                 </Flex>
               </Tooltip>
             </DropdownMenu.Item>

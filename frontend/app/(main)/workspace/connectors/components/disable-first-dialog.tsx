@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Dialog, Button, Flex } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LoadingButton } from '@/app/components/ui/loading-button';
@@ -67,7 +66,6 @@ export function DisableFirstDialog({
   onProceed,
   container,
 }: DisableFirstDialogProps) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const [isBusy, setIsBusy] = useState(false);
 
@@ -80,10 +78,10 @@ export function DisableFirstDialog({
       const message =
         err instanceof Error
           ? err.message
-          : t('workspace.connectors.disableFirstDialog.errorFallback');
+          : "Failed to disable connector. Please try again.";
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.disableFirstDialog.errorTitle'),
+        title: "Failed to disable connector",
         description: message,
       });
       return;
@@ -119,7 +117,7 @@ export function DisableFirstDialog({
       // Parent is expected to handle errors from the action via its own
       // toast / error state; swallow here to prevent double-toasting.
     }
-  }, [connectorId, onProceed, onOpenChange, addToast, t]);
+  }, [connectorId, onProceed, onOpenChange, addToast]);
 
   return (
     <Dialog.Root open={open} onOpenChange={(v) => { if (!isBusy) onOpenChange(v); }}>
@@ -141,7 +139,7 @@ export function DisableFirstDialog({
         <Flex align="center" gap="2" style={{ marginBottom: 'var(--space-2)' }}>
           <MaterialIcon name="warning_amber" size={20} color="var(--amber-9)" />
           <Dialog.Title style={{ color: 'var(--slate-12)', margin: 0 }}>
-            {t('workspace.connectors.disableFirstDialog.title')}
+            {"Connector is currently enabled"}
           </Dialog.Title>
         </Flex>
 
@@ -150,11 +148,8 @@ export function DisableFirstDialog({
           style={{ color: 'var(--slate-11)', lineHeight: '20px', marginTop: 'var(--space-1)' }}
         >
           {connectorName
-            ? t('workspace.connectors.disableFirstDialog.message', {
-                name: `"${connectorName}"`,
-                action: actionLabel,
-              })
-            : t('workspace.connectors.disableFirstDialog.messageNoName', { action: actionLabel })}
+            ? `"${connectorName}" is currently enabled. To ${actionLabel}, it will be automatically disabled first. Do you want to proceed?`
+            : `This connector is currently enabled. To ${actionLabel}, it will be automatically disabled first. Do you want to proceed?`}
         </Dialog.Description>
 
         <Flex justify="end" gap="2" mt="4">
@@ -167,7 +162,7 @@ export function DisableFirstDialog({
             onClick={() => onOpenChange(false)}
             style={{ cursor: isBusy ? 'not-allowed' : 'pointer' }}
           >
-            {t('workspace.connectors.disableFirstDialog.cancel')}
+            {"Cancel"}
           </Button>
           <LoadingButton
             type="button"
@@ -175,9 +170,9 @@ export function DisableFirstDialog({
             size="2"
             onClick={() => void handleProceed()}
             loading={isBusy}
-            loadingLabel={t('workspace.connectors.disableFirstDialog.proceeding')}
+            loadingLabel="Disabling..."
           >
-            {t('workspace.connectors.disableFirstDialog.proceed')}
+            {"Disable & Proceed"}
           </LoadingButton>
         </Flex>
       </Dialog.Content>

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Flex, Box, Text, IconButton } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 
@@ -13,7 +12,6 @@ interface AskMoreProps {
 
 export function AskMore({ questions, onQuestionClick }: AskMoreProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const { t } = useTranslation();
 
   if (questions.length === 0) return null;
 
@@ -41,7 +39,7 @@ export function AskMore({ questions, onQuestionClick }: AskMoreProps) {
       >
        <LottieLoader variant="thinking" size={24} />
         <Text size="3" weight="medium" style={{ color: 'var(--slate-12)' }}>
-          {t('chat.askMore')}
+          {"Ask More"}
         </Text>
       </Flex>
 

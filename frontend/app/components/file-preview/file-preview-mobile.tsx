@@ -9,7 +9,6 @@ import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { FilePreviewRenderer } from './renderers/file-preview-renderer';
 import { FileDetailsTab } from './file-details-tab';
 import { CitationCard } from './citations-panel';
-import { useTranslation } from 'react-i18next';
 import { useCitationSync } from './use-citation-sync';
 import { usePdfZoom } from './use-pdf-zoom';
 import { downloadPreviewFile, shouldShowPagination } from './utils';
@@ -32,7 +31,6 @@ export function FilePreviewMobile({
   hideFileDetails,
   showDownload,
 }: FilePreviewProps) {
-  const { t } = useTranslation();
   const hasCitations = citations && citations.length > 0;
   const hasError = !isLoading && !!error;
   const canDownload =
@@ -177,7 +175,7 @@ export function FilePreviewMobile({
               color="gray"
               size="1"
               onClick={() => setShowFileInfo(true)}
-              title={t('filePreview.fileInformation')}
+              title="File Information"
               style={{ flexShrink: 0 }}
             >
               <MaterialIcon name="info" size={16} color="var(--slate-11)" />
@@ -208,7 +206,7 @@ export function FilePreviewMobile({
             color="gray"
             size="1"
             onClick={handleClose}
-            title={t('common.close')}
+            title="Close"
           >
             <MaterialIcon name="close" size={16} color="var(--slate-11)" />
           </IconButton>
@@ -242,7 +240,7 @@ export function FilePreviewMobile({
                 <MaterialIcon name="keyboard_arrow_left" size={16} />
               </IconButton>
               <Text size="2" weight="medium" style={{ color: 'var(--neutral-12)' }}>
-                {t('filePreview.fileInformation')}
+                {"File Information"}
               </Text>
             </Flex>
 
@@ -484,7 +482,7 @@ export function FilePreviewMobile({
               style={{ flexShrink: 0, marginBottom: 'var(--space-2)' }}
             >
               <Text size="1" weight="medium" style={{ color: 'var(--neutral-a12)' }}>
-                {t('chat.citations')}
+                {"Citations"}
               </Text>
               <IconButton
                 variant="ghost"

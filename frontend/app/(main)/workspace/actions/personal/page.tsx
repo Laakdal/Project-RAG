@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { Flex, IconButton, Text } from '@radix-ui/themes';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -29,14 +28,13 @@ import {
 import type { ActionCardCta } from '../components/action-card';
 import { isToolsetOAuthSuccessMessageType } from '@/app/(main)/toolsets/oauth/toolset-oauth-window-messages';
 
-const PERSONAL_CATALOG_TABS: { value: MyActionsTab; labelKey: string }[] = [
-  { value: 'all', labelKey: 'workspace.actions.tabs.all' },
-  { value: 'authenticated', labelKey: 'workspace.actions.tabs.authenticated' },
-  { value: 'not_authenticated', labelKey: 'workspace.actions.tabs.notAuthenticated' },
+const PERSONAL_CATALOG_TABS: { value: MyActionsTab; label: string }[] = [
+  { value: 'all', label: "All" },
+  { value: 'authenticated', label: "Authenticated" },
+  { value: 'not_authenticated', label: "Not authenticated" },
 ];
 
 function PersonalActionsPageContent() {
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const addToast = useToastStore((s) => s.addToast);
@@ -151,11 +149,11 @@ function PersonalActionsPageContent() {
       if (filterCounts) setCatalogTabCounts(filterCounts);
       else setCatalogTabCounts(null);
     } catch {
-      addToast({ variant: 'error', title: t('workspace.actions.loadError') });
+      addToast({ variant: 'error', title: "Could not load actions. Try again." });
     } finally {
       setIsLoading(false);
     }
-  }, [addToast, t, catalogTab, debouncedCatalogSearch]);
+  }, [addToast, catalogTab, debouncedCatalogSearch]);
 
   useEffect(() => {
     if (toolsetTypeParam) return;
@@ -270,14 +268,14 @@ function PersonalActionsPageContent() {
   const resolveCta = useCallback(
     (item: ActionCatalogItem): { cta: ActionCardCta; label: string } => {
       if (!item.hasOrgInstance) {
-        return { cta: 'unavailable', label: t('workspace.actions.cta.notConfigured') };
+        return { cta: 'unavailable', label: "Not configured" };
       }
       if (!item.isUserAuthenticated) {
-        return { cta: 'authenticate', label: t('workspace.actions.cta.authenticate') };
+        return { cta: 'authenticate', label: "Authenticate" };
       }
-      return { cta: 'configure', label: t('workspace.actions.cta.configure') };
+      return { cta: 'configure', label: "Configure" };
     },
-    [t]
+    []
   );
 
   const pushTypeDetail = useCallback(
@@ -344,7 +342,7 @@ function PersonalActionsPageContent() {
             onOpenChange={(o) => {
               if (!o) setConfigureToolset(null);
             }}
-            title={t('workspace.actions.configPanelTitle')}
+            title={"Action configuration"}
             icon={
               <ConnectorIcon
                 type={configureToolset.toolsetType || configureToolset.name}
@@ -360,7 +358,7 @@ function PersonalActionsPageContent() {
                     variant="ghost"
                     color="gray"
                     size="1"
-                    aria-label={t('workspace.actions.documentation')}
+                    aria-label={"Documentation"}
                     style={{ cursor: 'pointer' }}
                     onClick={() =>
                       window.open(configurePanelDocUrl, '_blank', 'noopener,noreferrer')
@@ -389,11 +387,11 @@ function PersonalActionsPageContent() {
   return (
     <>
       <ActionsCatalogLayout
-        title={t('workspace.actions.yourActionsTitle')}
-        subtitle={t('workspace.actions.yourActionsSubtitle')}
+        title={"Your actions"}
+        subtitle={"Authenticate and manage actions your administrator has made available for your account."}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        tabs={PERSONAL_CATALOG_TABS.map((tab) => ({ value: tab.value, label: t(tab.labelKey) }))}
+        tabs={PERSONAL_CATALOG_TABS.map((tab) => ({ value: tab.value, label: tab.label }))}
         activeTab={catalogTab}
         onTabChange={handleTabChange}
         tabFilterMode="userAuth"
@@ -411,14 +409,14 @@ function PersonalActionsPageContent() {
         onCta={handleCta}
         onCardClick={handleCardClick}
         isLoading={isLoading}
-        loadingLabel={t('workspace.actions.loading')}
-        emptyLabel={t('workspace.actions.empty')}
+        loadingLabel={"Loading actions…"}
+        emptyLabel={"No actions match your filters."}
       />
 
       {isAdmin ? (
         <Flex px="9" pt="2">
           <Text size="1" color="gray">
-            {t('workspace.actions.personalAdminHint')}
+            {"Admins manage the organization catalog under Workspace → Actions."}
           </Text>
         </Flex>
       ) : null}
@@ -429,7 +427,7 @@ function PersonalActionsPageContent() {
           onOpenChange={(o) => {
             if (!o) setConfigureToolset(null);
           }}
-          title={t('workspace.actions.configPanelTitle')}
+          title={"Action configuration"}
           icon={
             <ConnectorIcon
               type={configureToolset.toolsetType || configureToolset.name}
@@ -445,7 +443,7 @@ function PersonalActionsPageContent() {
                   variant="ghost"
                   color="gray"
                   size="1"
-                  aria-label={t('workspace.actions.documentation')}
+                  aria-label={"Documentation"}
                   style={{ cursor: 'pointer' }}
                   onClick={() =>
                     window.open(configurePanelDocUrl, '_blank', 'noopener,noreferrer')

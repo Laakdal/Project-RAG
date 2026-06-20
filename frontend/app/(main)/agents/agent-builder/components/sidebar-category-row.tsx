@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Flex, Text, IconButton, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -117,16 +116,15 @@ export function SidebarCategoryRow(props: {
     children,
   } = props;
 
-  const { t } = useTranslation();
   const dragZoneActive = Boolean(dragType || onDragAttempt);
 
   const statusTooltip =
     toolsetStatus === 'authenticated'
-      ? t('agentBuilder.toolsetStatusAuthenticated')
+      ? "Authenticated and ready to use"
       : toolsetStatus === 'needs_authentication'
-        ? t('agentBuilder.toolsetStatusNeedsAuth')
+        ? "Configured — sign in to authenticate"
         : toolsetStatus === 'registry'
-          ? t('agentBuilder.toolsetStatusRegistry')
+          ? "Registry listing — not configured for your workspace"
           : undefined;
 
   const openInNewHandler =
@@ -184,7 +182,7 @@ export function SidebarCategoryRow(props: {
           variant="ghost"
           color="gray"
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? t('agentBuilder.sidebarCollapseTools') : t('agentBuilder.sidebarExpandTools')}
+          aria-label={isExpanded ? "Collapse tools" : "Expand tools"}
           onClick={(e) => {
             e.stopPropagation();
             onToggle();
@@ -276,7 +274,7 @@ export function SidebarCategoryRow(props: {
                   onPointerDown={(e) => e.stopPropagation()}
                   style={CATEGORY_ROW_ACTION_WRAP}
                 >
-                  <Tooltip content={configureTooltip || statusTooltip || t('agentBuilder.authenticateShort')}>
+                  <Tooltip content={configureTooltip || statusTooltip || "Authenticate"}>
                     <IconButton
                       type="button"
                       size="1"
@@ -286,7 +284,7 @@ export function SidebarCategoryRow(props: {
                         e.stopPropagation();
                         openInNewHandler();
                       }}
-                      aria-label={configureTooltip || statusTooltip || t('agentBuilder.authenticateShort')}
+                      aria-label={configureTooltip || statusTooltip || "Authenticate"}
                     >
                       <MaterialIcon name="open_in_new" size={18} color="var(--amber-11)" />
                     </IconButton>
@@ -303,7 +301,7 @@ export function SidebarCategoryRow(props: {
                       configureDisabledTooltip ||
                       configureTooltip ||
                       statusTooltip ||
-                      t('agentBuilder.authenticateShort')
+                      "Authenticate"
                     }
                   >
                     <IconButton
@@ -312,7 +310,7 @@ export function SidebarCategoryRow(props: {
                       variant="ghost"
                       color="gray"
                       disabled
-                      aria-label={configureDisabledTooltip || t('agentBuilder.authenticateShort')}
+                      aria-label={configureDisabledTooltip || "Authenticate"}
                       style={{ cursor: 'not-allowed', opacity: 0.55 }}
                     >
                       <MaterialIcon name="open_in_new" size={18} color="var(--slate-11)" />
@@ -327,7 +325,7 @@ export function SidebarCategoryRow(props: {
                 onPointerDown={(e) => e.stopPropagation()}
                 style={CATEGORY_ROW_ACTION_WRAP}
               >
-                <Tooltip content={configureTooltip || t('agentBuilder.configureShort')}>
+                <Tooltip content={configureTooltip || "Configure"}>
                   <IconButton
                     type="button"
                     size="1"
@@ -337,7 +335,7 @@ export function SidebarCategoryRow(props: {
                       e.stopPropagation();
                       gearHandler();
                     }}
-                    aria-label={configureTooltip || t('agentBuilder.configureShort')}
+                    aria-label={configureTooltip || "Configure"}
                   >
                     <MaterialIcon
                       name={configureUseKeyIcon ? 'vpn_key' : 'settings'}
@@ -354,7 +352,7 @@ export function SidebarCategoryRow(props: {
                 style={CATEGORY_ROW_ACTION_WRAP}
               >
                 <Tooltip
-                  content={configureDisabledTooltip || configureTooltip || t('agentBuilder.configureShort')}
+                  content={configureDisabledTooltip || configureTooltip || "Configure"}
                 >
                   <IconButton
                     type="button"
@@ -362,7 +360,7 @@ export function SidebarCategoryRow(props: {
                     variant="ghost"
                     color="gray"
                     disabled
-                    aria-label={configureDisabledTooltip || t('agentBuilder.configureShort')}
+                    aria-label={configureDisabledTooltip || "Configure"}
                     style={{ cursor: 'not-allowed', opacity: 0.55 }}
                   >
                     <MaterialIcon

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -112,14 +111,12 @@ export function ServiceAccountConfirmDialog({
   onClose,
   onConfirm,
 }: ServiceAccountConfirmDialogProps) {
-  const { t } = useTranslation();
-
-  const title = isConverting ? t('agentBuilder.svcAcctConvertTitle') : t('agentBuilder.svcAcctCreateTitle');
+  const title = isConverting ? "Convert to service agent" : "Create service agent";
   const description = isConverting
-    ? t('agentBuilder.svcAcctConvertDesc')
-    : t('agentBuilder.svcAcctCreateDesc');
-  const confirmLabel = isConverting ? t('agentBuilder.svcAcctConvertLabel') : t('agentBuilder.svcAcctCreateLabel');
-  const busyLabel = isConverting ? t('agentBuilder.svcAcctConvertBusy') : t('agentBuilder.svcAcctCreateBusy');
+    ? "This agent becomes a shared service agent: available across your organization, each toolset authenticates once at the agent level, and knowledge is limited to what you connect on the flow."
+    : "You are creating a shared service agent: available across your organization, each toolset authenticates once at the agent level, and knowledge is limited to what you connect on the flow.";
+  const confirmLabel = isConverting ? "Convert to service agent" : "Create service agent";
+  const busyLabel = isConverting ? "Converting…" : "Creating agent…";
 
   const [ackKnowledge, setAckKnowledge] = useState(false);
   const [ackToolsets, setAckToolsets] = useState(false);
@@ -218,9 +215,9 @@ export function ServiceAccountConfirmDialog({
                 {title}
               </Dialog.Title>
               <Text size="2" style={{ color: 'var(--olive-11)', lineHeight: 1.4 }}>
-                {t('agentBuilder.svcAcctAgentLabel')}{' '}
+                {"Agent"}{' '}
                 <Text weight="medium" size="2" style={{ color: 'var(--olive-12)' }}>
-                  {agentName.trim() || t('agentBuilder.svcAcctUnnamed')}
+                  {agentName.trim() || "(unnamed)"}
                 </Text>
               </Text>
             </Box>
@@ -231,7 +228,7 @@ export function ServiceAccountConfirmDialog({
             color="gray"
             size="2"
             onClick={() => !creating && onClose()}
-            aria-label={t('common.close')}
+            aria-label={"Close"}
             style={{ flexShrink: 0 }}
           >
             <MaterialIcon name="close" size={20} />
@@ -249,17 +246,17 @@ export function ServiceAccountConfirmDialog({
               iconColor="var(--red-11)"
               iconBg="var(--red-3)"
               iconBorder="var(--red-6)"
-              title={t('agentBuilder.svcAcctKnowledgeTitle')}
+              title={"Knowledge sources"}
             >
               <ul style={LIST}>
                 <li style={LI}>
                   <Text size="2" style={BODY}>
-                    {t('agentBuilder.svcAcctKnowledgeNote1')}
+                    {"Only knowledge sources you connect in the builder are used—not your entire workspace. Search and responses use your permissions as the person who saved this agent."}
                   </Text>
                 </li>
                 <li style={LI_LAST}>
                   <Text size="2" style={BODY}>
-                    {t('agentBuilder.svcAcctKnowledgeNote2')}
+                    {"Users in your organization may see answers drawn from content you can access in those sources, even when they would not normally have access to that content themselves."}
                   </Text>
                 </li>
               </ul>
@@ -270,18 +267,18 @@ export function ServiceAccountConfirmDialog({
               iconColor="var(--accent-11)"
               iconBg="var(--accent-3)"
               iconBorder="var(--accent-6)"
-              title={t('agentBuilder.svcAcctToolsetsTitle')}
+              title={"Toolsets use the agent's credentials"}
             >
               <ul style={LIST}>
                 <li style={isConverting ? LI : LI_LAST}>
                   <Text size="2" style={BODY}>
-                    {t('agentBuilder.svcAcctToolsetsNote1')}
+                    {"This agent keeps its own credentials for each toolset on the flow. When someone chats with the agent, tool calls run on behalf of the agent using those stored credentials—not each visitor's personal toolset sign-in. Use the key icon in the left palette to connect or refresh credentials for each toolset after you finish here."}
                   </Text>
                 </li>
                 {isConverting ? (
                   <li style={LI_LAST}>
                     <Text size="2" style={BODY}>
-                      {t('agentBuilder.svcAcctToolsetsNote2Convert')}
+                      {"Before you convert, remove any toolset nodes on the canvas that still use per-user sign-in. Add them back afterward and store credentials for this agent using the key icon."}
                     </Text>
                   </li>
                 ) : null}
@@ -293,10 +290,10 @@ export function ServiceAccountConfirmDialog({
               iconColor="var(--red-11)"
               iconBg="var(--red-3)"
               iconBorder="var(--red-6)"
-              title={t('agentBuilder.svcAcctOrgTitle')}
+              title={"Organization-wide access"}
             >
               <Text size="2" style={{ color: 'var(--olive-12)', lineHeight: 1.45 }}>
-                {t('agentBuilder.svcAcctOrgDesc')}
+                {"Anyone in your organization can find, open, and run this agent. There is no separate private copy."}
               </Text>
             </InfoCard>
 
@@ -320,7 +317,7 @@ export function ServiceAccountConfirmDialog({
               }}
             >
               <Text size="2" weight="bold" mb="2" style={{ color: 'var(--olive-12)', lineHeight: 1.35 }}>
-                {t('agentBuilder.svcAcctConfirmTitle')}
+                {"Confirm to continue"}
               </Text>
               <Flex direction="column" gap="2">
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
@@ -332,7 +329,7 @@ export function ServiceAccountConfirmDialog({
                     style={{ marginTop: 2 }}
                   />
                   <Text size="2" style={{ color: 'var(--olive-12)', lineHeight: 1.45 }}>
-                    {t('agentBuilder.svcAcctAckKnowledge')}
+                    {"I understand which knowledge applies, that search uses my permissions as the person who saved this agent, and that users in my organization may see answers drawn from content I could access in those sources."}
                   </Text>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
@@ -344,7 +341,7 @@ export function ServiceAccountConfirmDialog({
                     style={{ marginTop: 2 }}
                   />
                   <Text size="2" style={{ color: 'var(--olive-12)', lineHeight: 1.45 }}>
-                    {t('agentBuilder.svcAcctAckToolsets')}
+                    {"I understand that toolsets use credentials stored for this agent (the palette key icon), and that people who use the agent do not run toolsets with their own personal sign-in."}
                   </Text>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
@@ -356,15 +353,15 @@ export function ServiceAccountConfirmDialog({
                     style={{ marginTop: 2 }}
                   />
                   <Text size="2" style={{ color: 'var(--olive-12)', lineHeight: 1.45 }}>
-                    {t('agentBuilder.svcAcctAckOrg')}
+                    {"I understand that this agent is available to everyone in my organization."}
                   </Text>
                 </label>
               </Flex>
               {!allAcknowledged ? (
                 <Text size="1" mt="2" style={{ color: 'var(--olive-11)', lineHeight: 1.4 }}>
                   {isConverting
-                    ? t('agentBuilder.svcAcctCheckboxHintConvert')
-                    : t('agentBuilder.svcAcctCheckboxHintCreate')}
+                    ? "Select all three checkboxes to convert."
+                    : "Select all three checkboxes to create."}
                 </Text>
               ) : null}
             </Box>
@@ -381,7 +378,7 @@ export function ServiceAccountConfirmDialog({
         >
           <Flex gap="2" justify="end" wrap="wrap">
             <Button type="button" variant="soft" color="gray" size="2" onClick={onClose} disabled={creating}>
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               type="button"

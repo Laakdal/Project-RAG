@@ -3,7 +3,6 @@
 import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Flex, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { SidebarBase } from '@/app/components/sidebar';
@@ -39,8 +38,6 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentConversationId = searchParams?.get('conversationId') ?? null;
-  const { t } = useTranslation();
-
   const closeMobile = useMobileSidebarStore((s) => s.close);
   const isMobileOpen = useMobileSidebarStore((s) => s.isOpen);
   const isMobile = useIsMobile();
@@ -89,7 +86,7 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
       setAgentConversations(conv.conversations);
       setAgentConversationsPagination(conv.pagination);
     } catch {
-      setAgentConversationsError(t('chat.failedToLoad'));
+      setAgentConversationsError("Failed to load");
       setAgentConversations([]);
       setAgentConversationsPagination(null);
       setAgentStreamTools(null);
@@ -99,7 +96,6 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
     }
   }, [
     agentId,
-    t,
     setAgentConversations,
     setAgentConversationsPagination,
     setIsAgentConversationsLoading,
@@ -166,7 +162,7 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
       <Flex direction="column" gap="3" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <SidebarItem
           icon={<MaterialIcon name="chevron_left" size={ICON_SIZE_DEFAULT} />}
-          label={t('chat.backToChatHome')}
+          label="All chats"
           href="/chat/"
           onClick={handleBackHome}
         />
@@ -175,7 +171,7 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
           icon={
             <ChatStarIcon size={ICON_SIZE_DEFAULT} color="var(--accent-8)" />
           }
-          label={t('chat.newChat')}
+          label="New Chat"
           onClick={handleNewAgentChat}
           textColor="var(--accent-8)"
           fontWeight={500}
@@ -207,7 +203,7 @@ export const AgentScopedChatSidebar = React.memo(function AgentScopedChatSidebar
                 lineHeight: 1,
               }}
             >
-              {t('chat.recents')}
+              {"Recents"}
             </Text>
             <MaterialIcon
               name="chevron_right"

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Heading, Text, Button, Box } from '@radix-ui/themes';
 import { ConnectorIcon, MaterialIcon } from '@/app/components/ui';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
@@ -67,7 +66,6 @@ export function ConnectorDetailsLayout({
   isRefreshingAll = false,
   onRefreshInstance,
 }: ConnectorDetailsLayoutProps) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const connectorName = connector?.name ?? '';
   const connectorInfoText = getConnectorInfoText(connector);
@@ -107,7 +105,7 @@ export function ConnectorDetailsLayout({
       } catch {
         addToast({
           variant: 'error',
-          title: t('workspace.connectors.toasts.refreshInstancesError'),
+          title: "Failed to refresh connector instances",
         });
       } finally {
         setRefreshingCardIds((prev) => {
@@ -117,7 +115,7 @@ export function ConnectorDetailsLayout({
         });
       }
     },
-    [onRefreshInstance, refreshingCardIds, addToast, t]
+    [onRefreshInstance, refreshingCardIds, addToast]
   );
 
   const refreshAllBusy = isRefreshingAll || refreshingCardIds.size > 0;
@@ -201,7 +199,7 @@ export function ConnectorDetailsLayout({
               >
                 <MaterialIcon name="refresh" size={16} color="var(--gray-11)" />
               </span>
-              {t('workspace.connectors.refreshAllInstances')}
+              {"Refresh all"}
             </Button>
           ) : null}
           {onOpenDocs && (
@@ -231,7 +229,7 @@ export function ConnectorDetailsLayout({
             style={{ cursor: 'pointer' }}
           >
             <MaterialIcon name="add" size={16} color="white" />
-            {t('workspace.connectors.addInstance')}
+            {"Add Another Instance"}
           </Button>
         </Flex>
       </Flex>
@@ -269,7 +267,7 @@ export function ConnectorDetailsLayout({
                       cursor: 'pointer',
                     }}
                   >
-                    {t('workspace.connectors.emailVisibilityDocLink')}
+                    {"Email visibility setup guide →"}
                   </a>
                 </>
               )}
@@ -281,7 +279,7 @@ export function ConnectorDetailsLayout({
       {/* ── Instance list ── */}
       {isLoading ? (
         <Flex align="center" justify="center" style={{ flex: 1 }}>
-          <LottieLoader variant="loader" size={48} showLabel label={t('workspace.connectors.loadingInstances')} />
+          <LottieLoader variant="loader" size={48} showLabel label="Loading instances…" />
         </Flex>
       ) : instances.length === 0 ? (
         <Flex
@@ -293,7 +291,7 @@ export function ConnectorDetailsLayout({
         >
           <MaterialIcon name="hub" size={48} color="var(--gray-9)" />
           <Text size="2" style={{ color: 'var(--gray-11)' }}>
-            {t('workspace.connectors.noInstances')}
+            {"No instances configured yet"}
           </Text>
         </Flex>
       ) : (

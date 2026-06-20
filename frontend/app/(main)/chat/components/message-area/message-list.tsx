@@ -3,7 +3,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { Flex, Box } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { ChatResponse } from './chat-response';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
@@ -204,7 +203,6 @@ export function MessageList() {
     streamingScrollTopRef.current = scrollContainerRef.current.scrollTop;
   }
 
-  const { i18n } = useTranslation();
   const isMobile = useIsMobile();
 
   // Use useThread to get reactive thread state
@@ -1010,14 +1008,9 @@ export function MessageList() {
   }
   const askMoreQuestions = useMemo(() => {
     if (messagePairs.length === 0) return [];
-    // t() with returnObjects:true is unreliable for nested arrays in strict TS —
-    // read the resource bundle directly to get the raw JSON array.
-    const bundle = i18n.getResourceBundle(i18n.language, 'translation') as Record<string, unknown> | undefined;
-    const sets = (bundle?.chat as Record<string, unknown> | undefined)?.askMoreQuestionSets as string[][] | undefined;
-    const activeSets = Array.isArray(sets) && sets.length > 0 ? sets : ASK_MORE_QUESTION_SETS;
-    const setIndex = askMoreSetIndexRef.current.index % activeSets.length;
-    return activeSets[setIndex];
-  }, [messagePairs.length, i18n.language]);
+    const setIndex = askMoreSetIndexRef.current.index % ASK_MORE_QUESTION_SETS.length;
+    return ASK_MORE_QUESTION_SETS[setIndex];
+  }, [messagePairs.length]);
 
   // Whether to show Ask More suggestions
   const showAskMore = messagePairs.length > 0 && !isStreaming && !isLoadingConversation;

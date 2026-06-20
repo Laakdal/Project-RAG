@@ -1,7 +1,6 @@
 'use client';
 
 import React, { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Badge,
   Box,
@@ -55,10 +54,9 @@ export function AgentToolsetCredentialsDialog({
   onSuccess,
   onNotify,
 }: AgentToolsetCredentialsDialogProps) {
-  const { t } = useTranslation();
   const authType = (toolset.authType || 'NONE').toUpperCase();
   const productName =
-    toolset.displayName || toolset.name || t('agentBuilder.toolsetDefaultName');
+    toolset.displayName || toolset.name || "Toolset";
   const instanceLabel = (toolset.instanceName ?? '').trim();
   const displayName = instanceLabel || productName;
   const subtitle =
@@ -152,12 +150,12 @@ export function AgentToolsetCredentialsDialog({
     userCredentialFields.forEach((field) => {
       const value = formData[field.name];
       if (field.required && (value === undefined || value === null || String(value).trim() === '')) {
-        errors[field.name] = t('agentBuilder.fieldRequired', { field: field.displayName });
+        errors[field.name] = `${field.displayName} is required`;
       }
     });
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [userCredentialFields, formData, t]);
+  }, [userCredentialFields, formData]);
 
   const verifyOAuthComplete = useCallback(async (): Promise<boolean> => {
     try {
@@ -179,11 +177,10 @@ export function AgentToolsetCredentialsDialog({
   }, [onClose, onSuccess]);
 
   const onOAuthIncomplete = useCallback(() => {
-    setError(t('agentBuilder.oauthSignInIncomplete'));
-  }, [t]);
+    setError("Sign-in did not finish. The window may have been closed before completion — try again when you are ready.");
+  }, []);
 
   const { authenticating, authenticatingRef, beginOAuth, cancelForUserDismissal } = useToolsetOauthPopupFlow({
-    t,
     verifyAuthenticated: verifyOAuthComplete,
     onVerified: onOAuthVerified,
     onNotify,
@@ -204,7 +201,7 @@ export function AgentToolsetCredentialsDialog({
   const handleSaveCredentials = async () => {
     setSaveAttempted(true);
     if (!validateForm()) {
-      setError(t('agentBuilder.fillRequiredFields'));
+      setError("Please fill in all required fields.");
       return;
     }
     try {
@@ -219,7 +216,7 @@ export function AgentToolsetCredentialsDialog({
         await ToolsetsApi.authenticateAgentToolset(agentKey, instanceId, safeAuthPayload);
       }
       setIsAuthenticated(true);
-      onNotify?.(t('agentBuilder.toolsetAuthUpdated'));
+      onNotify?.("Toolset authentication updated.");
       onClose();
     } catch (e) {
       setError(apiErrorDetail(e));
@@ -238,7 +235,7 @@ export function AgentToolsetCredentialsDialog({
           typeof window !== 'undefined' ? window.location.origin : undefined
         );
         if (!result.success || !result.authorizationUrl) {
-          throw new Error(t('agentBuilder.oauthUrlFailed'));
+          throw new Error("Failed to get authorization URL");
         }
         return {
           authorizationUrl: result.authorizationUrl,
@@ -246,7 +243,7 @@ export function AgentToolsetCredentialsDialog({
         };
       },
       {
-        onTimeout: () => setError(t('agentBuilder.authTimeout')),
+        onTimeout: () => setError("Authentication timed out. Please try again."),
         onOpenError: (e) => setError(apiErrorDetail(e)),
       }
     );
@@ -263,7 +260,7 @@ export function AgentToolsetCredentialsDialog({
         await ToolsetsApi.removeAgentToolsetCredentials(agentKey, instanceId);
       }
       setIsAuthenticated(false);
-      onNotify?.(t('agentBuilder.toolsetAuthUpdated'));
+      onNotify?.("Toolset authentication updated.");
       onClose();
     } catch (e) {
       setError(apiErrorDetail(e));
@@ -324,7 +321,7 @@ export function AgentToolsetCredentialsDialog({
                 )}
               </Box>
               <Box style={{ minWidth: 0 }}>
-                <Dialog.Title style={{ marginBottom: 4 }}>{t('agentBuilder.toolsetCredentialsTitle')}</Dialog.Title>
+                <Dialog.Title style={{ marginBottom: 4 }}>{"Agent toolset credentials"}</Dialog.Title>
                 <Text size="3" weight="bold" style={{ color: 'var(--slate-12)', display: 'block' }}>
                   {displayName}
                 </Text>
@@ -338,18 +335,18 @@ export function AgentToolsetCredentialsDialog({
                     {formatAuthTypeName(authType)}
                   </Badge>
                   <Badge size="1" color="gray" variant="surface">
-                    {t('agentBuilder.toolsetCredentialsBadge')}
+                    {"Service agent"}
                   </Badge>
                 </Flex>
               </Box>
             </Flex>
-            <IconButton variant="ghost" color="gray" onClick={() => requestDismiss()} disabled={dismissLocked} aria-label={t('common.close')}>
+            <IconButton variant="ghost" color="gray" onClick={() => requestDismiss()} disabled={dismissLocked} aria-label={"Close"}>
               <MaterialIcon name="close" size={20} />
             </IconButton>
           </Flex>
 
           <Dialog.Description size="2" mb="3" style={{ color: 'var(--slate-11)' }}>
-            {t('agentBuilder.toolsetCredentialsDesc')}
+            {"Stored for this agent only. Runs use these credentials for everyone."}
           </Dialog.Description>
 
           <Callout.Root color="jade" variant="surface" size="1" mb="3">
@@ -357,7 +354,7 @@ export function AgentToolsetCredentialsDialog({
               <MaterialIcon name="smart_toy" size={18} />
             </Callout.Icon>
             <Callout.Text size="1" style={{ color: 'var(--slate-11)' }}>
-              {t('agentBuilder.agentCredentialScopeCallout')}
+              {"These credentials are stored for the agent, not for individual users. Anyone who uses this agent shares them when this toolset runs."}
             </Callout.Text>
           </Callout.Root>
 
@@ -365,7 +362,7 @@ export function AgentToolsetCredentialsDialog({
             <Flex align="center" gap="3" py="4" justify="center">
               <Spinner size="2" />
               <Text size="2" color="gray">
-                {t('agentBuilder.loadingSchema')}
+                {"Loading schema…"}
               </Text>
             </Flex>
           ) : null}
@@ -383,7 +380,7 @@ export function AgentToolsetCredentialsDialog({
           ) : null}
 
           {!schemaLoading && isNoneAuthType(authType) ? (
-            <Text size="2">{t('agentBuilder.noCredentialsRequired')}</Text>
+            <Text size="2">{"No credentials are required for this toolset."}</Text>
           ) : null}
 
           {!schemaLoading && isOAuthType(authType) ? (
@@ -393,7 +390,7 @@ export function AgentToolsetCredentialsDialog({
                   <MaterialIcon name={isAuthenticated ? 'verified_user' : 'link'} size={18} />
                 </Callout.Icon>
                 <Callout.Text size="1" style={{ color: 'var(--slate-11)' }}>
-                  {isAuthenticated ? t('agentBuilder.oauthConnectedDesc') : t('agentBuilder.oauthPendingDesc')}
+                  {isAuthenticated ? "OAuth is connected for this agent. Use Reconnect to sign in again, or Disconnect to end this session for this agent." : "Sign in with OAuth in a popup. After you finish, this dialog will detect completion."}
                 </Callout.Text>
               </Callout.Root>
             </Flex>
@@ -403,7 +400,7 @@ export function AgentToolsetCredentialsDialog({
             <Flex direction="column" gap="4">
               <Separator size="4" />
               <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-                {t('agentBuilder.agentCredentialsFieldsHeading')}
+                {"Agent credentials"}
               </Text>
               {userCredentialFields.map((field) => (
                 <SchemaFormField
@@ -417,7 +414,7 @@ export function AgentToolsetCredentialsDialog({
               ))}
               {isAuthenticated ? (
                 <Callout.Root color="green" variant="surface" size="1">
-                  <Callout.Text size="1">{t('agentBuilder.credentialUpdateHint')}</Callout.Text>
+                  <Callout.Text size="1">{"The agent is authenticated. Enter new values and save to update stored credentials."}</Callout.Text>
                 </Callout.Root>
               ) : null}
             </Flex>
@@ -425,14 +422,14 @@ export function AgentToolsetCredentialsDialog({
 
           {!schemaLoading && isCredentialAuthType(authType) && userCredentialFields.length === 0 ? (
             <Callout.Root color="amber" variant="surface" size="1" mt="2">
-              <Callout.Text size="1">{t('agentBuilder.noCredentialFields')}</Callout.Text>
+              <Callout.Text size="1">{"No credential fields were returned for this auth type. If this persists, check the toolset registry schema."}</Callout.Text>
             </Callout.Root>
           ) : null}
 
           {!schemaLoading && tools.length > 0 ? (
             <Box mt="4">
               <Text size="2" weight="medium" mb="2" style={{ color: 'var(--slate-12)', display: 'block' }}>
-                {t('agentBuilder.availableToolsHeading', { count: tools.length })}
+                {`Available tools (${tools.length})`}
               </Text>
               <Flex gap="2" wrap="wrap" align="center">
                 {(toolsExpanded ? tools : tools.slice(0, 12)).map((tool) => (
@@ -442,7 +439,7 @@ export function AgentToolsetCredentialsDialog({
                 ))}
                 {tools.length > 12 ? (
                   <Button type="button" size="1" variant="soft" color="gray" onClick={() => setToolsExpanded((v) => !v)}>
-                    {toolsExpanded ? t('agentBuilder.showFewerTools') : t('agentBuilder.moreItems', { count: tools.length - 12 })}
+                    {toolsExpanded ? "Show fewer" : `+${tools.length - 12} more`}
                   </Button>
                 ) : null}
               </Flex>
@@ -464,14 +461,14 @@ export function AgentToolsetCredentialsDialog({
                 >
                   <Button size="2" variant="soft" color="green" onClick={() => void handleOAuthAuthenticate()} disabled={busy}>
                     {authenticating
-                      ? t('agentBuilder.waitingOAuth')
+                      ? "Waiting for OAuth…"
                       : isAuthenticated
-                        ? t('agentBuilder.reconnectOAuth')
-                        : t('agentBuilder.authenticateOAuth')}
+                        ? "Reconnect"
+                        : "Authenticate with OAuth"}
                   </Button>
                   {isAuthenticated ? (
                     <Button size="2" variant="soft" color="red" onClick={() => setRemoveConfirmOpen(true)} disabled={busy}>
-                      {t('agentBuilder.disconnectOAuth')}
+                      {"Disconnect"}
                     </Button>
                   ) : null}
                 </Flex>
@@ -492,29 +489,29 @@ export function AgentToolsetCredentialsDialog({
                     onClick={() => void handleSaveCredentials()}
                     disabled={busy && !saving}
                     loading={saving}
-                    loadingLabel={t('agentBuilder.savingCredentials')}
+                    loadingLabel={"Saving…"}
                   >
                     {isAuthenticated
-                      ? t('agentBuilder.updateCredentials')
-                      : t('agentBuilder.saveCredentials')}
+                      ? "Save changes"
+                      : "Save credentials"}
                   </LoadingButton>
                   {isAuthenticated ? (
                     <Button size="2" variant="soft" color="red" onClick={() => setRemoveConfirmOpen(true)} disabled={busy}>
-                      {t('agentBuilder.removeCredentials')}
+                      {"Remove credentials"}
                     </Button>
                   ) : null}
                 </Flex>
               ) : null}
               <Box style={{ flexShrink: 0, marginInlineStart: 'auto' }}>
                 <Button size="2" variant="soft" color="gray" onClick={() => requestDismiss()} disabled={dismissLocked}>
-                  {isAuthenticated ? t('common.close') : t('action.cancel')}
+                  {isAuthenticated ? "Close" : "Cancel"}
                 </Button>
               </Box>
             </Box>
           ) : (
             <Flex justify="end" width="100%">
               <Button size="2" variant="soft" color="gray" onClick={() => requestDismiss()} disabled={dismissLocked}>
-                {isAuthenticated ? t('common.close') : t('action.cancel')}
+                {isAuthenticated ? "Close" : "Cancel"}
               </Button>
             </Flex>
           )}
@@ -540,28 +537,28 @@ export function AgentToolsetCredentialsDialog({
         >
           <Dialog.Title>
             {oauthDisconnectFlow
-              ? t('agentBuilder.disconnectOAuthTitle', { name: displayName })
-              : t('agentBuilder.removeCredentialsTitle')}
+              ? `Disconnect ${displayName}?`
+              : "Remove credentials?"}
           </Dialog.Title>
           <Text size="2" mb="3" style={{ color: 'var(--slate-11)' }}>
             {oauthDisconnectFlow
-              ? t('agentBuilder.disconnectOAuthDesc', { name: displayName })
-              : t('agentBuilder.removeCredentialsDesc', { name: displayName })}
+              ? `This ends the OAuth session for ${displayName} on this agent. The toolset remains on the agent but is not authenticated until you sign in again.`
+              : `This removes stored credentials for ${displayName} on this agent until you configure them again.`}
           </Text>
           <Flex gap="2" justify="end">
             <Dialog.Close>
               <Button variant="soft" color="gray" disabled={deleting}>
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
             </Dialog.Close>
             <Button color="red" onClick={() => void handleRemoveConfirmed()} disabled={deleting}>
               {deleting
                 ? oauthDisconnectFlow
-                  ? t('agentBuilder.disconnectOAuthProgress')
-                  : t('agentBuilder.removing')
+                  ? "Disconnecting…"
+                  : "Removing…"
                 : oauthDisconnectFlow
-                  ? t('agentBuilder.disconnectOAuth')
-                  : t('agentBuilder.remove')}
+                  ? "Disconnect"
+                  : "Remove"}
             </Button>
           </Flex>
         </Dialog.Content>

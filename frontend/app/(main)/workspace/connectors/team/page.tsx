@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useCallback, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
@@ -58,12 +57,11 @@ function TeamConnectorsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const addToast = useToastStore((s) => s.addToast);
-  const { t } = useTranslation();
 
   const teamTabs = [
-    { value: 'all', label: t('workspace.actions.tabs.all') },
-    { value: 'configured', label: t('workspace.actions.tabs.configured') },
-    { value: 'not_configured', label: t('workspace.actions.tabs.notConfigured') },
+    { value: 'all', label: "All" },
+    { value: 'configured', label: "Configured" },
+    { value: 'not_configured', label: "Not configured" },
   ];
 
   const {
@@ -148,10 +146,10 @@ function TeamConnectorsPageContent() {
 
       // If both failed, show error
       if (registryRes.status === 'rejected' && activeRes.status === 'rejected') {
-        setError(t('workspace.connectors.toasts.loadError'));
+        setError("Failed to load connectors");
         addToast({
           variant: 'error',
-          title: t('workspace.connectors.toasts.loadError'),
+          title: "Failed to load connectors",
         });
       }
     } catch {
@@ -271,7 +269,7 @@ function TeamConnectorsPageContent() {
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.toasts.refreshInstancesError'),
+        title: "Failed to refresh connector instances",
       });
     } finally {
       setIsRefreshingAllInstances(false);
@@ -281,7 +279,6 @@ function TeamConnectorsPageContent() {
     isRefreshingAllInstances,
     refreshConnectorsListsQuiet,
     addToast,
-    t,
   ]);
 
   const proceedWithSetup = useCallback(
@@ -439,15 +436,15 @@ function TeamConnectorsPageContent() {
       await startConnectorSync({ _key: instanceId, type: connectorTypeInfo?.type });
       addToast({
         variant: 'success',
-        title: t('workspace.connectors.toasts.syncStarted', { name: connectorTypeInfo?.name ?? 'connector' }),
-        description: t('workspace.connectors.toasts.syncStartedLongDescription'),
+        title: `${connectorTypeInfo?.name ?? 'connector'} is now syncing`,
+        description: "This may take a few minutes. You'll be notified when it's done.",
         duration: 3000,
       });
       await refreshConnectorRowQuiet(instanceId);
     } catch {
       addToast({
         variant: 'error',
-        title: t('workspace.connectors.toasts.syncError'),
+        title: "Failed to start sync",
       });
     }
   }, [
@@ -472,7 +469,7 @@ function TeamConnectorsPageContent() {
         <ConnectorDetailsLayout
           connector={connectorTypeInfo}
           scope="team"
-          scopeLabel={t('workspace.sidebar.nav.connectors')}
+          scopeLabel={"Connectors"}
           instances={instances}
           instanceConfigs={instanceConfigs}
           isLoading={isLoadingInstances}
@@ -513,8 +510,8 @@ function TeamConnectorsPageContent() {
   return (
     <>
       <ConnectorCatalogLayout
-        title={t('workspace.sidebar.nav.connectors')}
-        subtitle={t('workspace.connectors.subtitle')}
+        title={"Connectors"}
+        subtitle={"Connect and manage integrations with external services"}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         tabs={teamTabs}
@@ -522,7 +519,7 @@ function TeamConnectorsPageContent() {
         onTabChange={handleTabChange}
         trailingAction={
           <NavigateButton
-            label={t('workspace.sidebar.nav.yourConnectors')}
+            label={"Your Personal Connectors"}
             onClick={handleNavigateToPersonal}
           />
         }

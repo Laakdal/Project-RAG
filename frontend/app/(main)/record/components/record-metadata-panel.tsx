@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Box, Flex, Tabs, Text, Tooltip } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { formatDate } from '@/lib/utils/formatters';
 import { formatFileSize } from '@/app/components/file-preview/utils';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -69,17 +68,16 @@ const CHIP_STYLE: CSSProperties = {
 
 function permissionLabel(
   relationship: string | undefined,
-  t: (key: string) => string,
 ): string {
   switch (relationship) {
     case 'OWNER':
-      return t('recordView.permissionOwner');
+      return "Owner";
     case 'READER':
-      return t('recordView.permissionReader');
+      return "Reader";
     case 'WRITER':
-      return t('recordView.permissionWriter');
+      return "Writer";
     default:
-      return relationship || t('recordView.permissionOwner');
+      return relationship || "Owner";
   }
 }
 
@@ -179,19 +177,18 @@ function shouldShowIndexingReasonTooltip(status: string | undefined, reason: str
 
 function formatDisplayType(
   record: RecordDetailsResponse['record'],
-  t: (key: string, options?: { defaultValue?: string }) => string,
 ): string {
   const { recordType, fileRecord, mimeType } = record;
   if (recordType === 'FILE' && fileRecord) {
     const ext = fileRecord.extension?.trim();
     if (ext) return ext.toUpperCase();
     const mime = fileRecord.mimeType?.trim() || mimeType?.trim();
-    return mime || t('recordView.labels.notAvailable');
+    return mime || "N/A";
   }
-  if (recordType === 'EMAIL') return t('recordView.labels.typeEmail');
-  if (recordType === 'TICKET') return t('recordView.labels.typeTicket');
-  if (recordType === 'WEBPAGE') return t('recordView.labels.typeWebpage');
-  if (recordType === 'MESSAGE') return t('recordView.labels.typeMessage');
+  if (recordType === 'EMAIL') return "Email";
+  if (recordType === 'TICKET') return "Ticket";
+  if (recordType === 'WEBPAGE') return "Web page";
+  if (recordType === 'MESSAGE') return "Message";
   return recordType;
 }
 
@@ -204,11 +201,10 @@ function formatFileSizeDisplay(record: RecordDetailsResponse['record']): string 
 
 function primaryDocumentLabel(
   record: RecordDetailsResponse['record'],
-  t: (key: string) => string,
 ): string {
-  if (record.recordType === 'EMAIL') return t('recordView.labels.mailSubject');
-  if (record.recordType === 'TICKET') return t('recordView.labels.ticketSummary');
-  return t('recordView.labels.fileName');
+  if (record.recordType === 'EMAIL') return "Subject";
+  if (record.recordType === 'TICKET') return "Summary";
+  return "File name";
 }
 
 function primaryDocumentValue(record: RecordDetailsResponse['record']): string | undefined {
@@ -226,9 +222,9 @@ function primaryDocumentValue(record: RecordDetailsResponse['record']): string |
   return record.recordName?.trim();
 }
 
-function originDisplay(record: RecordDetailsResponse['record'], t: (key: string) => string): string {
-  if (record.origin === 'CONNECTOR') return t('recordView.labels.originConnector');
-  return t('recordView.labels.originUpload');
+function originDisplay(record: RecordDetailsResponse['record']): string {
+  if (record.origin === 'CONNECTOR') return "Connector";
+  return "Collection upload";
 }
 
 function TruncatingText({
@@ -368,7 +364,6 @@ const RECORD_METADATA_TAB_CONTENT_STYLE: CSSProperties = {
 };
 
 export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps) {
-  const { t } = useTranslation();
   const { record, knowledgeBase, folder, permissions, metadata } = recordDetails;
 
   const createdDate = formatTimestamp(
@@ -387,10 +382,10 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
       : record.connectorId;
 
   const fileSizeDisplay = formatFileSizeDisplay(record);
-  const typeDisplay = formatDisplayType(record, t);
-  const primaryLabel = primaryDocumentLabel(record, t);
+  const typeDisplay = formatDisplayType(record);
+  const primaryLabel = primaryDocumentLabel(record);
   const primaryValue = primaryDocumentValue(record);
-  const originText = originDisplay(record, t);
+  const originText = originDisplay(record);
 
   const mailFrom = readString(record.mailRecord, 'from');
   const mailToRaw = record.mailRecord?.to;
@@ -445,10 +440,10 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
             }}
           >
             <Tabs.Trigger value="document-details" style={{ flexShrink: 0 }}>
-              {t('recordView.tabDocumentDetails')}
+              {"Document details"}
             </Tabs.Trigger>
             <Tabs.Trigger value="record-information" style={{ flexShrink: 0 }}>
-              {t('recordView.tabRecordInformation')}
+              {"Record Information"}
             </Tabs.Trigger>
           </Tabs.List>
         </Box>
@@ -458,15 +453,15 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
 
             {/* Document Summary */}
             <Text size="2" weight="medium" style={{ color: 'var(--olive-11)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('recordView.sections.documentFields')}
+              {"Document"}
             </Text>
             <Box style={SECTION_GROUP_STYLE}>
               <DetailRow label={primaryLabel} value={primaryValue} />
-              <DetailRow label={t('recordView.labels.recordType')} value={typeDisplay} />
-              <DetailRow label={t('recordView.labels.recordId')} value={record.id} monospace />
+              <DetailRow label={"Record type"} value={typeDisplay} />
+              <DetailRow label={"Record ID"} value={record.id} monospace />
               <Flex style={{ ...ROW_STYLE, alignItems: 'center' }}>
                 <Text size="2" weight="medium" style={LABEL_STYLE}>
-                  {t('recordView.labels.indexingStatus')}
+                  {"Indexing status"}
                 </Text>
                 <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
                   <IndexingStatusChip status={record.indexingStatus} />
@@ -474,7 +469,7 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
                     <Tooltip content={record.reason} delayDuration={200}>
                       <button
                         type="button"
-                        aria-label={t('recordView.indexingReasonAria')}
+                        aria-label={"Indexing failure details"}
                         style={{
                           border: 'none',
                           background: 'transparent',
@@ -492,16 +487,16 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
                 </Flex>
               </Flex>
               {fileSizeDisplay ? (
-                <DetailRow label={t('recordView.labels.fileSize')} value={fileSizeDisplay} />
+                <DetailRow label={"File size"} value={fileSizeDisplay} />
               ) : null}
               {folder?.name ? (
-                <DetailRow label={t('recordView.labels.folder')} value={folder.name} />
+                <DetailRow label={"Folder"} value={folder.name} />
               ) : null}
 
               {/* Indexing Status row — chip with color coding + optional info icon */}
 
               <DetailRow
-                label={t('recordView.labels.collection')}
+                label={"Collection"}
                 value={knowledgeBase?.name ?? undefined}
                 isLast
               />
@@ -515,19 +510,19 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
             <Box style={SECTION_GROUP_STYLE}>
               <Flex style={ROW_LAST_STYLE} align="start">
                 <Text size="2" weight="medium" style={{ ...LABEL_STYLE, paddingTop: 'var(--space-1)' }}>
-                  {t('recordView.labels.permissions')}
+                  {"Permissions"}
                 </Text>
                 {permissions?.length ? (
                   <Flex wrap="wrap" gap="2" style={{ flex: 1, minWidth: 0 }}>
                     {permissions.map((p) => (
                       <Box key={p.id} style={CHIP_STYLE}>
-                        <TruncatingText text={permissionLabel(p.relationship, t)} size="2" />
+                        <TruncatingText text={permissionLabel(p.relationship)} size="2" />
                       </Box>
                     ))}
                   </Flex>
                 ) : (
                   <Text size="2" color="gray">
-                    {t('recordView.labels.noPermissions')}
+                    {"No permissions assigned"}
                   </Text>
                 )}
               </Flex>
@@ -537,20 +532,20 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
             <Box style={SECTION_GROUP_STYLE}>
               <Flex style={ROW_LAST_STYLE} align="center">
                 <Text size="2" weight="medium" style={LABEL_STYLE}>
-                  {t('recordView.labels.connector')}
+                  {"Source"}
                 </Text>
                 {record.origin === 'CONNECTOR' ? (
                   <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
                     <ConnectorIcon type={connectorIconType} size={20} />
                     <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
                       <TruncatingText
-                        text={record.connectorName?.trim() || t('recordView.externalSource')}
+                        text={record.connectorName?.trim() || "External source"}
                         size="2"
                       />
                       {shortConnectorId ? (
                         <Tooltip content={record.connectorId} delayDuration={200}>
                           <Text size="2" style={{ color: 'var(--olive-10)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {t('recordView.labels.connectorId')}: {shortConnectorId}
+                            {"Connector ID"}: {shortConnectorId}
                           </Text>
                         </Tooltip>
                       ) : null}
@@ -567,7 +562,7 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
                   <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
                     <MaterialIcon name="folder" size={20} color="var(--accent-9)" />
                     <Text size="2" style={{ color: 'var(--olive-12)' }}>
-                      {t('recordView.collectionUpload')}
+                      {"Collection"}
                     </Text>
                   </Flex>
                 )}
@@ -575,10 +570,10 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
             </Box>
             <Box style={SECTION_GROUP_STYLE}>
 
-              <DetailRow label={t('recordView.labels.origin')} value={originText} />
-              <DetailRow label={t('recordView.labels.version')} value={record.version?.toString()} />
-              <DetailRow label={t('recordView.labels.createdAt')} value={createdDate} />
-              <DetailRow label={t('recordView.labels.updatedAt')} value={updatedDate} isLast />
+              <DetailRow label={"Origin"} value={originText} />
+              <DetailRow label={"Version"} value={record.version?.toString()} />
+              <DetailRow label={"Created at"} value={createdDate} />
+              <DetailRow label={"Updated at"} value={updatedDate} isLast />
             </Box>
 
           </Flex>
@@ -588,13 +583,13 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
           <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
             {record.recordType === 'EMAIL' ? (
               <Flex direction="column" gap="4">
-                {mailFrom ? <DetailRow label={t('recordView.mail.from')} value={mailFrom} /> : null}
-                {mailTo ? <DetailRow label={t('recordView.mail.to')} value={mailTo} /> : null}
-                {mailCc ? <DetailRow label={t('recordView.mail.cc')} value={mailCc} /> : null}
+                {mailFrom ? <DetailRow label={"From"} value={mailFrom} /> : null}
+                {mailTo ? <DetailRow label={"To"} value={mailTo} /> : null}
+                {mailCc ? <DetailRow label={"Cc"} value={mailCc} /> : null}
                 {mailLabels?.length ? (
                   <Box style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', minWidth: 0 }}>
                     <Text size="2" weight="medium" style={{ color: 'var(--olive-10)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {t('recordView.mail.labels')}
+                      {"Labels"}
                     </Text>
                     <MetadataChipRow
                       items={mailLabels.map((label, i) => ({
@@ -604,13 +599,13 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
                     />
                   </Box>
                 ) : null}
-                {mailDate ? <DetailRow label={t('recordView.mail.date')} value={mailDate} /> : null}
+                {mailDate ? <DetailRow label={"Date"} value={mailDate} /> : null}
               </Flex>
             ) : null}
 
             {record.recordType === 'TICKET' && readString(record.ticketRecord, 'description')?.trim() ? (
               <DetailRow
-                label={t('recordView.labels.ticketDescription')}
+                label={"Description"}
                 value={readString(record.ticketRecord, 'description')}
               />
             ) : null}
@@ -623,7 +618,7 @@ export function RecordMetadataPanel({ recordDetails }: RecordMetadataPanelProps)
 
             {!hasRecordInformation ? (
               <Text size="2" color="gray">
-                {t('recordView.emptyState.noRecordMetadata')}
+                {"No additional record metadata for this item."}
               </Text>
             ) : null}
           </Flex>

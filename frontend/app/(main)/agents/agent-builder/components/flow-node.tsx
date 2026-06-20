@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Flex, Text, IconButton, Badge } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -28,31 +27,22 @@ export type FlowNodeProps = {
   readOnly?: boolean;
 };
 
-function subtitleFor(
-  data: FlowNodeData,
-  t: (key: string, options?: Record<string, unknown>) => string
-): string {
+function subtitleFor(data: FlowNodeData): string {
   if (data.type.startsWith('llm-')) {
     return formattedProvider((data.config?.provider as string) || '');
   }
   if (data.type === 'kb-group') {
     const count = ((data.config?.knowledgeBases as unknown[]) || []).length;
-    if (!count) return t('agentBuilder.nodeKbGroupFallback');
-    return t(
-      count === 1 ? 'agentBuilder.nodeKbGroupSubtitleSingular' : 'agentBuilder.nodeKbGroupSubtitle',
-      { count }
-    );
+    if (!count) return "Collections";
+    return count === 1 ? `${count} collection` : `${count} collections`;
   }
   if (data.type === 'app-group') {
     const count = ((data.config?.apps as unknown[]) || []).length;
-    if (!count) return t('agentBuilder.nodeAppGroupFallback');
-    return t(
-      count === 1 ? 'agentBuilder.nodeAppGroupSubtitleSingular' : 'agentBuilder.nodeAppGroupSubtitle',
-      { count }
-    );
+    if (!count) return "Apps";
+    return count === 1 ? `${count} app` : `${count} apps`;
   }
-  if (data.type.startsWith('kb-')) return t('agentBuilder.nodeKbSubtitle');
-  if (data.type.startsWith('app-')) return t('agentBuilder.nodeAppSubtitle');
+  if (data.type.startsWith('kb-')) return "Collection";
+  if (data.type.startsWith('app-')) return "App knowledge";
   return data.description || '';
 }
 
@@ -102,7 +92,6 @@ export const FlowNode = React.memo(function FlowNode({
   onDelete,
   readOnly,
 }: FlowNodeProps) {
-  const { t } = useTranslation();
   const chrome = useMemo(() => getFlowNodeChrome(data.type), [data.type]);
 
   if (data.type === 'agent-core') {
@@ -117,15 +106,15 @@ export const FlowNode = React.memo(function FlowNode({
 
   const subtitle =
     data.type === 'user-input'
-      ? t('agentBuilder.nodeDescUserMessages')
+      ? "User messages"
       : data.type === 'chat-response'
-        ? t('agentBuilder.nodeDescChatReply')
-        : subtitleFor(data, t);
+        ? "User-visible reply"
+        : subtitleFor(data);
   const headerLabel =
     data.type === 'user-input'
-      ? t('agentBuilder.nodeLabelChatInput')
+      ? "Chat input"
       : data.type === 'chat-response'
-        ? t('agentBuilder.nodeLabelChatOutput')
+        ? "Chat output"
         : normalizeDisplayName(data.label);
   const icon = data.icon as string | undefined;
   const trimmedIcon = typeof icon === 'string' ? icon.trim() : '';
@@ -182,7 +171,7 @@ export const FlowNode = React.memo(function FlowNode({
           ))}
           {apps.length > 5 ? (
             <Badge size="1" variant="soft" color="gray" highContrast>
-              {t('agentBuilder.moreItems', { count: apps.length - 5 })}
+              {`+${apps.length - 5} more`}
             </Badge>
           ) : null}
         </Box>
@@ -224,7 +213,7 @@ export const FlowNode = React.memo(function FlowNode({
           ))}
           {kbs.length > 5 ? (
             <Badge size="1" variant="soft" color="gray" highContrast>
-              {t('agentBuilder.moreItems', { count: kbs.length - 5 })}
+              {`+${kbs.length - 5} more`}
             </Badge>
           ) : null}
         </Box>
@@ -293,7 +282,7 @@ export const FlowNode = React.memo(function FlowNode({
                   variant="ghost"
                   color="gray"
                   onClick={() => onDelete(id)}
-                  aria-label={t('agentBuilder.removeNodeAriaLabel')}
+                  aria-label={"Remove node"}
                 >
                   <MaterialIcon name="close" size={18} color="var(--agent-flow-text)" />
                 </IconButton>

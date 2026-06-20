@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Box, Text, Switch, Badge, Button, IconButton, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type {
@@ -39,7 +38,6 @@ export function WebSearchProviderRow({
   onConfigure,
   onDelete,
 }: WebSearchProviderRowProps) {
-  const { t } = useTranslation();
   const isConfigurable = meta.configurable;
   // DuckDuckGo is always considered "configured" (built-in)
   const isConfigured = isConfigurable ? !!configured : true;
@@ -48,7 +46,7 @@ export function WebSearchProviderRow({
     if (isDefault) {
       return (
         <Badge color="blue" variant="soft" size="1">
-          {t('workspace.webSearch.badges.default')}
+          {"Default"}
         </Badge>
       );
     }

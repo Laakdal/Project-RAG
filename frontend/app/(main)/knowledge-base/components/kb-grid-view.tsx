@@ -13,7 +13,6 @@ import {
   shouldShowDownloadForTableItem,
 } from '../utils/kb-table-item-actions';
 import { getIndexStatusIcon } from '@/lib/utils/index-status-icon';
-import { useTranslation } from 'react-i18next';
 import {
   getReindexMenuState,
   getReindexNodeForTableItem,
@@ -65,7 +64,6 @@ function GridCard({
   onDelete,
   onDownload,
 }: GridCardProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -503,7 +501,7 @@ function GridCard({
                     </DropdownMenu.Item>
                   )}
                   {showReindexMenu &&
-                    mapReindexOptionsToMenuActions(reindexMenuOptions, t, (statusFilters) =>
+                    mapReindexOptionsToMenuActions(reindexMenuOptions, (statusFilters) =>
                       onReindex!(item, statusFilters),
                     ).map((action) => (
                       <DropdownMenu.Item

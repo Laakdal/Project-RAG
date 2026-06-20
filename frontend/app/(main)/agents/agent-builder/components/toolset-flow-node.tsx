@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Flex, Text, IconButton, Popover, Separator, Badge } from '@radix-ui/themes';
 import { useReactFlow } from '@xyflow/react';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -49,7 +48,6 @@ export function ToolsetFlowNode({
   readOnly?: boolean;
   onDelete?: (nodeId: string) => void;
 }) {
-  const { t } = useTranslation();
   const { setNodes } = useReactFlow();
   const chrome = useMemo(() => getFlowNodeChrome(data.type), [data.type]);
 
@@ -63,7 +61,7 @@ export function ToolsetFlowNode({
   const secondarySubtitle =
     instanceName && productLine && primaryTitle !== productLine
       ? productLine
-      : t('agentBuilder.toolsetNodeSubtitle');
+      : "Toolset";
 
   const tools = (cfg.tools as ToolsetFlowTool[]) || [];
   const availableTools = useMemo(() => {
@@ -207,7 +205,7 @@ export function ToolsetFlowNode({
                   e.stopPropagation();
                   onDelete(id);
                 }}
-                aria-label={t('agentBuilder.removeNodeAriaLabel')}
+                aria-label="Remove node"
               >
                 <MaterialIcon name="close" size={18} color="var(--agent-flow-text)" />
               </IconButton>
@@ -221,7 +219,7 @@ export function ToolsetFlowNode({
           <Flex align="center" gap="2">
             <MaterialIcon name="build" size={16} color="var(--agent-flow-text-muted)" />
             <Text size="1" weight="medium" style={{ color: 'var(--agent-flow-text)' }}>
-              {t('agentBuilder.toolsLabel')}
+              {"Tools"}
             </Text>
             <Badge size="1" variant="soft" color="gray" highContrast>
               {tools.length}
@@ -236,7 +234,7 @@ export function ToolsetFlowNode({
                   variant="soft"
                   color="gray"
                   className="toolset-flow-add-tools"
-                  aria-label={t('agentBuilder.addToolsAriaLabel')}
+                  aria-label="Add tools"
                   aria-expanded={addToolsOpen}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -270,7 +268,7 @@ export function ToolsetFlowNode({
                   }}
                 >
                   <Text size="1" weight="medium" style={{ color: 'var(--agent-flow-text)', lineHeight: '18px' }}>
-                    {t('agentBuilder.addToolsPopoverTitle')}
+                    {"Add tools"}
                   </Text>
                 </Box>
                 <Box
@@ -365,11 +363,11 @@ export function ToolsetFlowNode({
           >
             <MaterialIcon name="handyman" size={28} color="var(--agent-flow-text-muted)" />
             <Text size="1" style={{ display: 'block', marginTop: 8, color: 'var(--agent-flow-text)' }}>
-              {t('agentBuilder.noToolsSelected')}
+              {"No tools selected"}
             </Text>
             {!readOnly && toolsToAdd.length > 0 ? (
               <Text size="1" style={{ display: 'block', marginTop: 4, color: 'var(--agent-flow-text-muted)' }}>
-                {t('agentBuilder.addToolsHint')}
+                {"Use + to add tools from this toolset"}
               </Text>
             ) : null}
           </Box>
@@ -437,7 +435,7 @@ export function ToolsetFlowNode({
                       variant="soft"
                       color="red"
                       className="toolset-flow-remove-tool"
-                      aria-label={t('agentBuilder.removeToolAriaLabel', { name: tool.name })}
+                      aria-label={`Remove ${tool.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveTool(tool.name);

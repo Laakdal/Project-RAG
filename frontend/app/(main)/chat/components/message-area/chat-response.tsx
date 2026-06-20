@@ -35,7 +35,6 @@ import {
   resolvePreviewMimeAfterStream,
 } from '@/app/components/file-preview/utils';
 import { KnowledgeBaseApi } from '@/knowledge-base/api';
-import { useTranslation } from 'react-i18next';
 import { CitationMessageRowKeyContext } from './response-tabs/citations/citation-popover-control';
 import { useInlineCitationPopoverStore } from './response-tabs/citations/citation-popover-store';
 
@@ -119,7 +118,6 @@ export const ChatResponse = React.memo(function ChatResponse({
   createdAt,
 }: ChatResponseProps) {
   debugLog.tick('[chat] [ChatResponse]');
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
 
   /** Shown only if the stream is active but no SSE status has arrived yet */
@@ -127,10 +125,10 @@ export const ChatResponse = React.memo(function ChatResponse({
     (): StatusMessage => ({
       id: 'status-waiting',
       status: 'processing',
-      message: t('chatStream.thinkingFallback'),
+      message: "Thinking…",
       timestamp: '',
     }),
-    [t],
+    [],
   );
 
   // ── Render-reason tracking ─────────────────────────────────────────

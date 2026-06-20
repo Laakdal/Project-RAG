@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useCallback, useState, useMemo, useRef, Suspense } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Flex } from '@radix-ui/themes';
 import { ServiceGate } from '@/app/components/ui/service-gate';
@@ -101,7 +100,6 @@ import { useDebouncedSearch } from './hooks/use-debounced-search';
 import { ErrorType, isProcessedError } from '@/lib/api/api-error';
 
 function KnowledgeBasePageContent() {
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -2628,13 +2626,10 @@ function KnowledgeBasePageContent() {
         onOpenChange={(open) => {
           if (!open && !isReindexSubmitting) setForceReindexPending(null);
         }}
-        title={t('forceReindexConfirm.title', { defaultValue: 'Start force reindex?' })}
-        message={t('forceReindexConfirm.message', {
-          defaultValue:
-            'This re-indexes the document from scratch and may incur extra cost. Use this when search results are stale, or the document is not searchable even after indexing is complete.',
-        })}
-        confirmLabel={t('forceReindexConfirm.confirm', { defaultValue: 'Confirm' })}
-        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        title={"Start force reindex?"}
+        message={"This re-indexes the document from scratch and may incur extra cost. Use this when search results are stale, or the document is not searchable even after indexing is complete."}
+        confirmLabel={"Confirm"}
+        cancelLabel={"Cancel"}
         confirmVariant="primary"
         isLoading={isReindexSubmitting}
         onConfirm={() => void handleForceReindexConfirm()}

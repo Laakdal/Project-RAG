@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Button, Flex, IconButton, Separator, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -27,7 +26,6 @@ export function ToolsetInstanceRowCard({
   onConfigure,
   onManage,
 }: ToolsetInstanceRowCardProps) {
-  const { t } = useTranslation();
   /** Org instance label — primary in per-instance lists (type detail / admin instances). */
   const primaryTitle =
     (instance.instanceName || '').trim() || instance.displayName || instance.toolsetType || '';
@@ -135,20 +133,20 @@ export function ToolsetInstanceRowCard({
             <Badge size="3" color="amber" variant="soft">
               <MaterialIcon name="vpn_key" size={14} color="var(--amber-11)" />
               <Text as="span" size="2" weight="medium" style={{ color: 'var(--amber-11)' }}>
-                {t('workspace.actions.instanceCard.badgeAuthNeeded')}
+                {"Authentication needed"}
               </Text>
             </Badge>
           ) : ok ? (
             <Badge size="3" color="green" variant="soft">
               <MaterialIcon name="check" size={14} color="var(--green-11)" />
               <Text as="span" size="2" weight="medium" style={{ color: 'var(--green-11)' }}>
-                {t('workspace.actions.instanceCard.badgeAuthenticated')}
+                {"Authenticated"}
               </Text>
             </Badge>
           ) : null}
           {showUserAuthFlow ? (
             <Button size="2" variant="soft" color="gray" onClick={onAuthenticate}>
-              {t('workspace.actions.instanceCard.authenticateCta')}
+              {"Authenticate"}
             </Button>
           ) : null}
           {onManage ? (
@@ -157,14 +155,14 @@ export function ToolsetInstanceRowCard({
               variant="soft"
               color="gray"
               size="2"
-              aria-label={t('workspace.actions.instanceCard.manage')}
+              aria-label={"Manage configuration"}
               onClick={onManage}
             >
               <MaterialIcon name="settings" size={18} color="var(--gray-11)" />
             </IconButton>
           ) : ok ? (
             <Button size="2" variant="soft" color="gray" onClick={onConfigure}>
-              {t('workspace.actions.instanceCard.configureCta')}
+              {"Manage connection"}
             </Button>
           ) : null}
         </Flex>
@@ -175,7 +173,7 @@ export function ToolsetInstanceRowCard({
           <Separator size="4" m="0" />
           <Flex direction="column" gap="2" style={{ padding: '12px 16px 16px' }}>
             <Text size="1" weight="medium" style={{ color: 'var(--gray-11)', letterSpacing: '0.04em' }}>
-              {t('workspace.actions.instanceCard.availableActionsLabel')}
+              {"AVAILABLE ACTIONS"}
             </Text>
             <Flex gap="2" wrap="wrap">
               {toolTags.map((tag) => (
@@ -193,7 +191,7 @@ export function ToolsetInstanceRowCard({
           <Separator size="4" m="0" />
           <Flex align="center" gap="3" style={{ padding: '12px 16px 16px' }}>
             <Text size="1" weight="medium" style={{ color: 'var(--gray-11)', letterSpacing: '0.04em' }}>
-              {t('workspace.actions.instanceCard.enabledByLabel')}
+              {"ENABLED BY"}
             </Text>
             <Flex align="center" gap="2">
               <Avatar

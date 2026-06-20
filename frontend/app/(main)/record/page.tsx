@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Box, Text } from '@radix-ui/themes';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { RecordViewShell } from './components/record-view-shell';
 
 /**
@@ -33,7 +32,6 @@ function extractRecordIdFromPath(pathname: string | null): string {
 }
 
 function RecordPageContent() {
-  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,7 +65,7 @@ function RecordPageContent() {
     return (
       <Box p="4">
         <Text size="2" color="gray">
-          {t('recordView.missingRecordId', 'Missing record id')}
+          {"Missing record id"}
         </Text>
       </Box>
     );
@@ -77,11 +75,10 @@ function RecordPageContent() {
 }
 
 function RecordPageSuspenseFallback() {
-  const { t } = useTranslation();
   return (
     <Box p="4">
       <Text size="2" color="gray">
-        {t('recordView.loading', 'Loading...')}
+        {"Loading…"}
       </Text>
     </Box>
   );

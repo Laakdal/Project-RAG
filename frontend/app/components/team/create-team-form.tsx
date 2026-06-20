@@ -9,7 +9,6 @@ import React, {
   useState,
 } from 'react';
 import { Box, Flex, Text, Badge, Button } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useToastStore } from '@/lib/store/toast-store';
 import {
   FormField,
@@ -53,7 +52,6 @@ interface CreateTeamFormProps {
  */
 export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormProps>(
   function CreateTeamForm({ onCreated, enabled = true, onStateChange }, ref) {
-    const { t } = useTranslation();
     const addToast = useToastStore((s) => s.addToast);
 
     const [teamName, setTeamName] = useState('');
@@ -185,14 +183,8 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
 
         addToast({
           variant: 'success',
-          title: t('workspace.teams.create.successTitle', 'Team created!'),
-          description: t(
-            'workspace.teams.create.successDescription',
-            {
-              name: newTeam.name,
-              defaultValue: `"${newTeam.name}" has been created successfully`,
-            }
-          ),
+          title: "Team created!",
+          description: `"${newTeam.name}" has been created successfully`,
           duration: 3000,
         });
 
@@ -200,7 +192,7 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
       } catch {
         addToast({
           variant: 'error',
-          title: t('workspace.teams.create.errorGeneric', 'Failed to create team'),
+          title: "Failed to create team",
           duration: 5000,
         });
       } finally {
@@ -215,7 +207,6 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
       memberRoles,
       defaultRole,
       addToast,
-      t,
       onCreated,
     ]);
 
@@ -234,15 +225,12 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
         }}
       >
         {/* Team Name */}
-        <FormField label={t('workspace.teams.create.nameLabel', 'Team Name')}>
+        <FormField label={"Team Name"}>
           <input
             type="text"
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
-            placeholder={t(
-              'workspace.teams.create.namePlaceholder',
-              'e.g. Product Engineering'
-            )}
+            placeholder={"e.g. Product Engineering"}
             style={{
               width: '100%',
               height: 'var(--space-8)',
@@ -270,15 +258,12 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
 
         {/* Team Description */}
         <FormField
-          label={t('workspace.teams.create.descriptionLabel', 'Team Description')}
+          label={"Team Description"}
         >
           <textarea
             value={teamDescription}
             onChange={(e) => setTeamDescription(e.target.value)}
-            placeholder={t(
-              'workspace.teams.create.descriptionPlaceholder',
-              'Describe the purpose of this team'
-            )}
+            placeholder={"Describe the purpose of this team"}
             rows={4}
             style={{
               width: '100%',
@@ -310,13 +295,10 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between">
             <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {t('workspace.teams.create.addUsersLabel', 'Add Members')}
+              {"Add Members"}
             </Text>
             <Badge variant="soft" color="gray" size="1">
-              {t('workspace.common.selected', {
-                count: selectedUserIds.length,
-                defaultValue: '{{count}} Selected',
-              })}
+              {`${selectedUserIds.length} Selected`}
             </Badge>
           </Flex>
 
@@ -325,7 +307,7 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
               out of view. */}
           <Flex align="center" justify="between" gap="2" wrap="wrap">
             <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {t('workspace.teams.create.roleLabel', 'Default Role')}
+              {"Role"}
             </Text>
             <Flex align="center" gap="2">
               <RoleDropdownMenu
@@ -340,7 +322,7 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
                 onClick={applyRoleToAll}
                 disabled={selectedUserIds.length === 0}
               >
-                {t('workspace.teams.create.applyToAll', 'Apply to all')}
+                {"Apply to all"}
               </Button>
             </Flex>
           </Flex>
@@ -349,11 +331,8 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
             options={userOptions}
             selectedIds={selectedUserIds}
             onSelectionChange={handleSelectionChange}
-            placeholder={t(
-              'workspace.teams.create.addUsersPlaceholder',
-              'Search or select user(s) to add to this team'
-            )}
-            emptyText={t('workspace.common.noUsersAvailable', 'No users available')}
+            placeholder={"Search or select user(s) to add to this team"}
+            emptyText={"No users available"}
             showAvatar
             onSearch={handleUserSearch}
             onLoadMore={handleUserLoadMore}
@@ -366,7 +345,7 @@ export const CreateTeamForm = forwardRef<CreateTeamFormHandle, CreateTeamFormPro
         {selectedUsersOrdered.length > 0 && (
           <Flex direction="column" gap="2">
             <Text size="1" weight="medium" style={{ color: 'var(--slate-11)' }}>
-              {t('workspace.teams.create.memberRoles', 'Member Roles')}
+              {"Member Roles"}
             </Text>
             <Flex
               direction="column"

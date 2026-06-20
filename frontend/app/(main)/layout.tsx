@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect } from "react"
 import "../globals.css"
 import 'react-pdf-highlighter/dist/esm/style/PdfHighlighter.css';
 import 'react-pdf-highlighter/dist/esm/style/Highlight.css';
@@ -15,9 +15,6 @@ import { axiosFetcher } from "@/lib/api"
 import { logoutAndRedirect } from "@/lib/store/auth-store"
 import { UploadProgressTracker } from "../components/upload-progress-tracker"
 import { ToastContainer } from "../components/feedback"
-import { I18nextProvider, useTranslation } from 'react-i18next'
-import i18n from '@/lib/i18n/config'
-import { useLanguageStore } from '@/lib/store/language-store'
 import { UserProfileInitializer } from './components/user-profile-initializer'
 import { useMobileSidebarStore } from "@/lib/store/mobile-sidebar-store"
 import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
@@ -38,25 +35,9 @@ export default function RootLayout({
   children: React.ReactNode
   sidebar: React.ReactNode
 }) {
-  const [mounted, setMounted] = useState(false)
-  const { t } = useTranslation()
-  const language = useLanguageStore((state) => state.language)
-
-  // Set mounted flag and sync i18n after hydration
   useEffect(() => {
-    setMounted(true)
-    if (language) {
-      import('@/lib/i18n/config').then((module) => {
-        module.default.changeLanguage(language);
-      });
-    }
-  }, [language])
-
-  useEffect(() => {
-    document.title = "Pipeshub AI"
+    document.title = "Project RAG"
   }, [])
-
-  const currentLang = mounted ? language : 'en'
 
   // Auth enforcement: the <AuthGuard> component below handles the initial
   // auth check and redirects unauthenticated users to /login.
@@ -65,7 +46,7 @@ export default function RootLayout({
   // it calls logoutAndRedirect() which clears auth state and sends the user
   // to /login.
   return (
-    <html lang={currentLang} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
         <link
@@ -74,14 +55,13 @@ export default function RootLayout({
         />
       </head>
       <body style={{ backgroundColor: 'var(--olive-1, #f8f8f5)' }}>
-        <I18nextProvider i18n={i18n}>
-          <ThemeProvider>
+        <ThemeProvider>
             <AuthHydrator />
             {/* Landscape block — pure CSS visibility, no JS */}
             <div className="landscape-block-overlay">
               <MaterialIcon name="screen_rotation" size={48} color="var(--gray-11)" />
               <Text size="3" style={{ color: 'var(--gray-11)', maxWidth: '220px' }}>
-                {t('common.rotateLandscape')}
+                {"Rotate your device for the best experience"}
               </Text>
             </div>
             <ServerUrlGuard>
@@ -93,7 +73,6 @@ export default function RootLayout({
             </ServerUrlGuard>
             <ToastContainer />
           </ThemeProvider>
-        </I18nextProvider>
       </body>
     </html>
   )

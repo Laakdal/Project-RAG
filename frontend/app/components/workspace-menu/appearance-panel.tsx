@@ -4,7 +4,6 @@ import {
   useThemeAppearance,
   type ThemePreference,
 } from '@/app/components/theme-provider';
-import { useTranslation } from 'react-i18next';
 import { SubPanel, SubPanelItem } from './sub-panel';
 
 interface AppearancePanelProps {
@@ -17,12 +16,11 @@ interface AppearancePanelProps {
  */
 export function AppearancePanel({ isOpen }: AppearancePanelProps) {
   const { preference, setPreference } = useThemeAppearance();
-  const { t } = useTranslation();
 
-  const APPEARANCE_OPTIONS: { value: ThemePreference; labelKey: string; icon: string }[] = [
-    { value: 'system', labelKey: 'workspaceMenu.system', icon: 'toggle_off' },
-    { value: 'light', labelKey: 'workspaceMenu.light', icon: 'light_mode' },
-    { value: 'dark', labelKey: 'workspaceMenu.dark', icon: 'mode_night' },
+  const APPEARANCE_OPTIONS: { value: ThemePreference; label: string; icon: string }[] = [
+    { value: 'system', label: "System", icon: 'toggle_off' },
+    { value: 'light', label: "Light", icon: 'light_mode' },
+    { value: 'dark', label: "Dark", icon: 'mode_night' },
   ];
 
   return (
@@ -31,7 +29,7 @@ export function AppearancePanel({ isOpen }: AppearancePanelProps) {
         <SubPanelItem
           key={opt.value}
           icon={opt.icon}
-          label={t(opt.labelKey)}
+          label={opt.label}
           isActive={preference === opt.value}
           onClick={() => setPreference(opt.value)}
         />

@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Box, Flex, Text, Badge, Tooltip } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import {
@@ -30,7 +29,6 @@ export function GroupDetailSidebar({
 }: {
   onUpdateSuccess?: () => void;
 }) {
-  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const addToast = useToastStore((s) => s.addToast);
 
@@ -121,14 +119,8 @@ export function GroupDetailSidebar({
 
       addToast({
         variant: 'success',
-        title: t('workspace.groups.edit.deleteSuccess', 'Group deleted'),
-        description: t(
-          'workspace.groups.edit.deleteSuccessDescription',
-          {
-            name: detailGroup.name,
-            defaultValue: `"${detailGroup.name}" has been deleted`,
-          }
-        ),
+        title: "Group deleted",
+        description: `"${detailGroup.name}" has been deleted`,
         duration: 3000,
       });
 
@@ -137,16 +129,13 @@ export function GroupDetailSidebar({
     } catch {
       addToast({
         variant: 'error',
-        title: t(
-          'workspace.groups.edit.deleteError',
-          'Failed to delete group'
-        ),
+        title: "Failed to delete group",
         duration: 5000,
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [detailGroup, closeDetailPanel, onUpdateSuccess, addToast, t]);
+  }, [detailGroup, closeDetailPanel, onUpdateSuccess, addToast]);
 
   // Handle saving edits (add new users)
   const handleSaveEdits = useCallback(async () => {
@@ -186,14 +175,8 @@ export function GroupDetailSidebar({
 
       addToast({
         variant: 'success',
-        title: t('workspace.groups.edit.saveSuccess', 'Group updated!'),
-        description: t(
-          'workspace.groups.edit.saveSuccessDescription',
-          {
-            name: detailGroup.name,
-            defaultValue: `Changes to '${detailGroup.name}' saved successfully`,
-          }
-        ),
+        title: "Group updated!",
+        description: `Changes to '${detailGroup.name}' saved successfully`,
         duration: 3000,
       });
 
@@ -202,10 +185,7 @@ export function GroupDetailSidebar({
     } catch {
       addToast({
         variant: 'error',
-        title: t(
-          'workspace.groups.edit.saveError',
-          'Failed to update group'
-        ),
+        title: "Failed to update group",
         duration: 5000,
       });
     } finally {
@@ -221,7 +201,6 @@ export function GroupDetailSidebar({
     exitEditMode,
     onUpdateSuccess,
     addToast,
-    t,
   ]);
 
   // Handle footer action
@@ -257,10 +236,10 @@ export function GroupDetailSidebar({
       onClick={handleDeleteGroup}
       loading={isDeleting}
       disabled={systemGroup}
-      loadingLabel={t('workspace.groups.edit.deleting', 'Deleting...')}
+      loadingLabel={"Deleting..."}
       style={{ flexShrink: 0 }}
     >
-      {t('workspace.groups.edit.deleteButton', 'Delete Group')}
+      {"Delete Group"}
     </LoadingButton>
   );
 
@@ -274,10 +253,10 @@ export function GroupDetailSidebar({
       icon="group"
       primaryLabel={
         isEditMode
-          ? t('workspace.groups.edit.save', 'Save Edits')
-          : t('workspace.groups.edit.edit', 'Edit Group')
+          ? "Save Edits"
+          : "Edit Group"
       }
-      secondaryLabel={t('workspace.groups.edit.cancel', 'Cancel')}
+      secondaryLabel={"Cancel"}
       primaryDisabled={isEditMode && (isSavingEdit || isNameEmpty)}
       primaryLoading={isSavingEdit}
       onPrimaryClick={handlePrimaryClick}
@@ -297,23 +276,20 @@ export function GroupDetailSidebar({
       >
         {/* Group Name */}
         <FormField
-          label={t('workspace.groups.detail.nameLabel', 'Group Name')}
+          label={"Group Name"}
           error={
             isNameEmpty
-              ? t('workspace.groups.edit.nameRequired', 'Group name is required')
+              ? 'Group name is required'
               : undefined
           }
         >
           {isNameLocked ? (
             <Tooltip
-              content={t(
-                'workspace.groups.edit.lockedNameTooltip',
-                'The admin and everyone group names are system-defined and cannot be changed'
-              )}
+              content={"The admin and everyone group names are system-defined and cannot be changed"}
             >
               <span style={{ display: 'block', width: '100%' }}>
                 <GroupNameInput
-                  ariaLabel={t('workspace.groups.detail.nameLabel', 'Group Name')}
+                  ariaLabel={"Group Name"}
                   value={isEditMode ? editGroupName : detailGroup?.name ?? ''}
                   canEditName={canEditName}
                   onChange={setEditGroupName}
@@ -322,7 +298,7 @@ export function GroupDetailSidebar({
             </Tooltip>
           ) : (
             <GroupNameInput
-              ariaLabel={t('workspace.groups.detail.nameLabel', 'Group Name')}
+              ariaLabel={"Group Name"}
               value={isEditMode ? editGroupName : detailGroup?.name ?? ''}
               canEditName={canEditName}
               onChange={setEditGroupName}
@@ -347,7 +323,7 @@ export function GroupDetailSidebar({
             weight="medium"
             style={{ color: 'var(--slate-12)' }}
           >
-            {t('workspace.groups.detail.users', 'Users')}
+            {"Users"}
           </Text>
 
           <PaginatedMembersList<GroupUser>
@@ -355,8 +331,8 @@ export function GroupDetailSidebar({
             ref={membersListRef}
             fetcher={fetchGroupMembersFn}
             keyExtractor={(u) => u._id}
-            searchPlaceholder={t('workspace.groups.detail.searchUsers', 'Search users...')}
-            emptyText={t('workspace.groups.detail.noUsers', 'No users in this group')}
+            searchPlaceholder="Search users..."
+            emptyText={"No users in this group"}
             onFetched={(items) => setGroupMembers(items)}
             renderItem={(user) => {
               const isPendingRemove = pendingRemoveUserIds.has(user._id);
@@ -390,8 +366,8 @@ export function GroupDetailSidebar({
                       }}
                     >
                       {isPendingRemove
-                        ? t('workspace.groups.edit.undo', 'Undo')
-                        : t('workspace.groups.edit.remove', 'Remove')}
+                        ? "Undo"
+                        : "Remove"}
                     </Text>
                   )}
                 </Flex>
@@ -417,13 +393,10 @@ export function GroupDetailSidebar({
             weight="medium"
             style={{ color: 'var(--slate-12)' }}
           >
-            {t('workspace.groups.detail.accessPermissions', 'Access Permissions')}
+            {"Access Permissions"}
           </Text>
           <Text size="2" style={{ color: 'var(--slate-11)' }}>
-            {t(
-              'workspace.groups.detail.accessComingSoon',
-              'Access Permissions Coming Soon'
-            )}
+            {"Access Permissions Coming Soon"}
           </Text>
         </Box>
 
@@ -446,21 +419,18 @@ export function GroupDetailSidebar({
                 weight="medium"
                 style={{ color: 'var(--slate-12)' }}
               >
-                {t('workspace.groups.edit.addUsersLabel', 'Add Users')}
+                {"Add Users"}
               </Text>
               <Badge variant="soft" color="gray" size="1">
-                {t('workspace.common.selected', { count: editAddUserIds.length, defaultValue: '{{count}} Selected' })}
+                {`${editAddUserIds.length} Selected`}
               </Badge>
             </Flex>
             <SearchableCheckboxDropdown
               options={availableUserOptions}
               selectedIds={editAddUserIds}
               onSelectionChange={setEditAddUserIds}
-              placeholder={t(
-                'workspace.groups.edit.addUsersPlaceholder',
-                'Search or select user(s) to add to this group'
-              )}
-              emptyText={t('workspace.common.noUsersAvailable', 'No users available')}
+              placeholder={"Search or select user(s) to add to this group"}
+              emptyText={"No users available"}
               showAvatar
               onSearch={handleUserSearch}
               onLoadMore={handleUserLoadMore}
@@ -485,20 +455,14 @@ export function GroupDetailSidebar({
           <Flex align="center" justify="between">
             <Flex direction="column" gap="1">
               <Text size="3" weight="medium" style={{ color: 'var(--slate-12)' }}>
-                {t('workspace.groups.edit.deleteTitle', {
-                  name: detailGroup?.name,
-                  defaultValue: `Delete '${detailGroup?.name}' Group`,
-                })}
+                {`Delete '${detailGroup?.name}' Group`}
               </Text>
               <Text size="1" style={{ color: 'var(--slate-10)' }}>
-                {t(
-                  'workspace.groups.edit.deleteDescription',
-                  'Permanently remove this group from the workspace'
-                )}
+                {"Permanently remove this group from the workspace"}
               </Text>
             </Flex>
             {systemGroup ? (
-              <Tooltip content={t('workspace.groups.actions.deleteSystemTooltip', 'Only custom groups can be deleted')}>
+              <Tooltip content="Only custom groups can be deleted">
                 <span style={{ display: 'inline-flex' }}>{deleteButton}</span>
               </Tooltip>
             ) : (

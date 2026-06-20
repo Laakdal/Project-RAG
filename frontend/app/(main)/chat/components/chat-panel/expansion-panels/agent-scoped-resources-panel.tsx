@@ -13,7 +13,6 @@ import {
   Text,
   TextField,
 } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useThemeAppearance } from '@/app/components/theme-provider';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon, resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
@@ -226,7 +225,6 @@ export function AgentScopedResourcesPanel({
   onToggleView,
   viewMode = 'inline',
 }: AgentScopedResourcesPanelProps) {
-  const { t } = useTranslation();
   const [tab, setTab] = useState<TabValue>('connectors');
   const [search, setSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -414,9 +412,9 @@ export function AgentScopedResourcesPanel({
   }, [toolGroups, search]);
 
   const tabPlaceholders = [
-    t('chat.agentResources.searchConnectors', { defaultValue: 'Search connectors' }),
-    t('chat.agentResources.searchCollections', { defaultValue: 'Search collections' }),
-    t('chat.agentResources.searchActions', { defaultValue: 'Search actions' }),
+    "Search connectors",
+    "Search collections",
+    "Search actions",
   ];
 
   const tabIndex = TAB_VALUES.indexOf(tab);
@@ -424,11 +422,11 @@ export function AgentScopedResourcesPanel({
 
   const tabLabels = useMemo(
     () => ({
-      connectors: t('nav.connectors', { defaultValue: 'Connectors' }),
-      collections: t('nav.collections', { defaultValue: 'Collections' }),
-      actions: t('chat.agentResources.actionsTab', { defaultValue: 'Actions' }),
+      connectors: "Connectors",
+      collections: "Collections",
+      actions: "Actions",
     }),
-    [t]
+    []
   );
 
   const toggleGroupExpanded = (key: string) => {
@@ -485,7 +483,7 @@ export function AgentScopedResourcesPanel({
             <MaterialIcon name="warning" size={16} color="var(--amber-11)" />
           </Callout.Icon>
           <Callout.Text>
-            {t('chat.agentResources.knowledgeScopeClearedWarning')}
+            {"No knowledge sources are included for this run, so the agent will not search your connectors or collections for answers."}
           </Callout.Text>
         </Callout.Root>
       )}
@@ -499,9 +497,7 @@ export function AgentScopedResourcesPanel({
           <>
             {filteredConnectors.length === 0 ? (
               <Text size="2" style={{ color: 'var(--slate-9)', padding: 'var(--space-3)' }}>
-                {t('chat.agentResources.noConnectors', {
-                  defaultValue: 'No connectors configured for this agent.',
-                })}
+                {"No connectors configured for this agent."}
               </Text>
             ) : (
               filteredConnectors.map((c) => (
@@ -544,15 +540,11 @@ export function AgentScopedResourcesPanel({
           <>
             {collectionRows.length === 0 ? (
               <Text size="2" style={{ color: 'var(--slate-9)', padding: 'var(--space-3)' }}>
-                {t('chat.agentResources.noCollections', {
-                  defaultValue: 'No collections configured for this agent.',
-                })}
+                {"No collections configured for this agent."}
               </Text>
             ) : filteredCollections.length === 0 ? (
               <Text size="2" style={{ color: 'var(--slate-9)', padding: 'var(--space-3)' }}>
-                {t('chat.agentResources.noCollectionMatches', {
-                  defaultValue: 'No collections match your search.',
-                })}
+                {"No collections match your search."}
               </Text>
             ) : (
               filteredCollections.map((row) => (
@@ -573,9 +565,7 @@ export function AgentScopedResourcesPanel({
           <>
             {filteredToolGroups.length === 0 ? (
               <Text size="2" style={{ color: 'var(--slate-9)', padding: 'var(--space-3)' }}>
-                {t('chat.agentResources.noActions', {
-                  defaultValue: 'No actions (toolsets) configured for this agent.',
-                })}
+                {"No actions (toolsets) configured for this agent."}
               </Text>
             ) : (
               <>
@@ -638,9 +628,7 @@ export function AgentScopedResourcesPanel({
                         </Flex>
                         <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
                           <Badge size="1" variant="soft" color="green" highContrast>
-                            {t('chat.agentResources.actionsCount', {
-                              count: group.fullNames.length,
-                            })}
+                            {`${group.fullNames.length} Actions`}
                           </Badge>
                           <IconButton
                             type="button"
@@ -648,7 +636,7 @@ export function AgentScopedResourcesPanel({
                             variant="ghost"
                             color="gray"
                             aria-expanded={expanded}
-                            aria-label={expanded ? t('common.collapse') : t('common.expand')}
+                            aria-label={expanded ? "Collapse" : "Expand"}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleGroupExpanded(groupKey);
@@ -715,9 +703,7 @@ export function AgentScopedResourcesPanel({
 
                 <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-1)' }}>
                   <Text size="1" style={{ color: 'var(--gray-11)' }}>
-                    {t('chat.agentResources.configureMoreActions', {
-                      defaultValue: 'Configure more actions',
-                    })}
+                    {"Configure more actions"}
                   </Text>
                   <Flex
                     align="center"
@@ -731,17 +717,13 @@ export function AgentScopedResourcesPanel({
                     <Flex align="center" gap="2" style={{ minWidth: 0 }}>
                       <MaterialIcon name="apps" size={18} color="var(--gray-11)" />
                       <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }} truncate>
-                        {t('chat.agentResources.browseWorkspaceActions', {
-                          defaultValue: 'Browse workspace actions',
-                        })}
+                        {"Browse workspace actions"}
                       </Text>
                     </Flex>
                     <IconButton asChild size="1" variant="soft" color="gray" style={{ flexShrink: 0 }}>
                       <Link
                         href="/workspace/actions"
-                        aria-label={t('chat.agentResources.browseWorkspaceActionsAria', {
-                          defaultValue: 'Open workspace actions to add or manage integrations',
-                        })}
+                        aria-label={"Open workspace actions to add or manage integrations"}
                       >
                         <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
                       </Link>
@@ -756,7 +738,7 @@ export function AgentScopedResourcesPanel({
 
       <Flex align="center" justify="between" gap="2" style={{ flexShrink: 0 }}>
         <Button type="button" size="1" variant="outline" color="gray" onClick={resetToAgentDefaults}>
-          {t('chat.agentResources.resetDefaults', { defaultValue: 'Reset to defaults' })}
+          {"Reset to defaults"}
         </Button>
       </Flex>
     </Flex>

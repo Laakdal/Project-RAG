@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Button, Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConfirmationDialog } from '@/app/(main)/workspace/components/confirmation-dialog';
@@ -157,7 +156,6 @@ export function FullSyncButton({
   connectorId: string;
   connectorType: string;
 }) {
-  const { t } = useTranslation();
   const [state, setState] = useState<SyncState>('idle');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
@@ -227,17 +225,10 @@ export function FullSyncButton({
       <ConfirmationDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={t('workspace.connectors.fullSyncConfirm.title', {
-          defaultValue: 'Start full sync?',
-        })}
-        message={t('workspace.connectors.fullSyncConfirm.message', {
-          defaultValue:
-            'Overwrites and re-syncs all data from scratch and is slower than normal Sync. Use full sync when content is missing, duplicated, or doesn’t match the source. For routine updates, use Sync instead.',
-        })}
-        confirmLabel={t('workspace.connectors.fullSyncConfirm.confirm', {
-          defaultValue: 'Confirm',
-        })}
-        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        title="Start full sync?"
+        message="Overwrites and re-syncs all data from scratch and is slower than normal Sync. Use full sync when content is missing, duplicated, or doesn’t match the source. For routine updates, use Sync instead."
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
         confirmVariant="primary"
         isLoading={state === 'syncing'}
         onConfirm={() => void handleConfirmFullSync()}

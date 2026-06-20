@@ -1,7 +1,6 @@
 'use client';
 
 import { Flex } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { ChatSectionElement, GeneratingTitleItem } from './chat-section-element';
 import { ELEMENT_HEIGHT } from '@/app/components/sidebar';
 import type { PendingConversation } from '@/chat/store';
@@ -17,12 +16,12 @@ import type { Conversation } from '@/chat/types';
 // Re-export for consumers that still import from here
 export { TIME_GROUP_KEYS, type TimeGroupKey };
 
-/** Maps the fixed TimeGroupKey to its i18n translation key */
-const TIME_GROUP_I18N: Record<TimeGroupKey, string> = {
-  'Today': 'timeGroup.today',
-  'Yesterday': 'timeGroup.yesterday',
-  'Previous 7 Days': 'timeGroup.previous7Days',
-  'Older': 'timeGroup.older',
+/** Maps the fixed TimeGroupKey to its display label */
+const TIME_GROUP_LABELS: Record<TimeGroupKey, string> = {
+  'Today': "Today",
+  'Yesterday': "Yesterday",
+  'Previous 7 Days': "Last 7 days",
+  'Older': "Older",
 };
 
 /**
@@ -71,7 +70,6 @@ export function TimeGroup({
   pendingConversations = [],
   agentId,
 }: TimeGroupProps) {
-  const { t } = useTranslation();
   const pendingSortedNewestFirst = [...pendingConversations].sort(
     (a, b) => b.createdAt - a.createdAt
   );
@@ -94,7 +92,7 @@ export function TimeGroup({
             color: 'var(--slate-10)',
           }}
         >
-          {t(TIME_GROUP_I18N[label])}
+          {TIME_GROUP_LABELS[label]}
         </span>
       </Flex>
 

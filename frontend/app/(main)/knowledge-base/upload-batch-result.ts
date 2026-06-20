@@ -1,5 +1,3 @@
-import { i18n } from '@/lib/i18n';
-
 /**
  * Maps KB multipart upload HTTP responses to per-file outcomes.
  *
@@ -144,7 +142,7 @@ function matchFailedDetailsToStoreIds(batch: UploadBatchEntry[], failedDetails: 
 
     if (entry) {
       used.add(entry.storeId);
-      storeIdToMessage.set(entry.storeId, ff.error || i18n.t('uploadProgress.uploadFailedDefault'));
+      storeIdToMessage.set(entry.storeId, ff.error || "Upload failed");
     }
   }
 
@@ -269,6 +267,6 @@ export function applyKnowledgeBaseUploadBatchResult(
   batch.forEach((e) => {
     if (completed.has(e.storeId)) return;
     if (pendingFail.has(e.storeId)) return;
-    fail(e.storeId, i18n.t('uploadProgress.uploadIncomplete'));
+    fail(e.storeId, "Upload incomplete");
   });
 }

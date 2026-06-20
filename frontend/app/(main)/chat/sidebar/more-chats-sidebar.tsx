@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Flex, Box, Text, TextField } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { SecondaryPanel, SidebarBackHeader } from '@/app/components/sidebar';
@@ -45,8 +44,6 @@ export const MoreChatsSidebar = React.memo(function MoreChatsSidebar({ sectionTy
   const moveConversationToTop = useChatStore((s) => s.moveConversationToTop);
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const isMobile = useIsMobile();
-
-  const { t } = useTranslation();
 
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedSearch(searchInput, 300);
@@ -163,7 +160,7 @@ export const MoreChatsSidebar = React.memo(function MoreChatsSidebar({ sectionTy
     return () => observer.disconnect();
   }, [loadMore]);
 
-  const title = sectionType === 'shared' ? t('chat.sharedChats') : t('chat.yourChats');
+  const title = sectionType === 'shared' ? "Shared Chats" : "Your Chats";
   const hasNextPage = pagination?.hasNextPage ?? false;
   const showSentinel = hasNextPage || isLoadingMore;
 
@@ -175,7 +172,7 @@ export const MoreChatsSidebar = React.memo(function MoreChatsSidebar({ sectionTy
         {/* Inline search */}
         <TextField.Root
           size="2"
-          placeholder={t('form.searchPlaceholder')}
+          placeholder="Search..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           style={{ width: '100%' }}
@@ -212,7 +209,7 @@ export const MoreChatsSidebar = React.memo(function MoreChatsSidebar({ sectionTy
               style={{ padding: 'var(--space-4) var(--space-3)' }}
             >
               <Text size="2" style={{ color: 'var(--slate-11)' }}>
-                {searching ? t('message.noResults') : t('chat.noChatsYet')}
+                {searching ? "No results found" : "No chats yet"}
               </Text>
             </Flex>
           )}

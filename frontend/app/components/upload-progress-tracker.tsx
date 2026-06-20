@@ -1,12 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Box, Text, IconButton, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { FileIcon } from '@/app/components/ui/file-icon';
 import { useUploadStore } from '@/lib/store/upload-store';
 import type { UploadItem } from '@/lib/store/upload-store';
+
+const UPLOAD_STATUS_LABELS: Record<string, string> = {
+  pending: 'pending',
+  uploading: 'uploading',
+  completed: 'completed',
+  failed: 'failed',
+};
 
 // Format bytes to human readable
 const formatSize = (bytes: number): string => {
@@ -20,20 +26,19 @@ interface UploadItemRowProps {
 }
 
 function UploadItemRow({ item }: UploadItemRowProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   const isFailed = item.status === 'failed';
   const failureTooltipText = isFailed
-    ? item.error?.trim() || t('uploadProgress.genericFailureHint')
+    ? item.error?.trim() || "Upload failed. Try again or use a supported file type."
     : null;
 
-  const statusLabel = t(`uploadProgress.status.${item.status}`);
+  const statusLabel = UPLOAD_STATUS_LABELS[item.status] ?? item.status;
   const rowAriaLabel = isFailed
     ? item.error?.trim()
-      ? t('uploadProgress.ariaFailedWithDetail', { name: item.name, detail: item.error.trim() })
-      : t('uploadProgress.ariaFailed', { name: item.name })
-    : t('uploadProgress.ariaItemStatus', { name: item.name, status: statusLabel });
+      ? `${item.name}, upload failed. ${item.error.trim()}`
+      : `${item.name}, upload failed`
+    : `${item.name}, ${statusLabel}`;
 
   const getStatusIcon = () => {
     switch (item.status) {
@@ -151,7 +156,7 @@ function UploadItemRow({ item }: UploadItemRowProps) {
           </Text>
           <Text size="1" style={{ color: 'var(--slate-9)' }}>
             {item.status === 'failed'
-              ? t('uploadProgress.sizeWithFailed', { size: formatSize(item.size) })
+              ? `${formatSize(item.size)} · failed`
               : formatSize(item.size)}
           </Text>
         </Flex>
@@ -188,7 +193,6 @@ function UploadItemRow({ item }: UploadItemRowProps) {
 }
 
 export function UploadProgressTracker() {
-  const { t } = useTranslation();
   const {
     items,
     isVisible,
@@ -269,23 +273,14 @@ export function UploadProgressTracker() {
             <Text size="2" weight="medium" style={{ color: 'var(--slate-12)' }}>
               {failedCount > 0
                 ? completedIncludingCleared > 0
-                  ? t('uploadProgress.headerCompletedAndFailed', {
-                      completed: completedIncludingCleared,
-                      failed: failedCount,
-                    })
-                  : t('uploadProgress.headerFailuresOnly', { count: failedCount })
-                : t('uploadProgress.headerAllComplete', {
-                    completed: completedCount,
-                    total: totalCount,
-                  })}
+                  ? `${completedIncludingCleared} completed · ${failedCount} failed`
+                  : `${failedCount} failed`
+                : `${completedCount}/${totalCount} uploads complete`}
             </Text>
             <Text size="1" style={{ color: 'var(--slate-9)' }}>
               {failedCount > 0
-                ? t('uploadProgress.sessionFilesAndSize', {
-                    count: sessionFileLabel,
-                    size: formatSize(sessionSizeLabel),
-                  })
-                : t('uploadProgress.totalSizeLabel', { size: formatSize(totalSize) })}
+                ? `${sessionFileLabel} files · ${formatSize(sessionSizeLabel)}`
+                : `Total: ${formatSize(totalSize)}`}
             </Text>
           </Flex>
           <Flex align="center" gap="4">

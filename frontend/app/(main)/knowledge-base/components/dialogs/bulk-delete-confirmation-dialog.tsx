@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Dialog, Flex, Text, TextField, Button, Box, VisuallyHidden } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 
 interface BulkDeleteConfirmationDialogProps {
@@ -20,7 +19,6 @@ export function BulkDeleteConfirmationDialog({
   itemCount,
   isDeleting = false,
 }: BulkDeleteConfirmationDialogProps) {
-  const { t } = useTranslation();
   const [confirmText, setConfirmText] = useState('');
   const isConfirmed = confirmText === 'DELETE';
 
@@ -74,7 +72,7 @@ export function BulkDeleteConfirmationDialog({
 
           <Flex direction="column" gap="2">
             <Text size="2" weight="medium" style={{ color: 'var(--olive-11)' }}>
-              {t('dialog.typeDeleteToConfirm')}
+              {"Type DELETE to confirm"}
             </Text>
             <TextField.Root
               placeholder=""
@@ -93,14 +91,14 @@ export function BulkDeleteConfirmationDialog({
               onClick={() => onOpenChange(false)}
               disabled={isDeleting}
             >
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               color="red"
               onClick={handleConfirm}
               disabled={!isConfirmed}
               loading={isDeleting}
-              loadingLabel={t('action.deleting')}
+              loadingLabel={"Deleting..."}
             >
               {`Delete ${itemCount} ${itemCount === 1 ? 'Item' : 'Items'}`}
             </LoadingButton>

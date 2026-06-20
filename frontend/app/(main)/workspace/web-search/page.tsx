@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Flex, Text, Heading, Button, IconButton } from '@radix-ui/themes';
@@ -28,7 +27,6 @@ import {
 // ============================================================
 
 export default function WebSearchPage() {
-  const { t } = useTranslation();
   const router = useRouter();
   const addToast = useToastStore((s) => s.addToast);
   const isAdmin = useUserStore(selectIsAdmin);
@@ -314,7 +312,7 @@ export default function WebSearchPage() {
   if (isLoading) {
     return (
       <Flex align="center" justify="center" style={{ height: '100%', width: '100%' }}>
-        <LottieLoader variant="loader" size={48} showLabel label={t('workspace.webSearch.loading')} />
+        <LottieLoader variant="loader" size={48} showLabel label={"Loading web search settings…"} />
       </Flex>
     );
   }
@@ -328,10 +326,10 @@ export default function WebSearchPage() {
         <Flex align="start" justify="between" style={{ marginBottom: 'var(--space-6)' }}>
           <Box>
             <Heading size="6" style={{ color: 'var(--slate-12)' }}>
-              {t('workspace.webSearch.heading')}
+              {"Web Search Configuration"}
             </Heading>
             <Text size="2" style={{ color: 'var(--slate-10)', marginTop: 'var(--space-1)', display: 'block' }}>
-             {t('workspace.webSearch.subtitle')}
+             {"Configure web search providers for the chatbot to use when searching the web"}
             </Text>
           </Box>
 
@@ -347,7 +345,7 @@ export default function WebSearchPage() {
             <span className="material-icons-outlined" style={{ fontSize: 15 }}>
               open_in_new
             </span>
-            {t('workspace.bots.documentation')}
+            {"Documentation"}
           </Button>
         </Flex>
 

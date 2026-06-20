@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { Button, Dialog, Flex, IconButton } from '@radix-ui/themes';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -36,13 +35,12 @@ import type { ActionCardCta } from '../components/action-card';
 import { isToolsetOAuthSuccessMessageType } from '@/app/(main)/toolsets/oauth/toolset-oauth-window-messages';
 
 const TEAM_TABS = [
-  { value: 'all', labelKey: 'workspace.actions.tabs.all' },
-  { value: 'configured', labelKey: 'workspace.actions.tabs.configured' },
-  { value: 'not_configured', labelKey: 'workspace.actions.tabs.notConfigured' },
+  { value: 'all', label: "All" },
+  { value: 'configured', label: "Configured" },
+  { value: 'not_configured', label: "Not configured" },
 ];
 
 function TeamActionsPageContent() {
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const addToast = useToastStore((s) => s.addToast);
@@ -154,11 +152,11 @@ function TeamActionsPageContent() {
       });
       setCatalogRows(toolsets);
     } catch {
-      addToast({ variant: 'error', title: t('workspace.actions.loadError') });
+      addToast({ variant: 'error', title: "Could not load actions. Try again." });
     } finally {
       setIsLoading(false);
     }
-  }, [addToast, debouncedCatalogSearch, t]);
+  }, [addToast, debouncedCatalogSearch]);
 
   useEffect(() => {
     if (!isAdmin || toolsetTypeParam) return;
@@ -300,9 +298,9 @@ function TeamActionsPageContent() {
   const resolveCta = useCallback(
     (_item: ActionCatalogItem): { cta: ActionCardCta; label: string } => ({
       cta: 'setup',
-      label: t('workspace.actions.cta.setup'),
+      label: "Setup",
     }),
-    [t]
+    []
   );
 
   const handleCta = useCallback((item: ActionCatalogItem) => {
@@ -375,13 +373,13 @@ function TeamActionsPageContent() {
         />
         <Dialog.Root open={postCreateNoticeOpen} onOpenChange={setPostCreateNoticeOpen}>
           <Dialog.Content style={{ maxWidth: 440 }}>
-            <Dialog.Title>{t('workspace.actions.postCreateAuth.title')}</Dialog.Title>
+            <Dialog.Title>{"Action instance is set up and requires authentication"}</Dialog.Title>
             <Dialog.Description size="2" mb="3">
-              {t('workspace.actions.postCreateAuth.body')}
+              {"Each user must authenticate on their side before they can start using the toolset."}
             </Dialog.Description>
             <Flex justify="end">
               <Button color="jade" onClick={() => setPostCreateNoticeOpen(false)}>
-                {t('workspace.actions.postCreateAuth.gotIt')}
+                {"Got it"}
               </Button>
             </Flex>
           </Dialog.Content>
@@ -392,7 +390,7 @@ function TeamActionsPageContent() {
             onOpenChange={(o) => {
               if (!o) setConfigureToolset(null);
             }}
-            title={t('workspace.actions.configPanelTitle')}
+            title={"Action configuration"}
             icon={
               <ConnectorIcon
                 type={configureToolset.toolsetType || configureToolset.name}
@@ -408,7 +406,7 @@ function TeamActionsPageContent() {
                     variant="ghost"
                     color="gray"
                     size="1"
-                    aria-label={t('workspace.actions.documentation')}
+                    aria-label={"Documentation"}
                     style={{ cursor: 'pointer' }}
                     onClick={() =>
                       window.open(configurePanelDocUrl, '_blank', 'noopener,noreferrer')
@@ -436,7 +434,7 @@ function TeamActionsPageContent() {
             onOpenChange={(o) => {
               if (!o) setManageInstance(null);
             }}
-            title={t('workspace.actions.manage.panelTitle')}
+            title={"Manage action configuration"}
             icon={
               <ConnectorIcon
                 type={manageInstance.toolsetType || manageInstance.name}
@@ -452,7 +450,7 @@ function TeamActionsPageContent() {
                     variant="ghost"
                     color="gray"
                     size="1"
-                    aria-label={t('workspace.actions.documentation')}
+                    aria-label={"Documentation"}
                     style={{ cursor: 'pointer' }}
                     onClick={() =>
                       window.open(managePanelDocUrl, '_blank', 'noopener,noreferrer')
@@ -480,26 +478,26 @@ function TeamActionsPageContent() {
   return (
     <>
       <ActionsCatalogLayout
-        title={t('workspace.actions.title')}
-        subtitle={t('workspace.actions.subtitle')}
+        title={"Actions"}
+        subtitle={"Configure automated actions like creating records, updating fields, or triggering workflows. Each app has an action tailored to its supported functions."}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        tabs={TEAM_TABS.map((tab) => ({ value: tab.value, label: t(tab.labelKey) }))}
+        tabs={TEAM_TABS.map((tab) => ({ value: tab.value, label: tab.label }))}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         tabFilterMode="orgInstances"
         preFilteredCatalog
         tabCountsOverride={tabCountsOverride}
         trailingAction={
-          <NavigateButton label={t('workspace.actions.trailingYourActions')} onClick={() => router.push('/workspace/actions/personal/')} />
+          <NavigateButton label={"Your actions"} onClick={() => router.push('/workspace/actions/personal/')} />
         }
         items={tabFilteredCatalog}
         resolveCta={resolveCta}
         onCta={handleCta}
         onCardClick={handleCardClick}
         isLoading={isLoading}
-        loadingLabel={t('workspace.actions.loading')}
-        emptyLabel={t('workspace.actions.empty')}
+        loadingLabel={"Loading actions…"}
+        emptyLabel={"No actions match your filters."}
       />
       <ActionSetupPanel
         open={Boolean(createFor)}
@@ -513,13 +511,13 @@ function TeamActionsPageContent() {
       />
       <Dialog.Root open={postCreateNoticeOpen} onOpenChange={setPostCreateNoticeOpen}>
         <Dialog.Content style={{ maxWidth: 440 }}>
-          <Dialog.Title>{t('workspace.actions.postCreateAuth.title')}</Dialog.Title>
+          <Dialog.Title>{"Action instance is set up and requires authentication"}</Dialog.Title>
           <Dialog.Description size="2" mb="3">
-            {t('workspace.actions.postCreateAuth.body')}
+            {"Each user must authenticate on their side before they can start using the toolset."}
           </Dialog.Description>
           <Flex justify="end">
             <Button color="jade" onClick={() => setPostCreateNoticeOpen(false)}>
-              {t('workspace.actions.postCreateAuth.gotIt')}
+              {"Got it"}
             </Button>
           </Flex>
         </Dialog.Content>

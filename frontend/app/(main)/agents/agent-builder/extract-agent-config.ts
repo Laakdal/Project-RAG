@@ -1,4 +1,3 @@
-import { i18n } from '@/lib/i18n';
 import type { AgentDetail } from '../types';
 import type {
   AgentFormPayload,
@@ -341,15 +340,15 @@ export function extractAgentConfigFromFlow(
     description:
       (coreCfg.description as string) ||
       currentAgent?.description ||
-      i18n.t('agentBuilder.extractDefaultDescription'),
+      "AI agent for task automation and assistance",
     startMessage:
       (coreCfg.startMessage as string) ||
       currentAgent?.startMessage ||
-      i18n.t('agentBuilder.extractDefaultStartMessage'),
+      "Hello! I am a flow-based AI agent ready to assist you.",
     systemPrompt:
       (coreCfg.systemPrompt as string) ||
       currentAgent?.systemPrompt ||
-      i18n.t('agentBuilder.extractDefaultSystemPrompt'),
+      "You are a sophisticated flow-based AI agent that processes information through a visual workflow.",
     instructions: agentCoreNode
       ? (coreCfg.instructions as string | undefined)
       : currentAgent?.instructions,

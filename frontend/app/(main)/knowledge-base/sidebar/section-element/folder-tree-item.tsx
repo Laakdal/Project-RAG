@@ -10,7 +10,6 @@ import {
   TREE_BASE_PADDING,
   HOVER_BACKGROUND,
 } from '@/app/components/sidebar';
-import { useTranslation } from 'react-i18next';
 import {
   getReindexMenuState,
   getReindexNodeFromHubItem,
@@ -75,7 +74,6 @@ export function FolderTreeItem({
   onDelete,
   showRootLines = true,
 }: FolderTreeItemProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -186,7 +184,7 @@ export function FolderTreeItem({
 
   const menuActions: (MenuAction | false)[] = [
     ...(showReindexMenu
-      ? mapReindexOptionsToMenuActions(reindexMenuOptions, t, (statusFilters) =>
+      ? mapReindexOptionsToMenuActions(reindexMenuOptions, (statusFilters) =>
           onReindex!(
             node.id,
             enhancedNode.nodeType,
@@ -197,10 +195,10 @@ export function FolderTreeItem({
           ),
         )
       : []),
-    canEdit && !!onRename && { icon: 'edit', label: t('menu.rename'), onClick: handleRenameStart },
+    canEdit && !!onRename && { icon: 'edit', label: "Rename", onClick: handleRenameStart },
     canDelete && !!onDelete && {
       icon: 'delete',
-      label: t('menu.delete'),
+      label: "Delete",
       onClick: () => onDelete!(node.id),
       color: 'red' as const,
     },

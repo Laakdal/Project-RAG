@@ -17,7 +17,7 @@ import {
   DropdownMenu,
 } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
+
 import { UsersApi } from '@/app/(main)/workspace/users/api';
 
 export function AgentBuilderHeader(props: {
@@ -51,7 +51,6 @@ export function AgentBuilderHeader(props: {
   createdBy?: string | null;
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
   const {
     agentName,
     onAgentNameChange,
@@ -127,7 +126,7 @@ export function AgentBuilderHeader(props: {
           color="gray"
           size="2"
           onClick={() => (onGoBack ? onGoBack() : router.push('/chat'))}
-          aria-label={t('agentBuilder.goBack')}
+          aria-label={"Go back"}
         >
           <MaterialIcon name="chevron_left" size={22} color="var(--olive-11)" />
         </IconButton>
@@ -139,7 +138,7 @@ export function AgentBuilderHeader(props: {
             mb="1"
             style={{ color: 'var(--olive-11)', textTransform: 'uppercase', letterSpacing: '0.05em' }}
           >
-            {t('agentBuilder.agentName')}
+            {"Name"}
           </Text>
           <Flex align="center" gap="3">
             <Box style={{ minWidth: 0 }}>
@@ -147,7 +146,7 @@ export function AgentBuilderHeader(props: {
                 ref={agentNameInputRef}
                 value={agentName}
                 onChange={(e) => onAgentNameChange(e.target.value)}
-                placeholder={t('agentBuilder.agentNamePlaceholder')}
+                placeholder={"e.g. Support bot"}
                 disabled={isFlowStructureLocked}
                 size="2"
                 aria-invalid={agentNameError ? true : undefined}
@@ -166,7 +165,7 @@ export function AgentBuilderHeader(props: {
               {creatorName ? (
                 <Flex align="center" gap="1" mt="1">
                   <Text size="1" style={{ color: 'var(--olive-10)' }}>
-                    {t('agentBuilder.createdBy')}
+                    {"Created by"}
                   </Text>
                   <Avatar
                     size="1"
@@ -191,7 +190,7 @@ export function AgentBuilderHeader(props: {
               ) : null}
             </Box>
             {isServiceAccount ? (
-              <Tooltip content={t('agentBuilder.serviceAccountBadgeTooltip')}>
+              <Tooltip content={"This service agent uses dedicated toolset credentials and org-wide knowledge access for everyone who uses it."}>
                 <Badge
                   size="2"
                   color="jade"
@@ -206,15 +205,15 @@ export function AgentBuilderHeader(props: {
                   }}
                 >
                   <MaterialIcon name="admin_panel_settings" size={16} style={{ color: 'var(--accent-11)' }} />
-                  {t('agentBuilder.serviceAccountBadge')}
+                  {"Service agent"}
                 </Badge>
               </Tooltip>
             ) : showConvertOption ? (
               <Tooltip
                 content={
                   editing
-                    ? t('agentBuilder.convertToServiceAccountTooltip')
-                    : t('agentBuilder.convertToServiceAccountTooltipNewAgent')
+                    ? "Permanent: agent-level toolsets and org-wide knowledge. Cannot be undone."
+                    : "Creates this agent as a service agent with agent-level toolsets and org-wide knowledge."
                 }
               >
                 <Button
@@ -229,8 +228,8 @@ export function AgentBuilderHeader(props: {
                   <Flex align="center" gap="2">
                     <MaterialIcon name="admin_panel_settings" size={16} />
                     {editing
-                      ? t('agentBuilder.agentMenuConvertToServiceAgent')
-                      : t('agentBuilder.agentMenuCreateAsServiceAgent')}
+                      ? "Convert to service agent"
+                      : "Create as service agent"}
                   </Flex>
                 </Button>
               </Tooltip>
@@ -244,7 +243,7 @@ export function AgentBuilderHeader(props: {
             <DropdownMenu.Trigger>
               <button
                 type="button"
-                aria-label={t('agentBuilder.agentActionsMenuAria')}
+                aria-label={"Agent menu"}
                 onClick={(e) => e.stopPropagation()}
                 onMouseEnter={() => setAgentMenuTriggerHovered(true)}
                 onMouseLeave={() => setAgentMenuTriggerHovered(false)}
@@ -275,7 +274,7 @@ export function AgentBuilderHeader(props: {
                 <Flex align="center" gap="2">
                   <MaterialIcon name="delete" size={16} color="var(--red-11)" />
                   <Text size="2" style={{ color: 'var(--red-11)' }}>
-                    {t('chat.deleteAgent')}
+                    {"Delete agent"}
                   </Text>
                 </Flex>
               </DropdownMenu.Item>
@@ -285,8 +284,8 @@ export function AgentBuilderHeader(props: {
         <Tooltip
           content={
             isServiceAccount
-              ? t('agentBuilder.serviceAccountShareTooltip')
-              : t('agentBuilder.shareWithOrgTooltip')
+              ? "Service agents are always shared with the organization."
+              : "Share this agent with everyone in your organization."
           }
         >
           <Flex
@@ -302,7 +301,7 @@ export function AgentBuilderHeader(props: {
           >
             <MaterialIcon name="groups" size={18} color="var(--olive-11)" />
             <Text size="2" style={{ color: 'var(--olive-12)' }}>
-              {t('agentBuilder.shareWithOrg')}
+              {"Share with everyone"}
             </Text>
             <Switch
               checked={shareWithOrg || isServiceAccount}
@@ -328,16 +327,16 @@ export function AgentBuilderHeader(props: {
                   <MaterialIcon name="save" size={18} />
                 )}
                 {saving
-                  ? t('agentBuilder.saving')
+                  ? "Saving…"
                   : editing
-                    ? t('agentBuilder.saveChanges')
-                    : t('agentBuilder.createAgent')}
+                    ? "Save changes"
+                    : "Create agent"}
               </Flex>
             </Button>
           );
           if (!saveBlockedByDeprecatedTools) return saveButton;
           return (
-            <Tooltip content={t('agentBuilder.removeDeprecatedTools')}>
+            <Tooltip content={"Remove Deprecated Tools"}>
               <span
                 style={{
                   display: 'inline-flex',

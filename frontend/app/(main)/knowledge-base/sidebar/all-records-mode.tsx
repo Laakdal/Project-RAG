@@ -6,7 +6,6 @@ import { Flex, Box, Text, Button } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { SECTION_PADDING_BOTTOM, SECTION_CONTENT_MARGIN_TOP, EMPTY_STATE_PADDING_X, EMPTY_STATE_PADDING_Y, FEATURED_ITEM_MARGIN_BOTTOM, ELEMENT_BORDER, SIDEBAR_COLLECTION_LIMIT } from '@/app/components/sidebar';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import { useTranslation } from 'react-i18next';
 import { KBSectionHeader } from './section-header';
 import { AppSection, appSectionKey } from './section';
 import { SidebarLoadMoreButton } from './sidebar-load-more-button';
@@ -131,7 +130,6 @@ export function AllRecordsMode({
   rootAppListHasNext,
   isLoadingRootAppListMore,
 }: AllRecordsModeProps) {
-  const { t } = useTranslation();
   const isMobile = useIsMobile();
 
   return (
@@ -157,7 +155,7 @@ export function AllRecordsMode({
             fontWeight: 500,
           }}
         >
-          {t('nav.all')}
+          {"All"}
         </Text>
       </Button>
 
@@ -232,7 +230,7 @@ export function AllRecordsMode({
           onClick={onLoadMoreRootApps}
           disabled={isLoadingRootAppListMore}
           loading={isLoadingRootAppListMore}
-          idleLabel={t('agentBuilder.loadMoreConnectors', { defaultValue: 'Load more connectors' })}
+          idleLabel={"Load more connectors"}
           flexStyle={{
             marginBottom: `${SECTION_PADDING_BOTTOM}px`,
             paddingLeft: 'var(--space-2)',
@@ -264,7 +262,7 @@ export function AllRecordsMode({
                 ))
               ) : (
                 <Text size="1" style={{ color: 'var(--slate-9)', padding: `${EMPTY_STATE_PADDING_Y}px ${EMPTY_STATE_PADDING_X}px` }}>
-                  {t('message.noItems')}
+                  {"No items connected"}
                 </Text>
               )}
             </Flex>
@@ -290,7 +288,7 @@ export function AllRecordsMode({
             }}
           >
             <MaterialIcon name="hub" size={16} color="var(--accent-11)" />
-            {t('nav.moreConnectors')}
+            {"More Connectors"}
           </Text>
           <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-1)' }}>
             {moreConnectors.map((connector) => (
@@ -322,7 +320,7 @@ export function AllRecordsMode({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <MaterialIcon name="hub" size={16} color="var(--accent-11)" />
                   <Text size="2" style={{ color: 'var(--slate-11)', fontWeight: 400, fontStyle: 'normal' }}>
-                    {t('sidebar.seeMoreConnectors')}
+                    {"See More Connectors"}
                   </Text>
                 </div>
                 <Flex

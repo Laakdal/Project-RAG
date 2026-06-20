@@ -1,52 +1,46 @@
-import type { TFunction } from 'i18next';
 import type { CapabilitySection } from './types';
 
-const CAP_BASE = 'workspace.aiModels.capabilities';
-
-/**
- * Built-in human-readable fallbacks used when the i18n resource for a
- * capability is missing. Prevents raw snake_case keys (e.g. "text_generation")
- * from leaking into the UI when translations haven't been loaded yet.
- */
-const CAPABILITY_LABEL_FALLBACK: Record<string, string> = {
-  text_generation: 'Text Generation',
+const CAPABILITY_LABEL: Record<string, string> = {
+  text_generation: 'LLM',
   embedding: 'Embedding',
   image_generation: 'Image Generation',
-  tts: 'Text-to-Speech',
-  stt: 'Speech-to-Text',
+  tts: 'Text to Speech',
+  stt: 'Speech to Text',
   reasoning: 'Reasoning',
   video: 'Video',
   ocr: 'OCR',
 };
 
-const CAPABILITY_BADGE_FALLBACK: Record<string, string> = {
-  text_generation: 'Text',
+/**
+ * Badge text per capability. An empty string means the locale file had no
+ * badge value; the getter falls back to the label in that case.
+ */
+const CAPABILITY_BADGE: Record<string, string> = {
+  text_generation: 'LLM',
   embedding: 'Embedding',
   image_generation: 'Image',
-  tts: 'TTS',
-  stt: 'STT',
   reasoning: 'Reasoning',
-  video: 'Video',
-  ocr: 'OCR',
+  video: 'Multimodal',
+  // tts, stt, ocr intentionally omitted — fallback to label
 };
 
-export function aiModelsCapabilityLabel(t: TFunction, cap: string): string {
-  return t(`${CAP_BASE}.${cap}.label`, {
-    defaultValue: CAPABILITY_LABEL_FALLBACK[cap] ?? cap,
-  });
+const CAPABILITY_SECTION_TAB: Record<string, string> = {
+  text_generation: 'For LLMs',
+  embedding: 'For Embedding',
+  image_generation: 'For Image Generation',
+};
+
+export function aiModelsCapabilityLabel(cap: string): string {
+  return CAPABILITY_LABEL[cap] ?? cap;
 }
 
-/** Badge text for registry capabilities; falls back to label when JSON badge is empty. */
-export function aiModelsCapabilityBadge(t: TFunction, cap: string): string {
-  const raw = t(`${CAP_BASE}.${cap}.badge`, { defaultValue: '' });
-  if (raw === '') {
-    return CAPABILITY_BADGE_FALLBACK[cap] ?? aiModelsCapabilityLabel(t, cap);
-  }
-  return raw;
+/** Badge text for registry capabilities; falls back to label when no badge is defined. */
+export function aiModelsCapabilityBadge(cap: string): string {
+  const badge = CAPABILITY_BADGE[cap];
+  if (badge !== undefined) return badge;
+  return aiModelsCapabilityLabel(cap);
 }
 
-export function aiModelsCapabilitySectionTab(t: TFunction, section: CapabilitySection): string {
-  return t(`${CAP_BASE}.${section}.sectionTab`, {
-    defaultValue: aiModelsCapabilityLabel(t, section),
-  });
+export function aiModelsCapabilitySectionTab(section: CapabilitySection): string {
+  return CAPABILITY_SECTION_TAB[section] ?? aiModelsCapabilityLabel(section);
 }

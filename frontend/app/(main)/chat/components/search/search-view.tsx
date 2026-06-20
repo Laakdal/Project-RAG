@@ -7,7 +7,6 @@ import { buildChatHref } from '@/chat/build-chat-url';
 import { ChatApi } from '@/chat/api';
 import type { Conversation } from '@/chat/types';
 import { Box, Flex, Text, TextField, Theme } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useThemeAppearance } from '@/app/components/theme-provider';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useCommandStore } from '@/lib/store/command-store';
@@ -25,12 +24,12 @@ import { useDebouncedSearch } from '@/knowledge-base/hooks/use-debounced-search'
 /** Page size for browse + search inside the ⌘+K overlay */
 const OVERLAY_CONVERSATIONS_LIMIT = 50;
 
-/** Translations for time-group labels */
-const TIME_GROUP_I18N: Record<TimeGroupKey, string> = {
-  'Today': 'timeGroup.today',
-  'Yesterday': 'timeGroup.yesterday',
-  'Previous 7 Days': 'timeGroup.previous7Days',
-  'Older': 'timeGroup.older',
+/** Labels for time-group headings */
+const TIME_GROUP_LABELS: Record<TimeGroupKey, string> = {
+  'Today': 'Today',
+  'Yesterday': 'Yesterday',
+  'Previous 7 Days': 'Last 7 days',
+  'Older': 'Older',
 };
 
 function isAbortOrCancelError(err: unknown): boolean {
@@ -57,7 +56,6 @@ interface ChatSearchProps {
  */
 export function ChatSearch({ open, onClose }: ChatSearchProps) {
   const { appearance } = useThemeAppearance();
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const agentId = searchParams.get('agentId');
@@ -133,7 +131,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
         if (isAbortOrCancelError(err)) return;
         addToast({
           variant: 'error',
-          title: t('message.error'),
+          title: "An error occurred",
           description:
             err instanceof Error
               ? err.message
@@ -148,7 +146,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
     })();
 
     return () => ac.abort();
-  }, [open, debouncedQuery, addToast, t]);
+  }, [open, debouncedQuery, addToast]);
 
   // ── Focus input on open ──
   useEffect(() => {
@@ -270,7 +268,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
               <TextField.Root
                 ref={inputRef}
                 size="3"
-                placeholder={t('nav.searchChats') + '...'}
+                placeholder={"Search Chats..."}
                 value={searchQuery}
                 onChange={handleSearchChange}
                 style={{ width: '100%' }}
@@ -310,7 +308,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
               ) : (
                 <Flex align="center" justify="center" style={{ padding: 'var(--space-6)' }}>
                   <Text size="2" style={{ color: 'var(--slate-a9)' }}>
-                    {t('message.noResults')}
+                    {"No results found"}
                   </Text>
                 </Flex>
               )
@@ -334,7 +332,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
                           fontWeight: 400,
                         }}
                       >
-                        {t(TIME_GROUP_I18N[groupKey])}
+                        {TIME_GROUP_LABELS[groupKey]}
                       </Text>
                     </Flex>
 
@@ -354,7 +352,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
                 {timeGroups.length === 0 && !conversationsLoading && (
                   <Flex align="center" justify="center" style={{ padding: 'var(--space-6)' }}>
                     <Text size="2" style={{ color: 'var(--slate-a9)' }}>
-                      {t('chat.noChatsYet')}
+                      {"No chats yet"}
                     </Text>
                   </Flex>
                 )}

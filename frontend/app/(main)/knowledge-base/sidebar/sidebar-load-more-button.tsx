@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Flex } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 
 const BUTTON_STYLE: React.CSSProperties = {
   background: 'none',
@@ -36,9 +35,8 @@ export function SidebarLoadMoreButton({
   idleLabel,
   loadingLabel,
 }: SidebarLoadMoreButtonProps) {
-  const { t } = useTranslation();
-  const idle = idleLabel ?? t('agentBuilder.loadMore');
-  const busy = loadingLabel ?? t('agentBuilder.loadingMore');
+  const idle = idleLabel ?? "Load more";
+  const busy = loadingLabel ?? "Loading…";
 
   return (
     <Flex

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   ToolsetsApi,
   type BuilderSidebarToolset,
@@ -30,7 +29,6 @@ export function useToolsetTypeInstanceList({
   refreshKey,
   enabled,
 }: UseToolsetTypeInstanceListOptions) {
-  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
 
   const [instanceSearch, setInstanceSearch] = useState('');
@@ -104,7 +102,7 @@ export function useToolsetTypeInstanceList({
         typeListHasLoadedForScopeRef.current = true;
       } catch {
         if (!cancelled) {
-          addToast({ variant: 'error', title: t('workspace.actions.loadError') });
+          addToast({ variant: 'error', title: "Could not load actions. Try again." });
         }
       } finally {
         if (!cancelled) {
@@ -121,7 +119,6 @@ export function useToolsetTypeInstanceList({
     debouncedInstanceSearch,
     enabled,
     instanceFilterTab,
-    t,
     toolsetTypeParam,
     typeListPage,
     refreshKey,

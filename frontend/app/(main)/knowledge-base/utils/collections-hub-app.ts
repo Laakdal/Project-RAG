@@ -1,4 +1,3 @@
-import { i18n } from '@/lib/i18n';
 import type { KnowledgeHubNode } from '../types';
 
 /** Decodes a JWT payload without verifying the signature (same shape as axios `decodeToken`). */
@@ -32,7 +31,7 @@ export function buildCollectionsHubAppId(orgId: string): string {
 export function createSyntheticKbCollectionsHubApp(collectionAppId: string): KnowledgeHubNode {
   return {
     id: collectionAppId,
-    name: i18n.t('nav.collections'),
+    name: "Collections",
     nodeType: 'app',
     parentId: null,
     origin: 'COLLECTION',

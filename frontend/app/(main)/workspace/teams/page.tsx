@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Flex, Text, Badge } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
@@ -43,7 +42,6 @@ const TEAMS_FILTER_CHIPS: FilterChipConfig[] = [
 // ========================================
 
 function TeamsPageContent() {
-  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const profile = useUserStore((s) => s.profile);
   const addToast = useToastStore((s) => s.addToast);
@@ -288,15 +286,8 @@ function TeamsPageContent() {
     [router]
   );
 
-  // ── Filter chips with translated labels ──
-  const filterChips = useMemo<FilterChipConfig[]>(
-    () =>
-      TEAMS_FILTER_CHIPS.map((chip) => ({
-        ...chip,
-        label: t(`workspace.filters.${chip.key}`) || chip.label,
-      })),
-    [t]
-  );
+  // ── Filter chips ──
+  const filterChips = TEAMS_FILTER_CHIPS;
 
   // ── Render individual filter components ──
   const renderFilter = useCallback(
@@ -364,7 +355,7 @@ function TeamsPageContent() {
     () => [
       {
         key: 'name',
-        label: t('workspace.teams.columns.name'),
+        label: "Name",
         width: '20%',
         minWidth: '160px',
         render: (team) => (
@@ -373,7 +364,7 @@ function TeamsPageContent() {
       },
       {
         key: 'description',
-        label: t('workspace.teams.columns.description'),
+        label: "Description",
         minWidth: '180px',
         render: (team) => (
           <Text
@@ -391,7 +382,7 @@ function TeamsPageContent() {
       },
       {
         key: 'members',
-        label: t('workspace.teams.columns.users'),
+        label: "Users",
         width: '80px',
         render: (team) => (
           <Badge variant="soft" color="gray" size="1">
@@ -401,7 +392,7 @@ function TeamsPageContent() {
       },
       {
         key: 'createdBy',
-        label: t('workspace.teams.columns.createdBy'),
+        label: "Created by",
         width: '20%',
         minWidth: '180px',
         render: (team) => {
@@ -422,7 +413,7 @@ function TeamsPageContent() {
       },
       {
         key: 'createdOn',
-        label: t('workspace.teams.columns.createdOn'),
+        label: "Created on",
         width: '140px',
         render: (team) => (
           <Text size="2" style={{ color: 'var(--slate-11)' }}>
@@ -431,7 +422,7 @@ function TeamsPageContent() {
         ),
       },
     ],
-    [t, currentUser, profile]
+    [currentUser, profile]
   );
 
   // ── Row actions ────────────
@@ -440,14 +431,14 @@ function TeamsPageContent() {
       const actions: (RowAction | false)[] = [
         {
           icon: 'groups',
-          label: t('workspace.teams.actions.viewTeam'),
+          label: "View Team",
           onClick: () => {
             navigateToDetailPanel(team);
           },
         },
         team.canDelete && team.id !== `all_${team.orgId}` && {
           icon: 'delete',
-          label: t('workspace.teams.actions.delete'),
+          label: "Delete",
           variant: 'danger' as const,
           separatorBefore: true,
           onClick: async () => {
@@ -455,14 +446,14 @@ function TeamsPageContent() {
               await TeamsApi.deleteTeam(team.id);
               addToast({
                 variant: 'success',
-                title: t('workspace.teams.actions.deleteSuccess', 'Team deleted'),
+                title: "Team deleted",
                 duration: 3000,
               });
               fetchTeams();
             } catch {
               addToast({
                 variant: 'error',
-                title: t('workspace.teams.actions.deleteError', 'Failed to delete team'),
+                title: "Failed to delete team",
                 duration: 5000,
               });
             }
@@ -471,7 +462,7 @@ function TeamsPageContent() {
       ];
       return <EntityRowActionMenu actions={actions} />;
     },
-    [t, navigateToDetailPanel, fetchTeams, addToast]
+    [navigateToDetailPanel, fetchTeams, addToast]
   );
 
   // ── Empty state ──
@@ -503,12 +494,12 @@ function TeamsPageContent() {
     >
       {/* Header */}
       <EntityPageHeader
-        title={t('workspace.teams.title')}
-        subtitle={t('workspace.teams.subtitle')}
-        searchPlaceholder={t('workspace.teams.searchPlaceholder')}
+        title={"Teams"}
+        subtitle={"Create teams to collaborate, share, and work together"}
+        searchPlaceholder={"Search..."}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        ctaLabel={t('workspace.teams.createTeam')}
+        ctaLabel={"Create Team"}
         ctaIcon="groups"
         onCtaClick={navigateToCreatePanel}
       />
@@ -524,9 +515,9 @@ function TeamsPageContent() {
         {isEmpty && !isEmptyFiltered ? (
           <EntityEmptyState
             icon="groups"
-            title={t('workspace.teams.emptyTitle')}
-            description={t('workspace.teams.emptyDescription')}
-            ctaLabel={t('workspace.teams.createTeam')}
+            title={"You don't have any teams yet"}
+            description={"Teams help people organize work and collaborate together. Teams you're part of or create will be shown here."}
+            ctaLabel={"Create Team"}
             ctaIcon="groups"
             onCtaClick={navigateToCreatePanel}
           />
@@ -553,10 +544,10 @@ function TeamsPageContent() {
               >
                 <MaterialIcon name="filter_list_off" size={32} color="var(--slate-8)" />
                 <Text size="2" weight="medium" style={{ color: 'var(--slate-11)' }}>
-                  {t('workspace.teams.noFilterResults', 'No teams match the applied filters')}
+                  {"No teams match the applied filters"}
                 </Text>
                 <Text size="1" style={{ color: 'var(--slate-9)' }}>
-                  {t('workspace.teams.noFilterResultsHint', 'Try adjusting or clearing the filters above')}
+                  {"Try adjusting or clearing the filters above"}
                 </Text>
               </Flex>
             ) : (

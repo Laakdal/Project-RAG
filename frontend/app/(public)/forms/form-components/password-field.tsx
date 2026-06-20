@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Flex, Text, TextField, IconButton } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -56,9 +55,8 @@ const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldProps>(fun
   onKeyDown,
   onBlur,
 }, ref) {
-  const { t } = useTranslation();
-  const resolvedLabel = label ?? t('auth.common.passwordLabel');
-  const resolvedPlaceholder = placeholder ?? t('auth.common.passwordPlaceholder');
+  const resolvedLabel = label ?? "Password";
+  const resolvedPlaceholder = placeholder ?? "Enter your password";
   const [visible, setVisible] = useState(false);
 
   return (
@@ -105,7 +103,7 @@ const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldProps>(fun
             variant="ghost"
             color="gray"
             onClick={() => setVisible((v) => !v)}
-            aria-label={visible ? t('auth.common.hidePassword') : t('auth.common.showPassword')}
+            aria-label={visible ? "Hide password" : "Show password"}
           >
             <span
               className="material-icons-outlined"
@@ -144,7 +142,7 @@ const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldProps>(fun
               }}
               onClick={onForgotPassword}
             >
-              <span>{forgotLoading ? t('auth.common.sending') : t('auth.common.forgotPassword')}</span>
+              <span>{forgotLoading ? "Sending…" : "Forgot Password"}</span>
             </Text>
           )}
         </Flex>

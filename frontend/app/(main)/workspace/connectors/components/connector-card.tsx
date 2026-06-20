@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text } from '@radix-ui/themes';
 import { ConnectorIcon, MaterialIcon } from '@/app/components/ui';
 import type { Connector } from '../types';
@@ -132,7 +131,6 @@ export function ConnectorCard({
 /** "+ Setup" button for registry / unconfigured connectors. */
 function SetupButton({ onClick }: { onClick?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
-  const { t } = useTranslation();
 
   return (
     <button
@@ -170,7 +168,7 @@ function SetupButton({ onClick }: { onClick?: () => void }) {
           color: 'var(--gray-11)',
         }}
       >
-        {t('workspace.actions.cta.setup')}
+        {"Setup"}
       </span>
     </button>
   );
@@ -189,7 +187,6 @@ function ActiveInstanceBar({
   onBadgeClick?: () => void;
 }) {
   const [isAddHovered, setIsAddHovered] = useState(false);
-  const { t } = useTranslation();
   const onlyOnePill = (activeCount > 0) !== (inactiveCount > 0);
 
   const handleBadgeClick = (e: React.MouseEvent) => {
@@ -223,7 +220,7 @@ function ActiveInstanceBar({
             }}
           >
             <Text size="1" weight="medium" style={{ color: 'var(--green-a11)', whiteSpace: 'nowrap' }}>
-              {activeCount === 1 ? t('workspace.actions.card.activeOne') : t('workspace.actions.card.activeMany', { count: activeCount })}
+              {activeCount === 1 ? "1 active instance" : `${activeCount} active instances`}
             </Text>
           </Flex>
         )}
@@ -245,7 +242,7 @@ function ActiveInstanceBar({
             }}
           >
             <Text size="1" weight="medium" style={{ color: 'var(--amber-a11)', whiteSpace: 'nowrap' }}>
-              {inactiveCount === 1 ? t('workspace.actions.card.inactiveOne') : t('workspace.actions.card.inactiveMany', { count: inactiveCount })}
+              {inactiveCount === 1 ? "1 in-active instance" : `${inactiveCount} in-active instances`}
             </Text>
           </Flex>
         )}

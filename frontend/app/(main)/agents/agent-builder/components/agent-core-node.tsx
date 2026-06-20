@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import { Handle, Position, useReactFlow, useStore, useNodeConnections } from '@xyflow/react';
 import { Box, Flex, Text, IconButton, Dialog, Button, TextArea, Badge } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -215,7 +215,6 @@ function ConnectedChips({
   /** When set, chips show connector/collection icons with the correct error fallback. */
   chipIconKind?: ChipIconKind;
 }) {
-  const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   if (!nodes.length) return null;
   const overflow = nodes.length - max;
@@ -240,7 +239,7 @@ function ConnectedChips({
         <ConnectionChip
           variant="more"
           label={
-            showAll ? t('agentBuilder.showFewerTools') : t('agentBuilder.moreItems', { count: overflow })
+            showAll ? "Show fewer" : `+${overflow} more`
           }
           onClick={() => setShowAll((v) => !v)}
         />
@@ -264,18 +263,17 @@ export function AgentCoreNode({
   selected: boolean;
   readOnly?: boolean;
 }) {
-  const { t } = useTranslation();
   const { setNodes } = useReactFlow();
   const storeNodes = useStore((s) => s.nodes);
   const storeEdges = useStore((s) => s.edges);
 
   const [promptOpen, setPromptOpen] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(
-    (data.config?.systemPrompt as string) || t('agentBuilder.defaultSystemPrompt')
+    (data.config?.systemPrompt as string) || "You are a helpful assistant."
   );
   const [instructions, setInstructions] = useState((data.config?.instructions as string) || '');
   const [startMessage, setStartMessage] = useState(
-    (data.config?.startMessage as string) || t('agentBuilder.defaultStartMessage')
+    (data.config?.startMessage as string) || "Hello! I am ready to assist you. How can I help you today?"
   );
 
   const connected = useMemo(() => {
@@ -322,9 +320,9 @@ export function AgentCoreNode({
   }, [data.id, instructions, setNodes, startMessage, systemPrompt]);
 
   const openPrompts = () => {
-    setSystemPrompt((data.config?.systemPrompt as string) || t('agentBuilder.defaultSystemPrompt'));
+    setSystemPrompt((data.config?.systemPrompt as string) || "You are a helpful assistant.");
     setInstructions((data.config?.instructions as string) || '');
-    setStartMessage((data.config?.startMessage as string) || t('agentBuilder.defaultStartMessage'));
+    setStartMessage((data.config?.startMessage as string) || "Hello! I am ready to assist you. How can I help you today?");
     setPromptOpen(true);
   };
 
@@ -374,19 +372,19 @@ export function AgentCoreNode({
             <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
               <Flex align="center" gap="2" wrap="wrap">
                 <Text weight="bold" style={{ color: 'var(--agent-flow-text)', lineHeight: '22px', fontSize: 15 }}>
-                  {t('agentBuilder.coreNodeTitle')}
+                  {"Agent"}
                 </Text>
                 <Badge size="1" variant="soft" color="gray" highContrast>
-                  {t('agentBuilder.coreNodeBadge')}
+                  {"Core"}
                 </Badge>
               </Flex>
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)', lineHeight: '16px' }}>
-                {t('agentBuilder.coreNodeSubtitle')}
+                {"Orchestrator"}
               </Text>
             </Flex>
           </Flex>
           {!readOnly ? (
-            <IconButton size="2" variant="soft" color="gray" onClick={openPrompts} aria-label={t('agentBuilder.editPrompts')}>
+            <IconButton size="2" variant="soft" color="gray" onClick={openPrompts} aria-label={"Edit prompts"}>
               <MaterialIcon name="edit" size={18} color="var(--agent-flow-text)" />
             </IconButton>
           ) : null}
@@ -408,7 +406,7 @@ export function AgentCoreNode({
               weight="medium"
               style={{ display: 'block', color: 'var(--agent-flow-text-muted)', lineHeight: '16px' }}
             >
-              {t('agentBuilder.systemPromptLabel')}
+              {"System prompt"}
             </Text>
             <Box
               p="2"
@@ -444,7 +442,7 @@ export function AgentCoreNode({
               weight="medium"
               style={{ display: 'block', color: 'var(--agent-flow-text-muted)', lineHeight: '16px' }}
             >
-              {t('agentBuilder.startMessageLabel')}
+              {"Start message"}
             </Text>
             <Box
               p="2"
@@ -475,7 +473,7 @@ export function AgentCoreNode({
             </Box>
           </Box>
 
-          <Section title={t('agentBuilder.modelSection')} icon="psychology">
+          <Section title={"Model"} icon="psychology">
             <CoreHandle type="target" position={Position.Left} id="llms" nodeDataId={data.id} offsetStyle={{ left: -8 }} />
             {connected.llms.length ? (
               <ConnectedChips
@@ -486,12 +484,12 @@ export function AgentCoreNode({
               />
             ) : (
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)', fontStyle: 'italic' }}>
-                {t('agentBuilder.connectModel')}
+                {"Connect a model"}
               </Text>
             )}
           </Section>
 
-          <Section title={t('agentBuilder.knowledge')} icon="library_books">
+          <Section title={"Knowledge"} icon="library_books">
             <CoreHandle type="target" position={Position.Left} id="knowledge" nodeDataId={data.id} offsetStyle={{ left: -8 }} />
             {connected.knowledge.length ? (
               <ConnectedChips
@@ -506,12 +504,12 @@ export function AgentCoreNode({
               />
             ) : (
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)', fontStyle: 'italic' }}>
-                {t('agentBuilder.optional')}
+                {"Optional"}
               </Text>
             )}
           </Section>
 
-          <Section title={t('agentBuilder.toolsetsSection')} icon="extension">
+          <Section title={"Toolsets"} icon="extension">
             <CoreHandle type="target" position={Position.Left} id="toolsets" nodeDataId={data.id} offsetStyle={{ left: -8 }} />
             {connected.toolsets.length ? (
               <ConnectedChips
@@ -522,28 +520,28 @@ export function AgentCoreNode({
               />
             ) : (
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)', fontStyle: 'italic' }}>
-                {t('agentBuilder.optional')}
+                {"Optional"}
               </Text>
             )}
           </Section>
 
-          <Section title={t('agentBuilder.inputSection')} icon="forum">
+          <Section title={"Input"} icon="forum">
             <CoreHandle type="target" position={Position.Left} id="input" nodeDataId={data.id} offsetStyle={{ left: -8 }} />
             {connected.input.length ? (
               <ConnectedChips nodes={connected.input} max={MAX_VISIBLE.input} labelOf={(n) => n.label} />
             ) : (
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)', fontStyle: 'italic' }}>
-                {t('agentBuilder.connectChatInput')}
+                {"Connect chat input"}
               </Text>
             )}
           </Section>
 
-          <Section title={t('agentBuilder.responseSection')} icon="reply">
+          <Section title={"Response"} icon="reply">
             <CoreHandle type="source" position={Position.Right} id="response" nodeDataId={data.id} offsetStyle={{ right: -8 }} />
             <Flex align="center" gap="2">
               <MaterialIcon name="arrow_forward" size={14} color="var(--agent-flow-text-muted)" />
               <Text size="1" style={{ color: 'var(--agent-flow-text-muted)' }}>
-                {t('agentBuilder.toChatOutput')}
+                {"To chat output"}
               </Text>
             </Flex>
           </Section>
@@ -565,9 +563,9 @@ export function AgentCoreNode({
         >
           {/* Fixed header */}
           <Box px="5" pt="5" pb="3" style={{ flexShrink: 0, borderBottom: '1px solid var(--gray-4)' }}>
-            <Dialog.Title mb="1">{t('agentBuilder.agentConfigTitle')}</Dialog.Title>
+            <Dialog.Title mb="1">{"Configure Agent Prompts"}</Dialog.Title>
             <Text size="2" color="gray" style={{ display: 'block' }}>
-              {t('agentBuilder.agentConfigSubtitle')}
+              {"Define the agent's behavior and initial greeting message for users."}
             </Text>
           </Box>
 
@@ -578,34 +576,34 @@ export function AgentCoreNode({
             style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}
           >
             <PromptSection
-              title={t('agentBuilder.systemPromptLabel')}
+              title={"System prompt"}
               value={systemPrompt}
               onChange={setSystemPrompt}
               minRows={3}
               maxRows={14}
-              lineCountLabel={(n) => t('agentBuilder.lineCount', { count: n })}
-              showAllLabel={(n) => t('agentBuilder.showAll', { count: n })}
-              showLessLabel={t('agentBuilder.showLess')}
+              lineCountLabel={(n) => `${n} lines`}
+              showAllLabel={(n) => `Show all (${n} lines)`}
+              showLessLabel={"Show less"}
             />
             <PromptSection
-              title={t('agentBuilder.instructionsLabel')}
+              title={"Instructions"}
               value={instructions}
               onChange={setInstructions}
               minRows={3}
               maxRows={12}
-              lineCountLabel={(n) => t('agentBuilder.lineCount', { count: n })}
-              showAllLabel={(n) => t('agentBuilder.showAll', { count: n })}
-              showLessLabel={t('agentBuilder.showLess')}
+              lineCountLabel={(n) => `${n} lines`}
+              showAllLabel={(n) => `Show all (${n} lines)`}
+              showLessLabel={"Show less"}
             />
             <PromptSection
-              title={t('agentBuilder.startingMessageLabel')}
+              title={"Starting message"}
               value={startMessage}
               onChange={setStartMessage}
               minRows={2}
               maxRows={8}
-              lineCountLabel={(n) => t('agentBuilder.lineCount', { count: n })}
-              showAllLabel={(n) => t('agentBuilder.showAll', { count: n })}
-              showLessLabel={t('agentBuilder.showLess')}
+              lineCountLabel={(n) => `${n} lines`}
+              showAllLabel={(n) => `Show all (${n} lines)`}
+              showLessLabel={"Show less"}
             />
           </Box>
 
@@ -619,10 +617,10 @@ export function AgentCoreNode({
           >
             <Dialog.Close>
               <Button variant="soft" color="gray">
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
             </Dialog.Close>
-            <Button onClick={savePrompts}>{t('action.save')}</Button>
+            <Button onClick={savePrompts}>{"Save"}</Button>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>

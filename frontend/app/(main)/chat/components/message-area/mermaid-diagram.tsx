@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Box, Dialog, Flex, IconButton, Spinner, Text, VisuallyHidden } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 
@@ -540,7 +539,6 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const [open, setOpen]                   = useState(false);
   const [zoom, setZoom]                   = useState(DEFAULT_ZOOM);
   const [copyFeedback, setCopyFeedback]   = useState<CopyFeedback>(null);
-  const { t } = useTranslation();
 
   // Inline view: max-width variant — natural size for compact diagrams,
   // shrinks to fit container for wide ones (no horizontal scroll).
@@ -673,7 +671,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
       size="1"
       variant="ghost"
       color={copyFeedback === true ? 'green' : copyFeedback === false ? 'red' : 'gray'}
-      title={t('chat.copyDiagramImage')}
+      title="Copy Image"
       style={{ cursor: 'pointer' }}
       onClick={handleCopyImage}
     >
@@ -719,7 +717,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         >
           <MaterialIcon name="warning_amber" size={ICON_SIZES.SECONDARY} style={{ color: 'var(--amber-9)', flexShrink: 0 }} />
           <Text size="1" style={{ color: 'var(--slate-11)', flex: 1 }}>
-            {t('chat.diagramRenderFailed')}
+            {"Could not render diagram"}
           </Text>
 
           {/* Toggle source view */}
@@ -727,7 +725,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             size="1"
             variant="ghost"
             color={showErrorSource ? 'amber' : 'gray'}
-            title={showErrorSource ? t('chat.hideDiagramSource') : t('chat.showDiagramSource')}
+            title={showErrorSource ? "Hide source" : "Show source"}
             style={{ cursor: 'pointer' }}
             onClick={() => setShowErrorSource((v) => !v)}
           >
@@ -739,7 +737,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             size="1"
             variant="ghost"
             color={errorCopyFeedback === true ? 'green' : errorCopyFeedback === false ? 'red' : 'gray'}
-            title={t('chat.copyDiagramSource')}
+            title="Copy source"
             style={{ cursor: 'pointer' }}
             onClick={handleCopySource}
           >
@@ -794,7 +792,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             size="1"
             variant="ghost"
             color="gray"
-            title={t('chat.expandDiagram')}
+            title="Expand diagram"
             style={{ cursor: 'pointer', color: 'var(--slate-9)' }}
             onClick={() => setOpen(true)}
           >
@@ -826,7 +824,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
           <Flex align="center" gap="2">
             <Spinner size="2" />
             <Text size="1" style={{ color: 'var(--slate-9)' }}>
-              {t('chat.renderingDiagram')}
+              {"Rendering diagram…"}
             </Text>
           </Flex>
         )}
@@ -855,7 +853,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
           }}
         >
           <VisuallyHidden>
-            <Dialog.Title>{t('chat.fullDiagramView')}</Dialog.Title>
+            <Dialog.Title>{"Full diagram view"}</Dialog.Title>
           </VisuallyHidden>
 
           {/* ── Header ────────────────────────────────────────────── */}
@@ -869,14 +867,14 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             }}
           >
             <Text size="2" weight="medium" style={{ color: 'var(--slate-11)' }}>
-              {t('chat.fullDiagramView')}
+              {"Full diagram view"}
             </Text>
 
             <Flex align="center" gap="1">
               {/* Zoom controls */}
               <IconButton
                 size="1" variant="ghost" color="gray"
-                title={t('chat.zoomOut')}
+                title="Zoom out"
                 disabled={zoom <= MIN_ZOOM}
                 style={{ cursor: zoom <= MIN_ZOOM ? 'default' : 'pointer' }}
                 onClick={zoomOut}
@@ -886,7 +884,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
               <Text
                 size="1"
-                title={t('chat.resetZoom')}
+                title="Reset zoom"
                 onClick={zoomReset}
                 style={{
                   color: 'var(--slate-11)',
@@ -902,7 +900,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
               <IconButton
                 size="1" variant="ghost" color="gray"
-                title={t('chat.zoomIn')}
+                title="Zoom in"
                 disabled={zoom >= MAX_ZOOM}
                 style={{ cursor: zoom >= MAX_ZOOM ? 'default' : 'pointer' }}
                 onClick={zoomIn}

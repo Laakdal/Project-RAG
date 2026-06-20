@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Flex, IconButton, Text, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import {
@@ -44,7 +43,6 @@ export function AgentBuilderWebSearchSection({
   onNotify,
   structureLocked = false,
 }: AgentBuilderWebSearchSectionProps) {
-  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const [configurePanel, setConfigurePanel] = useState<{
     provider: ConfigurableProvider;
@@ -75,7 +73,7 @@ export function AgentBuilderWebSearchSection({
     (meta: WebSearchProviderMeta) => {
       if (!meta.configurable) return;
       if (structureLocked) {
-        onNotify(t('agentBuilder.webSearchLocked'));
+        onNotify("Web search configuration is locked.");
         return;
       }
       setConfigurePanel({
@@ -83,7 +81,7 @@ export function AgentBuilderWebSearchSection({
         meta,
       });
     },
-    [onNotify, structureLocked, t],
+    [onNotify, structureLocked],
   );
 
   const handlePanelClose = useCallback(() => {
@@ -109,7 +107,7 @@ export function AgentBuilderWebSearchSection({
   return (
     <>
       <SidebarCategoryRow
-        groupLabel={t('Web Search')}
+        groupLabel={"Web Search"}
         groupMaterialIcon="public"
         groupMaterialIconColor="var(--blue-9)"
         itemCount={visibleProviders.length}
@@ -126,7 +124,7 @@ export function AgentBuilderWebSearchSection({
               fontStyle: 'italic',
             }}
           >
-            {t('agentBuilder.webSearchLoading')}
+            {"Loading…"}
           </Text>
         ) : (
           visibleProviders.map((meta) => {
@@ -148,15 +146,11 @@ export function AgentBuilderWebSearchSection({
                 anotherAttached={Boolean(attached) && !isAttached}
                 onDragBlocked={() => {
                   if (structureLocked) {
-                    onNotify(t('agentBuilder.webSearchLocked'));
+                    onNotify("Web search configuration is locked.");
                   } else if (!isConfigured) {
-                    onNotify(
-                      t('agentBuilder.webSearchConfigureFirst', {
-                        name: meta.label,
-                      }),
-                    );
+                    onNotify(`Configure ${meta.label} before dragging it onto the canvas.`);
                   } else if (attached) {
-                    onNotify(t('Only One Web Search Provider Allowed'));
+                    onNotify("Only one web search provider can be added to the canvas at a time.");
                   }
                 }}
                 isAdmin={Boolean(isAdmin)}
@@ -205,7 +199,6 @@ function ProviderRow({
   onDragBlocked: () => void;
   onConfigure: () => void;
 }) {
-  const { t } = useTranslation();
   const dimmed = (dragBlocked && !isAttached) || (anotherAttached && !isAttached);
 
   return (
@@ -276,7 +269,7 @@ function ProviderRow({
         </Text>
 
         {isAttached ? (
-          <Tooltip content={t('Attached')}>
+          <Tooltip content={"Attached"}>
             <span
               style={{
                 display: 'inline-flex',
@@ -292,7 +285,7 @@ function ProviderRow({
             </span>
           </Tooltip>
         ) : isConfigured ? (
-          <Tooltip content={t('Configured')}>
+          <Tooltip content={"Configured"}>
             <span
               style={{
                 display: 'inline-flex',
@@ -322,8 +315,8 @@ function ProviderRow({
             <Tooltip
               content={
                 isConfigured
-                  ? t('Edit')
-                  : t('Configure')
+                  ? "Edit"
+                  : "Configure"
               }
             >
               <IconButton

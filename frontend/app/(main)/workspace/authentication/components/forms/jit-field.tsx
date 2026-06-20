@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Flex, Text, Switch } from '@radix-ui/themes';
 
 interface JitFieldProps {
@@ -11,7 +10,6 @@ interface JitFieldProps {
 }
 
 export function JitField({ providerName, checked, onCheckedChange }: JitFieldProps) {
-  const { t } = useTranslation();
   return (
     <Box
       style={{
@@ -23,10 +21,10 @@ export function JitField({ providerName, checked, onCheckedChange }: JitFieldPro
       <Flex align="center" justify="between">
         <Box>
           <Text size="2" weight="medium" style={{ color: 'var(--slate-12)', display: 'block' }}>
-            {t('workspace.authentication.jit.title')}
+            {"Enable Just-In-Time (JIT) Provisioning"}
           </Text>
           <Text size="1" style={{ color: 'var(--slate-10)', display: 'block', marginTop: 2 }}>
-            {t('workspace.authentication.jit.description', { providerName })}
+            {`Automatically create user accounts when they sign in with ${providerName} for the first time`}
           </Text>
         </Box>
         <Switch

@@ -29,7 +29,6 @@ import { usePendingChatStore } from '@/lib/store/pending-chat-store';
 import { useSidebarWidthStore } from '@/lib/store/sidebar-width-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { Flex, Box, Text, Avatar, Tooltip, IconButton } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { FilePreviewInlinePanel, FilePreviewFullscreen } from '@/app/components/file-preview';
 import { ShareSidebar, ShareHeaderGroup } from '@/app/components/share';
 import type { SharedAvatarMember } from '@/app/components/share';
@@ -38,7 +37,6 @@ import { ChatSearch } from './components/search';
 import { isCommandKey } from '@/lib/utils/platform';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useUserStore } from '@/lib/store/user-store';
 import { toast } from '@/lib/store/toast-store';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { useServicesHealthStore } from '@/lib/store/services-health-store';
@@ -76,7 +74,6 @@ function clamp(n: number, min: number, max: number): number {
 function ChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { t } = useTranslation();
   const conversationId = searchParams.get('conversationId');
   const rawAgentParam = searchParams.get('agentId');
   const agentId = rawAgentParam?.trim() ? rawAgentParam : null;
@@ -315,9 +312,9 @@ function ChatContent() {
           // server code since the agent was last saved (deprecated=true is
           // stamped by the GET /agent/:id handler at read time).
           if (deprecatedToolNames.length > 0) {
-            toast.error(t('chat.toasts.deprecatedTools'), {
+            toast.error("This agent has tools that are no longer available. Open the Agent Builder to remove them.", {
               action: {
-                label: t('chat.toasts.openAgentBuilder'),
+                label: "Open Agent Builder",
                 onClick: () =>
                   router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId!)}`),
               },
@@ -393,7 +390,7 @@ function ChatContent() {
     return () => {
       cancelled = true;
     };
-  }, [agentId, router, t]);
+  }, [agentId, router]);
 
   // ── URL → Store sync ──────────────────────────────────────────────
   // When URL changes (sidebar click, browser back), create/reuse a slot.
@@ -835,30 +832,6 @@ function ChatContent() {
     };
   }, [historyAndShareAgentId, agentContextCreatedBy]);
 
-  // Render decisions
-  /** Profile from GET /api/v1/users/:id — auth-store `user` is often null (not persisted with tokens). */
-  const profile = useUserStore((s) => s.profile);
-  const greetingName = useMemo(() => {
-    if (!profile) return '';
-    const full = profile.fullName?.trim();
-    if (full) return full;
-    const first = profile.firstName?.trim();
-    if (first) return first;
-    const email = profile.email?.trim();
-    if (email?.includes('@')) {
-      const local = email.split('@')[0];
-      if (local) return local;
-    }
-    return '';
-  }, [profile]);
-
-  const defaultSuggestionsMap = t('chat.defaultSuggestions', { returnObjects: true }) as Record<string, { text: string; icons: ChatSuggestion['icons'] }>;
-  const defaultSuggestions: ChatSuggestion[] = Object.entries(defaultSuggestionsMap).map(([id, item]) => ({
-    id,
-    text: item.text,
-    icons: item.icons,
-  }));
-
   // Share state
   const [isShareSidebarOpen, setIsShareSidebarOpen] = useState(false);
   const [sharedMembers, setSharedMembers] = useState<SharedAvatarMember[]>([]);
@@ -1107,7 +1080,7 @@ function ChatContent() {
             zIndex: 19,
           }}
         >
-          <Tooltip content={`${t('agentBuilder.createdBy')}: ${agentCreatorName}`}>
+          <Tooltip content={`Created by: ${agentCreatorName}`}>
             <Flex
               align="center"
               gap="2"
@@ -1195,10 +1168,6 @@ function ChatContent() {
             width: '100%',
           }}
         >
-          <Box style={{ marginBottom: 'var(--space-4)' }}>
-            <LottieLoader autoplay loop style={{ width: isMobile ? 64 : 80, height: isMobile ? 64 : 80 }} />
-          </Box>
-
           <Box
             style={{
               textAlign: 'center',
@@ -1213,15 +1182,8 @@ function ChatContent() {
               padding: isMobile ? '0 var(--space-4)' : undefined,
             }}
           >
-            <Text
-              size="4"
-              weight="medium"
-              style={{ color: 'var(--slate-12)', display: 'block', marginBottom: 'var(--space-1)' }}
-            >
-              {t('chat.heyUser', { name: greetingName || t('chat.heyUserDefaultName') })}
-            </Text>
             <Text size="4" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {t('chat.greeting')}
+              {"What do you want to explore today?"}
             </Text>
           </Box>
 

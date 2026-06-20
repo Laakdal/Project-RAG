@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
@@ -24,17 +23,16 @@ export function DocumentationSection({
   connectorType?: string;
   connectorIconPath?: string;
 }) {
-  const { t } = useTranslation();
   const iconSrc = connectorIconPath ? getConnectorIconPath(connectorIconPath) : undefined;
 
   return (
     <Flex direction="column" gap="3">
       <Flex direction="column" gap="1">
         <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.connectors.docSection.title')}
+          {"Setup Documentation"}
         </Text>
         <Text size="1" style={{ color: 'var(--gray-10)' }}>
-          {t('workspace.connectors.docSection.description')}
+          {"Follow the guide to set up your connector"}
         </Text>
       </Flex>
 

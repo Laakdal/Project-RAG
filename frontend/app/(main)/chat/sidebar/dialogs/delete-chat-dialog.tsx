@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Dialog, Flex, Text, TextField, Button, Box, VisuallyHidden } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 
 interface DeleteChatDialogProps {
@@ -26,7 +25,6 @@ export function DeleteChatDialog({
   chatTitle,
   isDeleting = false,
 }: DeleteChatDialogProps) {
-  const { t } = useTranslation();
   const [confirmText, setConfirmText] = useState('');
   const isConfirmed = confirmText === 'DELETE';
 
@@ -71,20 +69,20 @@ export function DeleteChatDialog({
         <Flex direction="column" gap="4">
           <Flex direction="column" gap="1">
             <Text size="5" weight="bold">
-              {t('chat.deleteChatConfirm')}
+              {"Are you sure?"}
             </Text>
             <Text size="2" style={{ color: 'var(--slate-11)' }}>
-              {t('chat.deleteChatDescription')}{' '}
+              {"The chat titled"}{' '}
               <Text size="2" weight="bold" style={{ color: 'var(--slate-12)' }}>
                 &apos;{chatTitle}&apos;
               </Text>{' '}
-              {t('chat.deleteChatWarning')}
+              {"will be permanently removed from Project RAG. All users with shared access will lose their access."}
             </Text>
           </Flex>
 
           <Flex direction="column" gap="2">
             <Text size="2" weight="medium" style={{ color: 'var(--olive-11)' }}>
-              {t('dialog.typeDeleteToConfirm')}
+              {"Type DELETE to confirm"}
             </Text>
             <TextField.Root
               placeholder=""
@@ -103,16 +101,16 @@ export function DeleteChatDialog({
               onClick={() => onOpenChange(false)}
               disabled={isDeleting}
             >
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               color="red"
               onClick={handleConfirm}
               disabled={!isConfirmed}
               loading={isDeleting}
-              loadingLabel={t('action.deleting')}
+              loadingLabel={"Deleting..."}
             >
-              {t('action.delete')}
+              {"Delete"}
             </LoadingButton>
           </Flex>
         </Flex>

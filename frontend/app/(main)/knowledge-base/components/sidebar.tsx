@@ -10,7 +10,6 @@ import { SidebarChevronSlotShimmer, SidebarListShimmerRows } from '../sidebar/si
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 import { buildConnectorsUrl } from '@/app/(main)/workspace/connectors/utils/build-connectors-url';
 import { useKnowledgeBaseStore } from '../store';
-import { useTranslation } from 'react-i18next';
 import { TREE_BASE_PADDING, TREE_INDENT_PER_LEVEL, TREE_LINE_OFFSET } from '@/app/components/sidebar';
 import type {
   PageViewMode,
@@ -66,7 +65,6 @@ function FolderTreeItem({
   onDelete,
   showRootLines = true,
 }: FolderTreeItemProps) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -313,7 +311,7 @@ function FolderTreeItem({
                 >
                   <Flex align="center" gap="2">
                     <MaterialIcon name="refresh" size={16} color="var(--slate-11)" />
-                    <Text size="2">{t('menu.reindex')}</Text>
+                    <Text size="2">{"Re-index"}</Text>
                   </Flex>
                 </DropdownMenu.Item>
                 {canEdit && onRename && (
@@ -325,7 +323,7 @@ function FolderTreeItem({
                   >
                     <Flex align="center" gap="2">
                       <MaterialIcon name="edit" size={16} color="var(--slate-11)" />
-                      <Text size="2">{t('menu.rename')}</Text>
+                      <Text size="2">{"Rename"}</Text>
                     </Flex>
                   </DropdownMenu.Item>
                 )}
@@ -341,7 +339,7 @@ function FolderTreeItem({
                     >
                       <Flex align="center" gap="2">
                         <MaterialIcon name="delete" size={16} color="var(--red-9)" />
-                        <Text size="2">{t('menu.delete')}</Text>
+                        <Text size="2">{"Delete"}</Text>
                       </Flex>
                     </DropdownMenu.Item>
                   </>
@@ -881,7 +879,6 @@ export function Sidebar({
   onAllRecordsSelectApp: _onAllRecordsSelectApp,
   onAllRecordsSelectConnectorItem,
 }: KBSidebarProps) {
-  const { t } = useTranslation();
   const router = useRouter();
   const isAdmin = useUserStore(selectIsAdmin);
   const {
@@ -1030,7 +1027,7 @@ export function Sidebar({
           >
             <MaterialIcon name="chevron_left" size={24} color="var(--slate-11)" />
             <Text size="3" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {t('nav.collections')}
+              {"Collections"}
             </Text>
           </Flex>
         </Flex>
@@ -1055,7 +1052,7 @@ export function Sidebar({
                   textTransform: 'uppercase',
                 }}
               >
-                {t('nav.shared')}
+                {"Shared"}
               </Text>
             </Flex>
             {isLoadingNodes && filteredSharedTree.length === 0 ? (
@@ -1092,7 +1089,7 @@ export function Sidebar({
                   lineHeight: '16px',
                 }}
               >
-                {t('sidebar.sharedWithYou')}
+                {"Company data shared with you will be shown here"}
               </Text>
             )}
           </Box>
@@ -1104,7 +1101,7 @@ export function Sidebar({
                 size="1"
                 style={{ color: 'var(--slate-11)', letterSpacing: '0.04px' }}
               >
-                {t('nav.private')}
+                {"Private"}
               </Text>
               {onAddPrivate && (
                 <Box onClick={onAddPrivate} style={{ cursor: 'pointer' }}>
@@ -1146,7 +1143,7 @@ export function Sidebar({
                   lineHeight: '16px',
                 }}
               >
-                {t('sidebar.noPrivateYet')}
+                {"No private files or folders have been added yet"}
               </Text>
             )}
           </Box>
@@ -1189,7 +1186,7 @@ export function Sidebar({
         >
           <MaterialIcon name="chevron_left" size={24} color="var(--slate-11)" />
           <Text size="3" weight="medium" style={{ color: 'var(--slate-12)' }}>
-            {t('nav.allRecords')}
+            {"All Records"}
           </Text>
         </Flex>
       </Flex>
@@ -1232,14 +1229,14 @@ export function Sidebar({
               fontWeight:500,
             }}
           >
-            {t('nav.all')}
+            {"All"}
           </Text>
         </Button>
 
         {/* Collections section */}
         <Box style={{ marginBottom: '16px' }}>
           <SectionHeader
-            title={t('nav.collections')}
+            title={"Collections"}
             isExpanded={expandedSections.has('collections')}
             onToggle={() => toggleSection('collections')}
           />
@@ -1247,7 +1244,7 @@ export function Sidebar({
             <Flex direction="column" gap="0" style={{ marginTop: '4px' }}>
               {isLoadingFlatCollections ? (
                 <Text size="1" style={{ color: 'var(--slate-9)', padding: '8px 24px' }}>
-                  {t('action.loading')}
+                  {"Loading..."}
                 </Text>
               ) : flatCollections.length > 0 ? (
                 flatCollections.map((collection) => (
@@ -1260,7 +1257,7 @@ export function Sidebar({
                 ))
               ) : (
                 <Text size="1" style={{ color: 'var(--slate-9)', padding: '8px 24px' }}>
-                  {t('message.noCollections')}
+                  {"No collections found"}
                 </Text>
               )}
             </Flex>
@@ -1309,7 +1306,7 @@ export function Sidebar({
                   ))
                 ) : (
                   <Text size="1" style={{ color: 'var(--slate-9)', padding: '8px 24px' }}>
-                    {t('message.noItems')}
+                    {"No items connected"}
                   </Text>
                 )}
               </Flex>
@@ -1334,7 +1331,7 @@ export function Sidebar({
               }}
             >
               <MaterialIcon name="hub" size={16} color="var(--accent-11)" />
-              {t('nav.moreConnectors')}
+              {"More Connectors"}
             </Text>
             <Flex direction="column" gap="2" style={{ marginTop: '4px' }}>
               {moreConnectors.map((connector) => (
@@ -1362,7 +1359,7 @@ export function Sidebar({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <MaterialIcon name="hub" size={16} color="var(--accent-11)" />
                 <Text size="2" style={{ color: 'var(--slate-12)', fontWeight: 400 }}>
-                  {t('sidebar.seeMoreConnectors')}
+                  {"See More Connectors"}
                 </Text>
                 </div>
                 <MaterialIcon name="arrow_outward" size={14} color="var(--slate-9)" />

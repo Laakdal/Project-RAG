@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Flex, Box, Text, IconButton } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
-import { useTranslation } from 'react-i18next';
 import type { ActiveMessageAction } from '@/chat/types';
 
 interface MessageActionIndicatorProps {
@@ -32,7 +31,6 @@ export function MessageActionIndicator({
   onDismiss,
   onSubmit,
 }: MessageActionIndicatorProps) {
-  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [editText, setEditText] = useState(
     action.type === 'editQuery' ? action.text : '',
@@ -77,8 +75,8 @@ export function MessageActionIndicator({
 
   const label =
     action.type === 'regenerate'
-      ? t('chat.regenerateResponse', 'Regenerate response')
-      : t('chat.editQuery', 'Edit Query');
+      ? 'Regenerate response'
+      : 'Edit Query';
 
   return (
     <Flex direction="column" gap="2" style={{ width: '100%' }}>

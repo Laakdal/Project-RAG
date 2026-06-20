@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Badge, Blockquote } from '@radix-ui/themes';
 import type { PreviewCitation } from './types';
 
@@ -33,7 +32,6 @@ export function CitationsPanel({
   activeCitationId,
   onCitationClick,
 }: CitationsPanelProps) {
-  const { t } = useTranslation();
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Auto-scroll active citation into view (delayed for smoother UX)
@@ -79,7 +77,7 @@ export function CitationsPanel({
         }}
       >
         <Text size="2" weight="medium">
-          {t('chat.citations')}
+          {"Citations"}
         </Text>
       </Flex>
 
@@ -131,7 +129,6 @@ export interface CitationCardProps {
 
 export const CitationCard = React.forwardRef<HTMLDivElement, CitationCardProps>(
   function CitationCard({ citation, index, isActive, onClick }, ref) {
-    const { t } = useTranslation();
     const [isHovered, setIsHovered] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [isTruncated, setIsTruncated] = useState(false);
@@ -185,7 +182,7 @@ export const CitationCard = React.forwardRef<HTMLDivElement, CitationCardProps>(
             lineHeight: 'var(--line-height-1)',
           }}
         >
-          {t('filePreview.citationLabel', { index })}
+          {`Citation ${index}`}
         </Text>
 
         {/* Blockquote — clamped to CITATION_CLAMP_LINES when not expanded */}
@@ -232,7 +229,7 @@ export const CitationCard = React.forwardRef<HTMLDivElement, CitationCardProps>(
                   setExpanded((prev) => !prev);
                 }}
               >
-                {expanded ? t('filePreview.showLess') : t('filePreview.showMore')}
+                {expanded ? "Show less" : "Show more"}
               </Text>
             )}
           </Flex>
@@ -249,7 +246,7 @@ export const CitationCard = React.forwardRef<HTMLDivElement, CitationCardProps>(
                 color="gray"
                 style={{ fontWeight: 500 }}
               >
-                {t('filePreview.page', { number: p })}
+                {`Page ${p}`}
               </Badge>
             ))}
             {citation.paragraphNumbers?.map((b) => (
@@ -260,7 +257,7 @@ export const CitationCard = React.forwardRef<HTMLDivElement, CitationCardProps>(
                 color="gray"
                 style={{ fontWeight: 500 }}
               >
-                {t('filePreview.paragraph', { number: b })}
+                {`Paragraph ${b}`}
               </Badge>
             ))}
           </Flex>

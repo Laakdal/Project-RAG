@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { Dialog, Flex, Text, TextField, Button, Box, Callout, VisuallyHidden } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { useTranslation } from 'react-i18next';
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -26,7 +25,6 @@ export function DeleteConfirmationDialog({
   warningMessage,
   isDeleting = false,
 }: DeleteConfirmationDialogProps) {
-  const { t } = useTranslation();
   const [confirmText, setConfirmText] = useState('');
   const isConfirmed = confirmText === 'DELETE';
 
@@ -46,13 +44,13 @@ export function DeleteConfirmationDialog({
   const getItemTypeLabel = () => {
     switch (itemType) {
       case 'KB':
-        return t('itemType.knowledgeBase') + ' will be deleted';
+        return "knowledge base" + ' will be deleted';
       case 'folder':
-        return t('itemType.folder') + ' will be deleted from the collection';
+        return "folder" + ' will be deleted from the collection';
       case 'record':
-        return t('itemType.file') + ' will be deleted from the collection';
+        return "file" + ' will be deleted from the collection';
       default:
-        return t('itemType.file');
+        return "file";
     }
   };
 
@@ -84,7 +82,7 @@ export function DeleteConfirmationDialog({
         <Flex direction="column" gap="4">
           <Flex direction="column" gap="1">
             <Text size="5" weight="bold">
-              {t('dialog.areYouSure')}
+              {"Are you sure?"}
             </Text>
               <Text size="2" weight="bold" style={{ color: 'var(--slate-12)', marginRight: '4px' }}>&apos;{itemName}&apos;<Text size="2" style={{ color: 'var(--slate-11)' }}> {getItemTypeLabel()} </Text></Text>
           </Flex>
@@ -102,7 +100,7 @@ export function DeleteConfirmationDialog({
 
           <Flex direction="column" gap="2">
             <Text size="2" weight="medium" style={{ color: 'var(--olive-11)' }}>
-              {t('dialog.typeDeleteToConfirm')}
+              {"Type DELETE to confirm"}
             </Text>
             <TextField.Root
               placeholder=""
@@ -121,16 +119,16 @@ export function DeleteConfirmationDialog({
               onClick={() => onOpenChange(false)}
               disabled={isDeleting}
             >
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               color="red"
               onClick={handleConfirm}
               disabled={!isConfirmed}
               loading={isDeleting}
-              loadingLabel={t('action.deleting')}
+              loadingLabel={"Deleting..."}
             >
-              {t('action.delete')}
+              {"Delete"}
             </LoadingButton>
           </Flex>
         </Flex>

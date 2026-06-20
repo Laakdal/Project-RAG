@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Button, Badge, IconButton } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 
@@ -20,7 +19,6 @@ export function RecordsSection({
   availableRecords: { id: string; name: string }[];
   onSelectRecords: () => void;
 }) {
-  const { t } = useTranslation();
   const hasRecords = selectedRecords.length > 0;
 
   // Map IDs to names using availableRecords; fall back to the ID if not found
@@ -42,7 +40,7 @@ export function RecordsSection({
       <Flex direction="column" gap="1">
         <Flex align="center" justify="between">
           <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.connectors.configTab.recordsToIndex')}
+            {"Records to index"}
           </Text>
           {hasRecords && (
             <Flex align="center" gap="2">
@@ -54,7 +52,7 @@ export function RecordsSection({
                   padding: '2px 6px',
                 }}
               >
-                {t('table.selected', { count: selectedRecords.length })}
+                {`${selectedRecords.length} selected`}
               </Badge>
               <IconButton
                 variant="ghost"
@@ -69,7 +67,7 @@ export function RecordsSection({
           )}
         </Flex>
         <Text size="1" style={{ color: 'var(--gray-10)' }}>
-          {t('workspace.connectors.configTab.recordsDescription', { name: connectorName })}
+          {`Choose which ${connectorName} records should be imported`}
         </Text>
       </Flex>
 
@@ -93,7 +91,7 @@ export function RecordsSection({
           style={{ width: '100%', cursor: 'pointer' }}
         >
           <MaterialIcon name="add" size={16} color="white" />
-          {t('workspace.connectors.configTab.selectRecords')}
+          {"Select"}
         </Button>
       )}
     </Flex>

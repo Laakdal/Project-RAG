@@ -12,7 +12,6 @@ import { buildConnectorsUrl } from '@/app/(main)/workspace/connectors/utils/buil
 import { useKnowledgeBaseStore } from '../store';
 import { loadMoreRootAppList, loadMoreAppChildPage } from '../utils/sidebar-paginated-fetch';
 import { fetchAppDirectChildren } from '../utils/fetch-app-direct-children';
-import { useTranslation } from 'react-i18next';
 import { CollectionsMode } from './collections-mode';
 import { AllRecordsMode } from './all-records-mode';
 import { SidebarLoadMoreButton } from './sidebar-load-more-button';
@@ -93,7 +92,6 @@ export default function KnowledgeBaseSidebar(props?: KBSidebarProps) {
  * Used when rendered via @sidebar parallel route slot.
  */
 function KBSidebarFromStore() {
-  const { t } = useTranslation();
   const router = useRouter();
   const store = useKnowledgeBaseStore();
   const pageViewMode = store.currentViewMode || 'collections';
@@ -105,7 +103,7 @@ function KBSidebarFromStore() {
     router.push('/chat');
   };
 
-  const title = pageViewMode === 'collections' ? t('nav.collections') : t('nav.allRecords');
+  const title = pageViewMode === 'collections' ? "Collections" : "All Records";
 
   return (
     <SidebarBase
@@ -115,7 +113,7 @@ function KBSidebarFromStore() {
       onMobileClose={closeMobileSidebar}
     >
       <Text size="1" style={{ color: 'var(--slate-9)', padding: 'var(--space-2)' }}>
-        {t('action.loading')}
+        {"Loading..."}
       </Text>
     </SidebarBase>
   );
@@ -159,7 +157,6 @@ function KBSidebarContent({
   onAllRecordsSelectConnectorItem,
 }: KBSidebarProps) {
   const router = useRouter();
-  const { t } = useTranslation();
   const isAdmin = useUserStore(selectIsAdmin);
   const isMobile = useIsMobile();
   const isMobileOpen = useMobileSidebarStore((s) => s.isOpen);
@@ -211,7 +208,7 @@ function KBSidebarContent({
   } | null>(null);
 
   const isCollectionsMode = pageViewMode === 'collections';
-  const headerTitle = isCollectionsMode ? t('nav.collections') : t('nav.allRecords');
+  const headerTitle = isCollectionsMode ? "Collections" : "All Records";
 
   // Build folder tree from knowledge bases (fallback when tree prop is not provided)
   const buildTreeFromKbs = (kbs: KnowledgeBase[]): EnhancedFolderTreeNode[] => {
@@ -426,7 +423,7 @@ function KBSidebarContent({
       <SecondaryPanel
         header={
           <SidebarBackHeader
-            title={t('sidebar.moreCollections')}
+            title={"More Collections"}
             onBack={handleDismissSecondaryPanel}
           />
         }
@@ -435,7 +432,7 @@ function KBSidebarContent({
         <Box style={{ padding: '0 0 8px', flexShrink: 0 }}>
           <TextField.Root
             size="2"
-            placeholder={t('sidebar.searchCollections')}
+            placeholder={"Search"}
             value={secondaryPanelSearchQuery}
             onChange={(e) => setSecondaryPanelSearchQuery(e.target.value)}
           >

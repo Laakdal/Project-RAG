@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, Flex, Text, Button, Box, RadioGroup, VisuallyHidden } from '@radix-ui/themes';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { useTranslation } from 'react-i18next';
 import {
   getReindexMenuLabel,
   type ReindexMenuLabelKey,
@@ -29,7 +28,6 @@ export function ReindexScopeDialog({
   onConfirm,
   isSubmitting = false,
 }: ReindexScopeDialogProps) {
-  const { t } = useTranslation();
   const [scope, setScope] = useState<ReindexScopeChoice>('subtree');
 
   useEffect(() => {
@@ -40,7 +38,6 @@ export function ReindexScopeDialog({
 
   const primaryLabel = getReindexMenuLabel(
     { icon: 'refresh', labelKey: primaryLabelKey },
-    t,
   );
 
   const handleConfirm = async () => {
@@ -77,10 +74,7 @@ export function ReindexScopeDialog({
               {primaryLabel}
             </Text>
             <Text size="2" style={{ color: 'var(--slate-11)' }}>
-              {t('reindexScope.description', {
-                name: itemName,
-                defaultValue: 'Choose what to index for "{{name}}".',
-              })}
+              {`Choose what to index for "${itemName}".`}
             </Text>
           </Flex>
 
@@ -94,7 +88,7 @@ export function ReindexScopeDialog({
                   <RadioGroup.Item value="self" style={{ marginTop: 2 }} />
                   <Flex direction="column" gap="0">
                     <Text weight="medium">
-                      {t('reindexScope.thisItemOnly', { defaultValue: 'This item only' })}
+                      {"This item only"}
                     </Text>
                   </Flex>
                 </Flex>
@@ -104,9 +98,7 @@ export function ReindexScopeDialog({
                   <RadioGroup.Item value="subtree" style={{ marginTop: 2 }} />
                   <Flex direction="column" gap="0">
                     <Text weight="medium">
-                      {t('reindexScope.withChildren', {
-                        defaultValue: 'This item and all children',
-                      })}
+                      {"This item and all children"}
                     </Text>
                   </Flex>
                 </Flex>
@@ -121,7 +113,7 @@ export function ReindexScopeDialog({
               disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
-              {t('common.cancel', { defaultValue: 'Cancel' })}
+              {"Cancel"}
             </Button>
             <LoadingButton
               loading={isSubmitting}

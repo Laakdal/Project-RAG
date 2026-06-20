@@ -4,7 +4,7 @@ import { Theme } from '@radix-ui/themes';
 import { Tooltip } from 'radix-ui';
 import { useEffect, useState, useCallback, createContext, useContext } from 'react';
 
-const THEME_STORAGE_KEY = 'pipeshub-theme-preference';
+const THEME_STORAGE_KEY = 'theme-preference';
 
 type Appearance = 'light' | 'dark';
 
@@ -60,7 +60,7 @@ export function ThemeScript() {
   return (
     <script
       dangerouslySetInnerHTML={{
-        __html: `(function(){try{var k='pipeshub-theme-preference',p=localStorage.getItem(k)||'system',d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.add(d?'dark':'light');document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()`,
+        __html: `(function(){try{var k='theme-preference',p=localStorage.getItem(k)||'system',d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.add(d?'dark':'light');document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()`,
       }}
     />
   );

@@ -6,7 +6,7 @@ import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { KBD_BADGE_PADDING, ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { useCommandStore } from '@/lib/store/command-store';
-import { useTranslation } from 'react-i18next';
+
 import { getModifierSymbol } from '@/lib/utils/platform';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { useMobileSidebarStore } from '@/lib/store/mobile-sidebar-store';
@@ -40,7 +40,6 @@ const KbdBadge = ({ children }: { children: React.ReactNode }) => (
  */
 export function StaticNavSection() {
   const dispatch = useCommandStore((s) => s.dispatch);
-  const { t } = useTranslation();
   const modKey = useMemo(() => getModifierSymbol(), []);
   const isMobile = useIsMobile();
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
@@ -59,7 +58,7 @@ export function StaticNavSection() {
       {/* New Chat */}
       <SidebarItem
         icon={<ChatStarIcon size={ICON_SIZE_DEFAULT} color="var(--accent-a11)" />}
-        label={t('chat.newChat')}
+        label={"New Chat"}
         onClick={handleNewChat}
         textColor="var(--accent-a11)"
         fontWeight={500}
@@ -67,7 +66,7 @@ export function StaticNavSection() {
       {/* Search Chats — opens command palette (⌘+K) */}
       <SidebarItem
         icon={<MaterialIcon name={'search'} size={ICON_SIZE_DEFAULT} />}
-        label={t('nav.searchChats')}
+        label={"Search Chats"}
         onClick={handleOpenSearch}
         rightSlot={<KbdBadge>{modKey} +K</KbdBadge>}
       />

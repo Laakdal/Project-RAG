@@ -1,7 +1,6 @@
 'use client';
 
 import { Dialog, Flex, Text, Button, Box, VisuallyHidden } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 
 interface ArchiveChatDialogProps {
@@ -24,8 +23,6 @@ export function ArchiveChatDialog({
   chatTitle,
   isArchiving = false,
 }: ArchiveChatDialogProps) {
-  const { t } = useTranslation();
-
   const handleConfirm = async () => {
     if (!isArchiving) {
       await onConfirm();
@@ -60,14 +57,14 @@ export function ArchiveChatDialog({
         <Flex direction="column" gap="4">
           <Flex direction="column" gap="1">
             <Text size="5" weight="bold">
-              {t('chat.archiveChatConfirm')}
+              {"Are you sure?"}
             </Text>
             <Text size="2" style={{ color: 'var(--slate-11)' }}>
-              {t('chat.archiveChatDescription')}{' '}
+              {"The chat titled"}{' '}
               <Text size="2" weight="bold" style={{ color: 'var(--slate-12)' }}>
                 &apos;{chatTitle}&apos;
               </Text>{' '}
-              {t('chat.archiveChatWarning')}
+              {"will be archived."}
             </Text>
           </Flex>
 
@@ -78,15 +75,15 @@ export function ArchiveChatDialog({
               onClick={() => onOpenChange(false)}
               disabled={isArchiving}
             >
-              {t('action.cancel')}
+              {"Cancel"}
             </Button>
             <LoadingButton
               color="jade"
               onClick={handleConfirm}
               loading={isArchiving}
-              loadingLabel={t('chat.archiving')}
+              loadingLabel={"Archiving..."}
             >
-              {t('chat.archive')}
+              {"Archive"}
             </LoadingButton>
           </Flex>
         </Flex>

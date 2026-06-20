@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Text, TextField } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { CHAT_ITEM_HEIGHT, ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
@@ -195,7 +194,6 @@ export function AgentBuilderToolsetsSection(props: {
     webSearchAttached,
   } = props;
 
-  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState('');
   const [expandedApps, setExpandedApps] = useState<Record<string, boolean>>({});
   const [userConfigToolset, setUserConfigToolset] = useState<BuilderSidebarToolset | null>(null);
@@ -236,11 +234,11 @@ export function AgentBuilderToolsetsSection(props: {
         pollRef.current = null;
       }
       await refreshToolsets(agentKey, isServiceAccount, searchInput);
-      onNotify(t('agentBuilder.oauthSuccessNotify'));
+      onNotify("Authentication successful. Toolset list refreshed.");
     };
     window.addEventListener('message', onOAuthMessage);
     return () => window.removeEventListener('message', onOAuthMessage);
-  }, [agentKey, isServiceAccount, onNotify, refreshToolsets, searchInput, t]);
+  }, [agentKey, isServiceAccount, onNotify, refreshToolsets, searchInput]);
 
   const buildUiState = useCallback(
     (ts: BuilderSidebarToolset) => {
@@ -252,8 +250,8 @@ export function AgentBuilderToolsetsSection(props: {
           configureUseKeyIcon: true,
           configureIconColor: 'var(--slate-11)',
           configureTooltip: ts.isAuthenticated
-            ? t('agentBuilder.manageAgentCredentialsTooltip')
-            : t('agentBuilder.setAgentCredentialsTooltip'),
+            ? "Manage agent credentials for this toolset"
+            : "Set agent credentials for this toolset",
         };
       }
       if (isFromRegistry) {
@@ -262,7 +260,7 @@ export function AgentBuilderToolsetsSection(props: {
           forceShowConfigureIcon: true,
           configureUseKeyIcon: false,
           configureIconColor: 'var(--slate-10)',
-          configureTooltip: t('agentBuilder.notConfiguredTooltip'),
+          configureTooltip: "Not configured (registry listing only)",
         };
       }
       return {
@@ -272,17 +270,17 @@ export function AgentBuilderToolsetsSection(props: {
         configureIconColor: 'var(--slate-11)',
         configureTooltip:
           ts.isConfigured && !ts.isAuthenticated
-            ? t('agentBuilder.authenticateToolsetTooltip')
-            : t('agentBuilder.configureToolsetTooltip'),
+            ? "Authenticate this toolset"
+            : "Configure toolset",
       };
     },
-    [isServiceAccount, t]
+    [isServiceAccount]
   );
 
   const handleConfigureClick = useCallback(
     (ts: BuilderSidebarToolset) => {
       if (orgCredentialUiLocked) {
-        onNotify(t('agentBuilder.paletteActionBlockedViewOnly'));
+        onNotify("View only. This org service agent cannot be changed here.");
         return;
       }
       const instanceId = ts.instanceId || '';
@@ -293,61 +291,55 @@ export function AgentBuilderToolsetsSection(props: {
         return;
       }
       if (isFromRegistry) {
+        const _name = ts.instanceName?.trim() || ts.displayName || ts.name || '';
         onNotify(
-          t('agentBuilder.toolsetNotConfiguredNotify', {
-            name: ts.instanceName?.trim() || ts.displayName || ts.name || '',
-          })
+          `${_name} is not configured yet. Ask an administrator to add this toolset.`
         );
         return;
       }
 
       setUserConfigToolset(ts);
     },
-    [orgCredentialUiLocked, isServiceAccount, onManageAgentToolsetCredentials, onNotify, t]
+    [orgCredentialUiLocked, isServiceAccount, onManageAgentToolsetCredentials, onNotify]
   );
 
   const toolsetsByType = useMemo(() => groupToolsetsByType(toolsets), [toolsets]);
 
   const handleUnconfiguredDrag = useCallback(
     (ts: BuilderSidebarToolset, isFromRegistry: boolean) => {
+      const _name = ts.instanceName?.trim() || ts.displayName || ts.name || '';
       if (isFromRegistry) {
         onNotify(
-          t('agentBuilder.toolsetNotConfiguredNotify', {
-            name: ts.instanceName?.trim() || ts.displayName || ts.name || '',
-          })
+          `${_name} is not configured yet. Ask an administrator to add this toolset.`
         );
         return;
       }
       const reason = !ts.isConfigured
-        ? t('agentBuilder.notConfiguredReason')
-        : t('agentBuilder.notAuthenticatedReason');
+        ? "not configured"
+        : "not authenticated";
       onNotify(
-        t('agentBuilder.toolsetNotReadyNotify', {
-          name: ts.instanceName?.trim() || ts.displayName || ts.name || '',
-          reason,
-        })
+        `${_name} is ${reason}. Configure it before dragging onto the canvas.`
       );
     },
-    [onNotify, t]
+    [onNotify]
   );
 
   const handleDuplicateDrag = useCallback(
     (ts: BuilderSidebarToolset) => {
+      const _name = normalizePaletteLabel(ts.toolsetType || ts.name);
       onNotify(
-        t('agentBuilder.toolsetDuplicateNotify', {
-          name: normalizePaletteLabel(ts.toolsetType || ts.name),
-        })
+        `Only one ${_name} toolset can be on the canvas at a time.`
       );
     },
-    [onNotify, t]
+    [onNotify]
   );
 
   const notifyStructureDragBlocked = useCallback(() => {
     if (onPaletteStructureDragBlocked) onPaletteStructureDragBlocked();
-    else onNotify(t('agentBuilder.viewerPaletteDragBlocked'));
-  }, [onPaletteStructureDragBlocked, onNotify, t]);
+    else onNotify("View only. Flow is locked; authenticate toolsets under Tools.");
+  }, [onPaletteStructureDragBlocked, onNotify]);
 
-  const orgCredentialLockedTooltip = t('agentBuilder.paletteActionBlockedViewOnly');
+  const orgCredentialLockedTooltip = "View only. This org service agent cannot be changed here.";
 
   return (
     <Box style={{ minWidth: 0 }}>
@@ -357,7 +349,7 @@ export function AgentBuilderToolsetsSection(props: {
           size="2"
           variant="surface"
           color="gray"
-          placeholder={t('agentBuilder.searchToolsets')}
+          placeholder="Search toolsets…"
           value={searchInput}
           onChange={(e) => handleSearchChange(e.target.value)}
           disabled={loading || orgCredentialUiLocked}
@@ -382,8 +374,8 @@ export function AgentBuilderToolsetsSection(props: {
         <Box pl="3" py="2">
           <Text size="1" style={{ color: 'var(--slate-11)', fontStyle: 'italic' }}>
             {searchInput.trim()
-            ? t('agentBuilder.noToolsetsMatch', { query: searchInput })
-            : t('agentBuilder.noToolsetsAvailable')}
+            ? `No toolsets match "${searchInput}".`
+            : "No toolsets available."}
           </Text>
         </Box>
       ) : null}

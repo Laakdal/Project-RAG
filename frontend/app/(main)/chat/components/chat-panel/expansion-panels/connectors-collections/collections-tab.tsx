@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Flex, Text, Checkbox, IconButton } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { ChatApi, type KnowledgeBaseForChat, type ListCollectionsForChatResult } from '@/chat/api';
@@ -222,7 +221,6 @@ export function CollectionsTab({
 
   const setCollectionNamesCache = useChatStore((s) => s.setCollectionNamesCache);
   const setCollectionMetaCache = useChatStore((s) => s.setCollectionMetaCache);
-  const { t } = useTranslation();
   const mainChatConnectorDefaultHint = useMainChatConnectorDefaultHint();
 
   const fetchCollections = useCallback(async () => {
@@ -392,7 +390,7 @@ export function CollectionsTab({
     } catch {
       setChildrenErrorByRootId((prev) => ({
         ...prev,
-        [row.id]: t('chat.failedToLoadCollections', { defaultValue: 'Failed to load' }),
+        [row.id]: "Failed to load collections",
       }));
     } finally {
       loadingChildRootRef.current.delete(row.id);
@@ -402,7 +400,7 @@ export function CollectionsTab({
         return next;
       });
     }
-  }, [setCollectionNamesCache, setCollectionMetaCache, t]);
+  }, [setCollectionNamesCache, setCollectionMetaCache]);
 
   // When in 'collections' mode, auto-fetch KB children sequentially on root list change.
   // Sequential processing avoids bursting N parallel API calls for workspaces with many roots.
@@ -486,13 +484,13 @@ export function CollectionsTab({
       } catch {
         setChildrenErrorByRootId((prev) => ({
           ...prev,
-          [row.id]: t('chat.failedToLoadCollections', { defaultValue: 'Failed to load' }),
+          [row.id]: "Failed to load collections",
         }));
       } finally {
         setLoadingMoreRootId(null);
       }
     },
-    [childrenMetaByRootId, loadingChildrenRootIds, loadingMoreRootId, setCollectionNamesCache, setCollectionMetaCache, t]
+    [childrenMetaByRootId, loadingChildrenRootIds, loadingMoreRootId, setCollectionNamesCache, setCollectionMetaCache]
   );
 
   const toggleExpanded = useCallback(
@@ -654,7 +652,7 @@ export function CollectionsTab({
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            placeholder={t('chat.searchCollections')}
+            placeholder={"Search connectors and collections"}
             style={{
               flex: 1,
               border: 'none',
@@ -677,7 +675,7 @@ export function CollectionsTab({
             flexShrink: 0,
           }}
         >
-          {t('chat.connectorsDefaultScopeHint')}
+          {"All connectors and collections are searched by default. Select specific ones below if you want to narrow the scope."}
         </Text>
       )}
 
@@ -702,7 +700,7 @@ export function CollectionsTab({
         {hasError && !isLoading && (
           <Flex align="center" justify="center" style={{ padding: 'var(--space-4)' }}>
             <Text size="2" style={{ color: 'var(--red-9)' }}>
-              {t('chat.failedToLoadCollections')}
+              {"Failed to load collections"}
             </Text>
           </Flex>
         )}
@@ -712,7 +710,7 @@ export function CollectionsTab({
           flatKbItems.length === 0 ? (
             <Flex align="center" justify="center" style={{ padding: 'var(--space-4)' }}>
               <Text size="2" style={{ color: 'var(--slate-9)' }}>
-                {searchQuery ? t('message.noCollections') : t('chat.noCollectionsAvailable')}
+                {searchQuery ? "No collections found" : "No collections available"}
               </Text>
             </Flex>
           ) : (
@@ -734,7 +732,7 @@ export function CollectionsTab({
         {filterMode !== 'collections' && !isLoading && !hasError && collections.length === 0 && (
           <Flex align="center" justify="center" style={{ padding: 'var(--space-4)' }}>
             <Text size="2" style={{ color: 'var(--slate-9)' }}>
-              {searchQuery ? t('message.noCollections') : t('chat.noCollectionsAvailable')}
+              {searchQuery ? "No collections found" : "No collections available"}
             </Text>
           </Flex>
         )}
@@ -853,7 +851,7 @@ export function CollectionsTab({
                           variant="ghost"
                           color="gray"
                           aria-expanded={expanded}
-                          aria-label={expanded ? t('common.collapse') : t('common.expand')}
+                          aria-label={expanded ? "Collapse" : "Expand"}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleExpanded(col);
@@ -931,8 +929,8 @@ export function CollectionsTab({
                           }}
                         >
                           {loadingMoreRootId === col.id
-                            ? t('agentBuilder.loadingMore')
-                            : t('agentBuilder.loadMore')}
+                            ? "Loading…"
+                            : "Load more"}
                         </button>
                       </Flex>
                     ) : null}
@@ -966,7 +964,7 @@ export function CollectionsTab({
                 textAlign: 'left',
               }}
             >
-              {loadingMoreApps ? t('agentBuilder.loadingMore') : t('agentBuilder.loadMore')}
+              {loadingMoreApps ? "Loading…" : "Load more"}
             </button>
           </Flex>
         ) : null}

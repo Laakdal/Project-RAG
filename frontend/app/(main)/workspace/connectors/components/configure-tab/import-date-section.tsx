@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Box, Checkbox } from '@radix-ui/themes';
 
 // ========================================
@@ -9,7 +8,6 @@ import { Flex, Text, Box, Checkbox } from '@radix-ui/themes';
 // ========================================
 
 export function ImportDateSection() {
-  const { t } = useTranslation();
   const [importDate, setImportDate] = useState<string>('');
   const [importAllTime, setImportAllTime] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -27,10 +25,10 @@ export function ImportDateSection() {
     >
       <Flex direction="column" gap="1">
         <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.connectors.configTab.importDate')}
+          {"Import start date"}
         </Text>
         <Text size="1" style={{ color: 'var(--gray-10)' }}>
-          {t('workspace.connectors.configTab.importDateDescription')}
+          {"Choose the date from which messages are imported"}
         </Text>
       </Flex>
 
@@ -67,7 +65,7 @@ export function ImportDateSection() {
           onCheckedChange={(checked) => setImportAllTime(Boolean(checked))}
         />
         <Text size="2" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.connectors.configTab.importAllTime')}
+          {"Import All Time Data"}
         </Text>
       </Flex>
     </Flex>

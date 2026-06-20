@@ -13,7 +13,6 @@ import {
   TextField,
   VisuallyHidden,
 } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { LoadingButton } from '@/app/components/ui/loading-button';
 import { AgentsApi } from '@/app/(main)/agents/api';
@@ -50,7 +49,6 @@ function extractApiError(e: unknown, fallback: string): string {
 
 export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps) {
   const router = useRouter();
-  const { t } = useTranslation();
 
   const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState<AgentType>('user');
@@ -133,7 +131,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
       // the button stays disabled until this component unmounts.
       router.replace(`/agents/edit?agentKey=${encodeURIComponent(created._key)}`);
     } catch (e: unknown) {
-      setError(extractApiError(e, t('agentBuilder.saveFailed')));
+      setError(extractApiError(e, "Save failed"));
     } finally {
       // Only unlock on failure — on success we stay locked until unmount.
       if (!succeeded) {
@@ -141,7 +139,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
         setCreating(false);
       }
     }
-  }, [agentName, agentType, defaultModel, router, t]);
+  }, [agentName, agentType, defaultModel, router]);
 
   const handleServiceAccountConfirm = useCallback(async () => {
     if (serviceCreateRef.current) return;
@@ -167,14 +165,14 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
       succeeded = true;
       router.replace(`/agents/edit?agentKey=${encodeURIComponent(created._key)}&sa=1`);
     } catch (e: unknown) {
-      setServiceError(extractApiError(e, t('agentBuilder.svcAcctEnableFailed')));
+      setServiceError(extractApiError(e, "Failed to enable service agent mode."));
     } finally {
       if (!succeeded) {
         serviceCreateRef.current = false;
         setServiceCreating(false);
       }
     }
-  }, [agentName, defaultModel, router, t]);
+  }, [agentName, defaultModel, router]);
 
   const mainDialogOpen = open && !showServiceConfirm;
 
@@ -203,7 +201,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <VisuallyHidden>
-            <Dialog.Title>{t('agentBuilder.createAgent')}</Dialog.Title>
+            <Dialog.Title>{"Create agent"}</Dialog.Title>
           </VisuallyHidden>
 
           <Flex direction="column" gap="4">
@@ -230,10 +228,10 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                   weight="bold"
                   style={{ color: 'var(--olive-12)', lineHeight: 1.3, display: 'block' }}
                 >
-                  {t('agentBuilder.createAgent')}
+                  {"Create agent"}
                 </Text>
                 <Text size="2" style={{ color: 'var(--olive-11)', lineHeight: 1.4, display: 'block' }}>
-                  {t('agentBuilder.createAgentSubtitle')}
+                  {"Give your agent a name and choose a type."}
                 </Text>
               </Box>
             </Flex>
@@ -241,10 +239,10 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
             {/* Agent name field */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--olive-12)' }}>
-                {t('agentBuilder.agentName')}
+                {"Name"}
               </Text>
               <TextField.Root
-                placeholder={t('agentBuilder.agentNamePlaceholder')}
+                placeholder="e.g. Support bot"
                 value={agentName}
                 onChange={(e) => {
                   setAgentName(e.target.value);
@@ -260,7 +258,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
               />
               {nameError && (
                 <Text size="1" style={{ color: 'var(--red-11)' }}>
-                  {t('agentBuilder.nameRequired')}
+                  {"Enter a name to continue."}
                 </Text>
               )}
             </Flex>
@@ -268,7 +266,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
             {/* Agent type radio group */}
             <Flex direction="column" gap="2">
               <Text size="2" weight="medium" style={{ color: 'var(--olive-12)' }}>
-                {t('agentBuilder.agentType')}
+                {"Agent type"}
               </Text>
               <RadioGroup.Root
                 value={agentType}
@@ -307,10 +305,10 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                     </Box>
                     <Flex direction="column" gap="1">
                       <Text size="2" weight="medium" style={{ color: 'var(--olive-12)', lineHeight: 1.35 }}>
-                        {t('agentBuilder.userAgent')}
+                        {"User agent"}
                       </Text>
                       <Text size="1" style={{ color: 'var(--olive-11)', lineHeight: 1.45 }}>
-                        {t('agentBuilder.userAgentDesc')}
+                        {"Personal agent with per-user toolset authentication."}
                       </Text>
                     </Flex>
                   </Box>
@@ -346,10 +344,10 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                     </Box>
                     <Flex direction="column" gap="1">
                       <Text size="2" weight="medium" style={{ color: 'var(--olive-12)', lineHeight: 1.35 }}>
-                        {t('agentBuilder.serviceAgent')}
+                        {"Service agent"}
                       </Text>
                       <Text size="1" style={{ color: 'var(--olive-11)', lineHeight: 1.45 }}>
-                        {t('agentBuilder.serviceAgentDesc')}
+                        {"Org-wide agent with agent-level toolset credentials."}
                       </Text>
                     </Flex>
                   </Box>
@@ -377,7 +375,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                 onClick={() => onOpenChange(false)}
                 disabled={creating}
               >
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
               <LoadingButton
                 type="button"
@@ -385,9 +383,9 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                 color="jade"
                 onClick={() => void handleCreate()}
                 loading={creating}
-                loadingLabel={t('action.creating')}
+                loadingLabel="Creating..."
               >
-                {agentType === 'service' ? t('common.continue') : t('agentBuilder.createAgent')}
+                {agentType === 'service' ? "Continue" : "Create agent"}
               </LoadingButton>
             </Flex>
           </Flex>

@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { AgentsApi } from '@/app/(main)/agents/api';
 import type { AgentListRecord } from '@/app/(main)/agents/types';
 import { toast } from '@/lib/store/toast-store';
@@ -41,7 +40,6 @@ export function AgentSidebarListRow({
   onDeleted,
 }: AgentSidebarListRowProps) {
   const router = useRouter();
-  const { t } = useTranslation();
   const menuAccess = getAgentSidebarRowMenuAccess(agent);
   const id = menuAccess?.agentKey ?? agent.id ?? agent._key;
   const canEdit = menuAccess?.canEdit ?? false;
@@ -72,13 +70,13 @@ export function AgentSidebarListRow({
       const detail =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         (e instanceof Error ? e.message : '');
-      toast.error(t('chat.failedToDeleteAgent'), {
+      toast.error("Could not delete agent", {
         description: detail.trim() || undefined,
       });
     } finally {
       setIsDeleting(false);
     }
-  }, [id, onDeleted, t]);
+  }, [id, onDeleted]);
 
   return (
     <>

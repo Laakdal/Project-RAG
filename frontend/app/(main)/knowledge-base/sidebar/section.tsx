@@ -15,7 +15,6 @@ export { appSectionKey };
 import { FolderTreeItem } from './section-element';
 import { FolderIcon } from '@/app/components/ui';
 import { isKbCollectionsHubApp, mapConnectorType } from '../utils/all-records-transformer';
-import { useTranslation } from 'react-i18next';
 import type {
   KnowledgeHubNode,
   EnhancedFolderTreeNode,
@@ -337,7 +336,6 @@ export function AppSection({
 // ========================================
 
 function MoreButton({ onClick }: { onClick?: () => void }) {
-  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -360,7 +358,7 @@ function MoreButton({ onClick }: { onClick?: () => void }) {
       }}
     >
       <MaterialIcon name="more_horiz" size={16} color="var(--slate-11)" />
-      <Text size="2" style={{ color: 'var(--slate-11)' }}>{t('sidebar.more')}</Text>
+      <Text size="2" style={{ color: 'var(--slate-11)' }}>{"More"}</Text>
     </Flex>
   );
 }

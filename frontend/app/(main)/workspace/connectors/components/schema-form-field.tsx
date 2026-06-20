@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useContext, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Box, Checkbox, Switch, Select, IconButton, Tooltip, Button } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { FormField } from '@/app/(main)/workspace/components/form-field';
@@ -524,7 +523,6 @@ function TagsInput({
   disabled: boolean;
   hasError?: boolean;
 }) {
-  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
@@ -557,7 +555,7 @@ function TagsInput({
   const placeholder =
     'placeholder' in field && field.placeholder
       ? field.placeholder
-      : t('workspace.connectors.schemaForm.tagsPlaceholder');
+      : "Type and press Enter to add tags";
 
   return (
     <>
@@ -610,7 +608,7 @@ function TagsInput({
                 variant="ghost"
                 color="gray"
                 disabled={disabled}
-                aria-label={t('workspace.connectors.schemaForm.removeTagAriaLabel', { tag })}
+                aria-label={`Remove ${tag}`}
                 onClick={() => removeTag(tag)}
                 style={{ flexShrink: 0 }}
               >
@@ -963,7 +961,6 @@ function FolderPickerInput({
   onChange: (name: string, value: unknown) => void;
   disabled: boolean;
 }) {
-  const { t } = useTranslation();
   const [isFocused, setIsFocused] = useState(false);
   const pathValue = String(value ?? '');
   const addToast = useToastStore((s) => s.addToast);
@@ -974,8 +971,8 @@ function FolderPickerInput({
     const api = (window as Window & { electronAPI?: { selectFolder?: () => Promise<string | null> } }).electronAPI;
     if (!api?.selectFolder) {
       addToast({
-        title: t('workspace.connectors.schemaForm.folderPickerUnavailableTitle'),
-        description: t('workspace.connectors.schemaForm.folderPickerUnavailableDescription'),
+        title: "Folder picker unavailable",
+        description: "Restart the desktop app or update to the latest build.",
         variant: 'error',
       });
       return;
@@ -1017,7 +1014,7 @@ function FolderPickerInput({
             <Flex align="center" gap="1">
               <MaterialIcon name="folder_open" size={18} color="var(--accent-11)" />
               <span style={{ fontSize: 14, fontFamily: 'var(--default-font-family)' }}>
-                {t('workspace.connectors.schemaForm.chooseFolder')}
+                {"Choose folder"}
               </span>
             </Flex>
           </Button>
@@ -1071,7 +1068,6 @@ function BooleanField({
   disabled: boolean;
   hasError?: boolean;
 }) {
-  const { t } = useTranslation();
   const isIncludeSubfolders = field.name.toLowerCase() === 'include_subfolders';
   const isUnsetValue = value === undefined || value === null || value === '';
 
@@ -1100,8 +1096,8 @@ function BooleanField({
         >
           <Select.Trigger style={{ width: '100%', height: 32 }} />
           <Select.Content>
-            <Select.Item value="yes">{t('common.yes')}</Select.Item>
-            <Select.Item value="no">{t('common.no')}</Select.Item>
+            <Select.Item value="yes">{"Yes"}</Select.Item>
+            <Select.Item value="no">{"No"}</Select.Item>
           </Select.Content>
         </Select.Root>
       </Flex>

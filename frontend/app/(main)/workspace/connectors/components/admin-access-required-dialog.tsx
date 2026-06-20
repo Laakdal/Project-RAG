@@ -2,7 +2,6 @@
 
 import React, { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 import { Dialog, Button, Flex } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { Connector } from '../types';
@@ -27,7 +26,6 @@ export function AdminAccessRequiredDialog({
   onPhaseChange,
   onConfirmAdmin,
 }: AdminAccessRequiredDialogProps) {
-  const { t } = useTranslation();
   const router = useRouter();
 
   const appGroup = connector?.appGroup ?? connector?.name ?? '';
@@ -82,8 +80,8 @@ export function AdminAccessRequiredDialog({
           />
           <Dialog.Title style={{ color: 'var(--slate-12)', margin: 0 }}>
             {isQuestion
-              ? t('workspace.connectors.adminAccessDialog.title')
-              : t('workspace.connectors.adminAccessDialog.redirectTitle')}
+              ? "Admin access required"
+              : "Use the personal connector instead"}
           </Dialog.Title>
         </Flex>
 
@@ -92,11 +90,8 @@ export function AdminAccessRequiredDialog({
           style={{ color: 'var(--slate-11)', lineHeight: '20px', marginTop: 'var(--space-1)' }}
         >
           {isQuestion
-            ? t('workspace.connectors.adminAccessDialog.question', { appGroup })
-            : t('workspace.connectors.adminAccessDialog.redirectMessage', {
-                appGroup,
-                connectorName,
-              })}
+            ? `Do you have admin access in ${appGroup}? The team connector requires admin privileges in the native app to register OAuth applications and sync organization-wide data.`
+            : `The team ${connectorName} connector requires admin access in your ${appGroup} instance. Please use the ${appGroup} Personal connector to sync your own account instead.`}
         </Dialog.Description>
 
         <Flex justify="end" gap="2" mt="4">
@@ -109,10 +104,10 @@ export function AdminAccessRequiredDialog({
                 size="2"
                 onClick={() => onPhaseChange('redirect')}
               >
-                {t('workspace.connectors.adminAccessDialog.noNotAdmin')}
+                {"No, I'm not an admin"}
               </Button>
               <Button type="button" variant="solid" size="2" onClick={onConfirmAdmin}>
-                {t('workspace.connectors.adminAccessDialog.yesContinue')}
+                {"Yes, continue setup"}
               </Button>
             </>
           ) : (
@@ -124,10 +119,10 @@ export function AdminAccessRequiredDialog({
                 size="2"
                 onClick={() => handleOpenChange(false)}
               >
-                {t('workspace.connectors.adminAccessDialog.cancel')}
+                {"Close"}
               </Button>
               <Button type="button" variant="solid" size="2" onClick={handleGoToPersonal}>
-                {t('workspace.connectors.adminAccessDialog.goToPersonal', { appGroup })}
+                {`Go to ${appGroup} Personal`}
               </Button>
             </>
           )}

@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Badge, Box, Flex, Select, Text } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { Spinner } from '@/app/components/ui/spinner';
 import { toast } from '@/lib/store/toast-store';
@@ -46,7 +45,6 @@ export function ModelRolesSection({
   highlighted = false,
   onAcknowledgedChange,
 }: ModelRolesSectionProps) {
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [roles, setRoles] = useState<Record<string, ModelRoleAssignment>>({});
@@ -122,15 +120,15 @@ export function ModelRolesSection({
       try {
         await AIModelsApi.updateRoles(updatedRoles);
         setRoles(updatedRoles);
-        toast.success(t('workspace.aiModels.roles.toastSaved'));
+        toast.success("Model role assignment saved");
         onRolesUpdated?.();
       } catch {
-        toast.error(t('workspace.aiModels.roles.toastSaveError'));
+        toast.error("Failed to save model role assignment");
       } finally {
         setSaving(false);
       }
     },
-    [roles, indexingCandidates, t, onRolesUpdated, acknowledge]
+    [roles, indexingCandidates, onRolesUpdated, acknowledge]
   );
 
   // In onboarding variant the select has no value until the user acknowledges;
@@ -149,11 +147,11 @@ export function ModelRolesSection({
     >
       <Select.Trigger
         style={{ minWidth: 190, maxWidth: '100%', cursor: 'pointer' }}
-        placeholder={t('workspace.aiModels.roles.selectModel')}
+        placeholder={"Select a model"}
       />
       <Select.Content>
         <Select.Item value="__default__">
-          {t('workspace.aiModels.roles.useDefaultModel')}
+          {"Same as query model"}
         </Select.Item>
         {indexingCandidates.length > 0 && <Select.Separator />}
         {indexingCandidates.map((model) => (
@@ -191,7 +189,7 @@ export function ModelRolesSection({
         >
           <MaterialIcon name="tune" size={15} style={{ color: 'var(--gray-10)' }} />
           <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-            {t('workspace.aiModels.roles.onboardingTitle')}
+            {"How will your models be used?"}
           </Text>
         </Flex>
 
@@ -228,10 +226,10 @@ export function ModelRolesSection({
               </Flex>
               <Flex direction="column" gap="0">
                 <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                  {t('workspace.aiModels.roles.queryRole')}
+                  {"Query & Chat"}
                 </Text>
                 <Text size="1" style={{ color: 'var(--gray-10)' }}>
-                  {t('workspace.aiModels.roles.queryRoleSubtitle')}
+                  {"Search, agents & conversations"}
                 </Text>
               </Flex>
             </Flex>
@@ -249,15 +247,15 @@ export function ModelRolesSection({
             >
               <MaterialIcon name="check_circle" size={14} style={{ color: 'var(--green-9)' }} />
               <Text size="2" style={{ color: 'var(--gray-12)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {defaultLlm ? modelLabel(defaultLlm) : t('workspace.aiModels.roles.queryRoleDefault')}
+                {defaultLlm ? modelLabel(defaultLlm) : "Default model"}
               </Text>
               <Badge size="1" color="green" variant="soft">
-                {t('workspace.aiModels.roles.defaultBadge')}
+                {"Default"}
               </Badge>
             </Flex>
 
             <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: '1.5' }}>
-              {t('workspace.aiModels.roles.queryRoleDescription')}
+              {"Handles search, question answering, and AI agent responses. Use your most capable model here."}
             </Text>
           </Flex>
 
@@ -287,10 +285,10 @@ export function ModelRolesSection({
               </Flex>
               <Flex direction="column" gap="0">
                 <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                  {t('workspace.aiModels.roles.indexingRole')}
+                  {"Indexing Model"}
                 </Text>
                 <Text size="1" style={{ color: 'var(--gray-10)' }}>
-                  {t('workspace.aiModels.roles.indexingRoleSubtitle')}
+                  {"Document processing"}
                 </Text>
               </Flex>
             </Flex>
@@ -304,7 +302,7 @@ export function ModelRolesSection({
               <Flex align="center" gap="1">
                 <MaterialIcon name="error_outline" size={13} style={{ color: 'var(--amber-10)' }} />
                 <Text size="1" style={{ color: 'var(--amber-10)' }}>
-                  {t('workspace.aiModels.roles.requiredHint')}
+                  {"Please choose how the indexing model should behave to continue."}
                 </Text>
               </Flex>
             )}
@@ -312,8 +310,8 @@ export function ModelRolesSection({
             {acknowledged && (
               <Text size="1" style={{ color: 'var(--gray-10)', lineHeight: '1.5' }}>
                 {assignedIndexingModel
-                  ? t('workspace.aiModels.roles.indexingRoleAssigned', { model: modelLabel(assignedIndexingModel) })
-                  : t('workspace.aiModels.roles.indexingRoleFallback')}
+                  ? `Using ${modelLabel(assignedIndexingModel)} for indexing`
+                  : "Not set — falls back to your query model."}
               </Text>
             )}
           </Flex>
@@ -332,7 +330,7 @@ export function ModelRolesSection({
         >
           <MaterialIcon name="lightbulb" size={13} style={{ color: 'var(--amber-10)' }} />
           <Text size="1" style={{ color: 'var(--amber-11)', lineHeight: '1.5' }}>
-            {t('workspace.aiModels.roles.onboardingTip')}
+            {"Assign a small, cost-efficient model (e.g. gpt-5.4-mini, gemini-2.5-flash) for indexing tasks like summarisation and classification. Keep your most capable model (e.g. gpt-5.5 claude-sonnet) for query and agents where reasoning quality matters most."}
           </Text>
         </Flex>
       </Box>
@@ -360,10 +358,10 @@ export function ModelRolesSection({
       >
         <MaterialIcon name="tune" size={16} style={{ color: 'var(--gray-10)' }} />
         <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-          {t('workspace.aiModels.roles.sectionTitle')}
+          {"Model Role Assignments"}
         </Text>
         <Text size="1" style={{ color: 'var(--gray-10)', marginLeft: 4 }}>
-          {t('workspace.aiModels.roles.sectionDescription')}
+          {"Assign dedicated models for specific tasks. When not assigned, the default model is used."}
         </Text>
       </Flex>
 
@@ -390,7 +388,7 @@ export function ModelRolesSection({
             </Flex>
             <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
               <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.aiModels.roles.indexingRole')}
+                {"Indexing Model"}
               </Text>
               <Text
                 size="1"
@@ -402,7 +400,7 @@ export function ModelRolesSection({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {t('workspace.aiModels.roles.indexingRoleDescription')}
+                {"Model used for document summarization, classification, and data extraction during indexing. Assign a smaller, cost-effective model to reduce costs."}
               </Text>
             </Flex>
           </Flex>

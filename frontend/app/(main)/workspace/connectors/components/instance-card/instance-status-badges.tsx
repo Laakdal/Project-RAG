@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Flex, Text, Tooltip } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import {
@@ -37,41 +36,40 @@ const SETUP_VALUE_COLOR: Record<
   green: 'var(--green-11)',
 };
 
-const SETUP_I18N: Record<InstanceSetupStatusKey, string> = {
-  not_configured: 'workspace.connectors.instanceStatus.setup.notConfigured',
-  needs_authentication: 'workspace.connectors.instanceStatus.setup.needsAuth',
-  ready: 'workspace.connectors.instanceStatus.setup.ready',
+const SETUP_LABEL: Record<InstanceSetupStatusKey, string> = {
+  not_configured: "Incomplete",
+  needs_authentication: "Needs auth",
+  ready: "Complete",
 };
 
-const SETUP_TOOLTIP_I18N: Record<InstanceSetupStatusKey, string> = {
-  not_configured: 'workspace.connectors.instanceStatus.setup.notConfiguredTooltip',
-  needs_authentication: 'workspace.connectors.instanceStatus.setup.needsAuthTooltip',
-  ready: 'workspace.connectors.instanceStatus.setup.readyTooltip',
+const SETUP_TOOLTIP: Record<InstanceSetupStatusKey, string> = {
+  not_configured: "Configuration is not finished. Open setup to complete sync and filter settings.",
+  needs_authentication: "Configuration is saved but this instance still needs authentication.",
+  ready: "Configuration is complete and authenticated. Sync can run when enabled.",
 };
 
-const SYNC_I18N: Record<InstanceSyncOperationKey, string> = {
-  syncing: 'workspace.connectors.instanceStatus.sync.syncing',
-  full_syncing: 'workspace.connectors.instanceStatus.sync.fullSyncing',
-  deleting: 'workspace.connectors.instanceStatus.sync.removing',
+const SYNC_LABEL: Record<InstanceSyncOperationKey, string> = {
+  syncing: "Syncing",
+  full_syncing: "Full sync",
+  deleting: "Removing",
 };
 
-const SYNC_TOOLTIP_I18N: Record<InstanceSyncOperationKey, string> = {
-  syncing: 'workspace.connectors.instanceStatus.sync.syncingTooltip',
-  full_syncing: 'workspace.connectors.instanceStatus.sync.fullSyncingTooltip',
-  deleting: 'workspace.connectors.instanceStatus.sync.removingTooltip',
+const SYNC_TOOLTIP: Record<InstanceSyncOperationKey, string> = {
+  syncing: "A sync job is running for this instance.",
+  full_syncing: "A full sync is running for this instance.",
+  deleting: "This instance is being deleted.",
 };
 
 /** Compact sync pill in the card header (no "Sync" caption). Hidden when idle. */
 export function InstanceSyncOperationPill({ instance }: { instance: ConnectorInstance }) {
-  const { t } = useTranslation();
   const syncOp = deriveInstanceSyncOperation(instance);
   if (!syncOp) return null;
 
   const accent = SYNC_ACCENT[syncOp.badgeColor];
-  const label = t(SYNC_I18N[syncOp.key]);
+  const label = SYNC_LABEL[syncOp.key];
 
   return (
-    <Tooltip content={t(SYNC_TOOLTIP_I18N[syncOp.key])}>
+    <Tooltip content={SYNC_TOOLTIP[syncOp.key]}>
       <Flex
         align="center"
         gap="1"
@@ -103,13 +101,12 @@ export function InstanceSetupStatusRow({
   instance: ConnectorInstance;
   config?: ConnectorConfig;
 }) {
-  const { t } = useTranslation();
   const setup = deriveInstanceSetupStatus(instance, config);
-  const valueLabel = t(SETUP_I18N[setup.key]);
+  const valueLabel = SETUP_LABEL[setup.key];
   const valueColor = SETUP_VALUE_COLOR[setup.badgeColor];
 
   return (
-    <Tooltip content={t(SETUP_TOOLTIP_I18N[setup.key])}>
+    <Tooltip content={SETUP_TOOLTIP[setup.key]}>
       <Flex align="center" gap="4" style={{ width: '100%' }}>
         <Text
           size="1"
@@ -123,7 +120,7 @@ export function InstanceSetupStatusRow({
             lineHeight: '16px',
           }}
         >
-          {t('workspace.connectors.instanceStatus.setup.rowLabel')}
+          {"Configuration"}
         </Text>
         <Flex align="center" gap="2" style={{ minWidth: 0 }}>
           <MaterialIcon name={setup.icon} size={14} color={valueColor} />

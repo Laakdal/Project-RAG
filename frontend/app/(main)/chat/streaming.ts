@@ -19,7 +19,6 @@ import { AgentsApi } from '@/app/(main)/agents/api';
 import { useChatStore, ctxKeyFromAgent, getEffectiveModel } from './store';
 import { debugLog } from './debug-logger';
 import { loadHistoricalMessages, getThreadMessagePlainText } from './runtime';
-import { i18n } from '@/lib/i18n';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import {
   buildAssistantApiFilters,
@@ -87,7 +86,7 @@ function statusMessageRestreaming(): StatusMessage {
   return {
     id: `status-restreaming-${Date.now()}`,
     status: 'restreaming',
-    message: i18n.t('chatStream.refiningResponse'),
+    message: "Refining response…",
     timestamp: new Date().toISOString(),
   };
 }
@@ -547,7 +546,7 @@ export async function streamMessageForSlot(
     const currentMessages = useChatStore.getState().slots[slotId]?.messages ?? [];
     const errorMessage = error instanceof Error
       ? error.message
-      : i18n.t('chatStream.errorFallback');
+      : "An error occurred. Please try again.";
     useChatStore.getState().updateSlot(slotId, {
       isStreaming: false,
       streamingContent: '',

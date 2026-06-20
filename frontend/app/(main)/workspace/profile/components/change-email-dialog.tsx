@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   Flex,
@@ -45,7 +44,6 @@ export function ChangeEmailDialog({
   userId,
   onSuccess,
 }: ChangeEmailDialogProps) {
-  const { t } = useTranslation();
   const {
     view,
     newEmail,
@@ -96,34 +94,34 @@ export function ChangeEmailDialog({
 
       <Dialog.Content style={contentStyle}>
         <VisuallyHidden>
-          <Dialog.Title>{t('workspace.profile.changeEmail.title')}</Dialog.Title>
+          <Dialog.Title>{"Change Email"}</Dialog.Title>
         </VisuallyHidden>
 
         {/* ── VIEW: form ──────────────────────────────────────────────── */}
         {view === 'form' && (
           <Flex direction="column" gap="4">
             <Text size="5" weight="bold" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.profile.changeEmail.title')}
+              {"Change Email"}
             </Text>
 
             {/* Description */}
             <Flex direction="column" gap="3">
               <Text size="2" style={{ color: 'var(--gray-10)', lineHeight: '20px' }}>
-                {t('workspace.profile.changeEmail.description')}
+                {"If you'd like to change the email address for your account, we'll send a verification link to your new company email account. This change will apply across all workspaces that you are a member of."}
               </Text>
               <Text size="2" style={{ color: 'var(--gray-10)', lineHeight: '20px' }}>
-                {t('workspace.profile.changeEmail.validityNote')}
+                {"Please check if the new company email address is valid."}
               </Text>
             </Flex>
 
             {/* Email input */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                {t('workspace.profile.changeEmail.emailLabel')}
+                {"Enter the new email address"}
               </Text>
               <TextField.Root
                 type="email"
-                placeholder={t('workspace.profile.changeEmail.emailPlaceholder')}
+                placeholder={"eg: name@company.com"}
                 value={newEmail}
                 onChange={(e) => {
                   setNewEmail(e.target.value);
@@ -153,7 +151,7 @@ export function ChangeEmailDialog({
                 disabled={isLoading}
                 style={{ cursor: isLoading ? 'not-allowed' : 'pointer' }}
               >
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
               <Button
                 variant="solid"
@@ -166,10 +164,10 @@ export function ChangeEmailDialog({
                 {isLoading ? (
                   <Flex align="center" gap="2">
                     <Spinner size="1" />
-                    <span>{t('workspace.profile.changeEmail.validating')}</span>
+                    <span>{"Validating…"}</span>
                   </Flex>
                 ) : (
-                  t('workspace.profile.changeEmail.validate')
+                  "Validate"
                 )}
               </Button>
             </Flex>
@@ -180,12 +178,12 @@ export function ChangeEmailDialog({
         {view === 'valid' && (
           <Flex direction="column" gap="4">
             <Text size="5" weight="bold" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.profile.changeEmail.title')}
+              {"Change Email"}
             </Text>
 
             {/* Confirmation message */}
             <Text size="2" style={{ color: 'var(--gray-10)', lineHeight: '20px' }}>
-              {t('workspace.profile.changeEmail.validSuccess', { email: checkedEmail })}
+              {`${checkedEmail} is valid. Please proceed to receive the verification link.`}
             </Text>
 
             {/* Buttons */}
@@ -199,7 +197,7 @@ export function ChangeEmailDialog({
                 disabled={isLoading}
                 style={{ cursor: isLoading ? 'not-allowed' : 'pointer' }}
               >
-                {t('action.cancel')}
+                {"Cancel"}
               </Button>
               <Button
                 variant="solid"
@@ -212,10 +210,10 @@ export function ChangeEmailDialog({
                 {isLoading ? (
                   <Flex align="center" gap="2">
                     <Spinner size="1" />
-                    <span>{t('workspace.profile.changeEmail.sending')}</span>
+                    <span>{"Sending…"}</span>
                   </Flex>
                 ) : (
-                  t('workspace.profile.changeEmail.sendVerification')
+                  "Send verification link"
                 )}
               </Button>
             </Flex>

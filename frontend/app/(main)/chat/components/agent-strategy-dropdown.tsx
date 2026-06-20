@@ -3,7 +3,6 @@
 import React, { useMemo } from 'react';
 import { DropdownMenu, Button, Text, Flex } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useTranslation } from 'react-i18next';
 import type { AgentStrategy } from '@/chat/types';
 
 /** Canonical strategy order for dropdowns and mode panels — single source of truth. */
@@ -22,6 +21,30 @@ export const AGENT_STRATEGY_ICONS: Record<AgentStrategy, string> = {
   deep: 'psychology',
 };
 
+/** Short display labels per strategy (shown in toolbar pill / trigger) */
+export const AGENT_STRATEGY_SHORT: Record<AgentStrategy, string> = {
+  auto: "Auto",
+  quick: "Quick",
+  verify: "Verify",
+  deep: "Deep",
+};
+
+/** Full labels per strategy (shown in dropdown item heading) */
+export const AGENT_STRATEGY_LABEL: Record<AgentStrategy, string> = {
+  auto: "Auto",
+  quick: "Quick",
+  verify: "Verify",
+  deep: "Deep",
+};
+
+/** Hint / description per strategy (shown below label in dropdown) */
+export const AGENT_STRATEGY_HINT: Record<AgentStrategy, string> = {
+  auto: "The system picks the best approach per step—balanced speed and thoroughness.",
+  quick: "Favors fast answers and fewer refinement loops. Best for straightforward tasks.",
+  verify: "Adds extra checks on facts and steps before finalizing the answer.",
+  deep: "Explores more thoroughly with longer reasoning—use when accuracy matters most.",
+};
+
 export interface AgentStrategyDropdownProps {
   value: AgentStrategy;
   onChange: (next: AgentStrategy) => void;
@@ -35,11 +58,9 @@ export function AgentStrategyDropdown({
   disabled,
   accentColor,
 }: AgentStrategyDropdownProps) {
-  const { t } = useTranslation();
-
   const triggerLabel = useMemo(
-    () => t(`chat.agentStrategy.modes.${value}.short`),
-    [t, value]
+    () => AGENT_STRATEGY_SHORT[value] ?? value,
+    [value]
   );
 
   return (
@@ -51,7 +72,7 @@ export function AgentStrategyDropdown({
           color="gray"
           size="2"
           disabled={disabled}
-          title={t('chat.agentStrategy.triggerTitle')}
+          title={"Agent strategy"}
           style={{
             maxWidth: 'min(200px, 40vw)',
             cursor: disabled ? 'default' : 'pointer',
@@ -112,7 +133,7 @@ export function AgentStrategyDropdown({
                   weight="medium"
                   style={{ color: 'var(--slate-12)', whiteSpace: 'normal' }}
                 >
-                  {t(`chat.agentStrategy.modes.${id}.label`)}
+                  {AGENT_STRATEGY_LABEL[id]}
                 </Text>
                 <Text
                   size="1"
@@ -123,7 +144,7 @@ export function AgentStrategyDropdown({
                     wordWrap: 'break-word',
                   }}
                 >
-                  {t(`chat.agentStrategy.modes.${id}.hint`)}
+                  {AGENT_STRATEGY_HINT[id]}
                 </Text>
               </Flex>
             </Flex>

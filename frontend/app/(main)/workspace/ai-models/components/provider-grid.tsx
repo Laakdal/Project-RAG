@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import type { TFunction } from 'i18next';
 import { Box, Button, Flex, Grid, Heading, IconButton, SegmentedControl, Text, TextField } from '@radix-ui/themes';
-import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { EXTERNAL_LINKS } from '@/lib/constants/external-links';
 import type { AIModelProvider, ConfiguredModel } from '../types';
@@ -53,8 +51,7 @@ function modelTypesForSection(section: CapabilitySection): readonly string[] {
 
 function providerMatchesSearch(
   provider: AIModelProvider,
-  q: string,
-  t: TFunction
+  q: string
 ): boolean {
   if (!q.trim()) return true;
   const qq = q.toLowerCase();
@@ -64,8 +61,8 @@ function providerMatchesSearch(
   if ((provider.notice ?? '').toLowerCase().includes(qq)) return true;
   if ((provider.noticeTitle ?? '').toLowerCase().includes(qq)) return true;
   for (const cap of provider.capabilities) {
-    const dn = aiModelsCapabilityLabel(t, cap).toLowerCase();
-    const badge = aiModelsCapabilityBadge(t, cap).toLowerCase();
+    const dn = aiModelsCapabilityLabel(cap).toLowerCase();
+    const badge = aiModelsCapabilityBadge(cap).toLowerCase();
     if (dn.includes(qq) || badge.includes(qq)) return true;
   }
   return false;
@@ -92,14 +89,13 @@ export function ProviderGrid({
   hideCapabilityBadges = false,
   showEmbeddingBuiltinPlaceholder = true,
 }: ProviderGridProps) {
-  const { t } = useTranslation();
   const isEmbedded = layout === 'embedded';
   const showPageHeader = showPageHeaderProp ?? !isEmbedded;
   const capabilityTabs = capabilityTabsProp ?? (isEmbedded ? 'hidden' : 'all');
 
   const matchSearch = useCallback(
-    (p: AIModelProvider, q: string) => providerMatchesSearch(p, q, t),
-    [t]
+    (p: AIModelProvider, q: string) => providerMatchesSearch(p, q),
+    []
   );
 
   const capabilityFilteredProviders = useMemo(
@@ -132,7 +128,7 @@ export function ProviderGrid({
   const searchField = (
     <TextField.Root
       size="2"
-      placeholder={t('workspace.aiModels.searchPlaceholder')}
+      placeholder={"Search..."}
       value={searchQuery}
       onChange={(e) => onSearchChange(e.target.value)}
       style={
@@ -154,7 +150,7 @@ export function ProviderGrid({
       variant="outline"
       color="gray"
       size="2"
-      title={t('workspace.aiModels.refreshTitle')}
+      title={"Refresh"}
       style={{ cursor: 'pointer' }}
       onClick={onRefresh}
     >
@@ -198,10 +194,10 @@ export function ProviderGrid({
         <Flex justify="between" align="start" gap="4" style={{ width: '100%', flexWrap: 'wrap', flexShrink: 0 }}>
           <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 200 }}>
             <Heading size="5" weight="medium" style={{ color: 'var(--gray-12)' }}>
-              {t('workspace.aiModels.title')}
+              {"AI Models"}
             </Heading>
             <Text size="2" style={{ color: 'var(--gray-11)' }}>
-              {t('workspace.aiModels.subtitle')}
+              {"Configure and manage AI models from different providers"}
             </Text>
           </Flex>
 
@@ -216,7 +212,7 @@ export function ProviderGrid({
               }
             >
               <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
-              {t('workspace.aiModels.documentation')}
+              {"Documentation"}
             </Button>
             {refreshButton}
           </Flex>
@@ -239,10 +235,10 @@ export function ProviderGrid({
             style={{ width: '100%' }}
           >
             <SegmentedControl.Item value="providers">
-              {t('workspace.aiModels.mainSectionProviders')}
+              {"Model Providers"}
             </SegmentedControl.Item>
             <SegmentedControl.Item value="configured">
-              {t('workspace.aiModels.mainSectionConfigured')}
+              {"Configured Models"}
               {configuredCount > 0 ? (
                 <Text
                   as="span"
@@ -324,7 +320,7 @@ export function ProviderGrid({
                     flexShrink: 0,
                   }}
                 >
-                  {aiModelsCapabilitySectionTab(t, tabId)}
+                  {aiModelsCapabilitySectionTab(tabId)}
                 </button>
               );
             })}
@@ -337,7 +333,7 @@ export function ProviderGrid({
         isLoading ? (
           <Flex align="center" justify="center" style={{ width: '100%', paddingTop: 80 }}>
             <Text size="2" style={{ color: 'var(--gray-9)' }}>
-              {t('workspace.aiModels.loadingProviders')}
+              {"Loading providers…"}
             </Text>
           </Flex>
         ) : searchFilteredProviders.length === 0 ? (
@@ -350,7 +346,7 @@ export function ProviderGrid({
           >
             <MaterialIcon name="smart_toy" size={48} color="var(--gray-9)" />
             <Text size="2" style={{ color: 'var(--gray-11)' }}>
-              {t('workspace.aiModels.emptyProviders')}
+              {"No providers found"}
             </Text>
           </Flex>
         ) : (
