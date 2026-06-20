@@ -1,0 +1,18 @@
+# Local: run ONLY the frontend (in Docker), pointed at the remote VPS backend.
+#   docker compose -f docker-compose.frontend.yml up -d --build
+# Then open http://localhost:3000.
+#
+# NEXT_PUBLIC_* are baked at build time, so changing the API URL needs a rebuild.
+# (For hot-reload local dev, prefer `cd frontend && npm run dev` with frontend/.env.local.)
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://api.ariorafa.site
+        NEXT_PUBLIC_DEV_BYPASS_AUTH: "0"
+    image: project-rag-frontend:local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"

@@ -1,0 +1,96 @@
+# VPS server stack: Postgres + backend only (the frontend runs on your local machine).
+#
+#   docker compose -f docker-compose.vps.yml --env-file .env.vps up -d --build
+#
+# Fronted by nginx at https://api.ariorafa.site (see deploy/nginx/api.ariorafa.site.conf).
+# Postgres is private (no published port); the backend is published on 127.0.0.1:4000 so
+# only nginx on this host can reach it — never exposed directly to the internet.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-project_rag}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-project_rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - appnet
+
+  # One-shot: apply pending DB migrations, then exit.
+  migrate:
+    image: project-rag-backend:local
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET}
+    command: ["node", "dist/src/db/migrate.js"]
+    networks:
+      - appnet
+
+  # One-shot: create/update the admin from ADMIN_* (idempotent), then exit.
+  seed-admin:
+    image: project-rag-backend:local
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+    command: ["node", "dist/scripts/create-admin.js"]
+    networks:
+      - appnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: project-rag-backend:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
+      SESSION_SECRET: ${SESSION_SECRET}
+      NODE_ENV: production
+      PORT: "4000"
+      # Cross-site cookies: local frontend (http://localhost:3000) -> https://api.ariorafa.site.
+      # SameSite=none REQUIRES Secure=true (enforced by the backend's config).
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: none
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Where n8n lives — consumed once the RAG chat path is wired (not used yet).
+      N8N_BASE_URL: ${N8N_BASE_URL:-https://n8n.ariorafa.site}
+    # Bound to localhost so only nginx (on this host) can reach it.
+    ports:
+      - "127.0.0.1:4000:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+    driver: bridge
