@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api';
+import { CSRF_HEADER_NAME } from '@/lib/api/csrf';
 
 export interface AuthUser {
   id: string;
@@ -27,19 +28,25 @@ async function getCsrf(): Promise<string> {
 
 /** Email + password sign-in. Ensures CSRF, sets the session cookie, returns the user. */
 async function login(email: string, password: string): Promise<AuthUser> {
-  await getCsrf();
+  // Send the CSRF token explicitly in the header, taken from the /auth/csrf
+  // response body (not the cookie). This works cross-site too, where a localhost
+  // page cannot read the API origin's cookie.
+  const csrfToken = await getCsrf();
   const { data } = await apiClient.post<AuthUser>(
     '/auth/login',
     { email, password },
-    AUTH_REQUEST_CONFIG,
+    { ...AUTH_REQUEST_CONFIG, headers: { [CSRF_HEADER_NAME]: csrfToken } },
   );
   return data;
 }
 
 /** End the session server-side. */
 async function logout(): Promise<void> {
-  await getCsrf();
-  await apiClient.post('/auth/logout', undefined, AUTH_REQUEST_CONFIG);
+  const csrfToken = await getCsrf();
+  await apiClient.post('/auth/logout', undefined, {
+    ...AUTH_REQUEST_CONFIG,
+    headers: { [CSRF_HEADER_NAME]: csrfToken },
+  });
 }
 
 /** Current user if a valid session exists, else null. */
