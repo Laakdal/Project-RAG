@@ -76,17 +76,15 @@ interface ChatInputProps {
   agentId?: string | null;
 }
 
-// Only PDF and images are supported by the chat attachment upload endpoint.
-const SUPPORTED_FILE_TYPES = ['PDF', 'PNG', 'JPEG', 'JPG'];
+// Only PDF and DOCX are supported by the RAG chat attachment upload endpoint.
+const SUPPORTED_FILE_TYPES = ['PDF', 'DOCX'];
 const ACCEPTED_MIME_TYPES = {
   'application/pdf': 'PDF',
-  'image/png': 'PNG',
-  'image/jpeg': 'JPEG',
-  'image/jpg': 'JPEG',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
 };
 // Extension fallback for files that arrive without a recognisable MIME type
 // (e.g. on some Windows setups the file.type may be empty).
-const ACCEPTED_EXTENSIONS = ['pdf', 'png', 'jpeg', 'jpg'];
+const ACCEPTED_EXTENSIONS = ['pdf', 'docx'];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -673,7 +671,7 @@ export function ChatInput({
     }
     if (typeRejected.length > 0) {
       toast.error(
-        `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Only PDF, JPEG, and PNG files are supported.`
+        `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Only PDF and DOCX files are supported.`
       );
     }
 
@@ -854,11 +852,10 @@ export function ChatInput({
             fileItems.push(file);
           } else {
             const ext =
-              file.type === 'application/pdf'
-                ? 'pdf'
-                : file.type === 'image/png'
-                  ? 'png'
-                  : 'jpg';
+              file.type ===
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ? 'docx'
+                : 'pdf';
             const named = new File([file], `pasted-${Date.now()}.${ext}`, {
               type: file.type,
             });

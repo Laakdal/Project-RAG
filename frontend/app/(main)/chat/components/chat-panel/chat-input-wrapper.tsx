@@ -7,6 +7,7 @@ import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useEffectiveAgentId } from '@/chat/hooks/use-effective-agent-id';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { ChatApi } from '@/chat/api';
+import { createConversation, uploadAttachment } from '@/chat/rag-api';
 import {
   buildAssistantApiFilters,
   type AttachmentRef,
@@ -116,24 +117,46 @@ export function ChatInputWrapper() {
 
   /**
    * Per-file upload, fired by `ChatInput` the moment a chip is added to the
-   * composer. Wraps the batch-upload endpoint with a single file in the
-   * FormData so we don't need a new backend route. `signal` is forwarded so
-   * `ChatInput` can abort when the user removes a chip mid-flight.
+   * composer. Uploads through the RAG backend, which ingests + chunks the
+   * file against a conversation. A new chat has no conversation yet, so we
+   * create one first (and resolve it onto the active slot so the same id is
+   * reused on send + the URL-sync effect picks it up).
    */
   const handleUploadFile = useCallback(
-    async (file: File, signal: AbortSignal): Promise<AttachmentRef> => {
+    async (file: File): Promise<AttachmentRef> => {
       const store = useChatStore.getState();
-      const slot = store.activeSlotId ? store.slots[store.activeSlotId] : null;
-      const refs = await ChatApi.uploadAttachments([file], {
-        agentId: effectiveAgentId,
-        conversationId: slot?.convId ?? null,
-        signal,
-      });
-      const ref = refs[0];
-      if (!ref) throw new Error('Upload returned no attachment ref');
-      return ref;
+
+      // Ensure there is an active slot to own the conversation.
+      let activeSlotId = store.activeSlotId;
+      if (!activeSlotId) {
+        activeSlotId = store.createSlot(null);
+        store.setActiveSlot(activeSlotId);
+      }
+
+      // Ensure the slot has a real conversation id — uploads are conversation-scoped.
+      let conversationId = store.slots[activeSlotId]?.convId ?? null;
+      if (!conversationId) {
+        const conv = await createConversation();
+        conversationId = conv.id;
+        store.resolveSlotConvId(activeSlotId, conversationId);
+      }
+
+      const { attachmentId } = await uploadAttachment(conversationId, file);
+
+      const extension = file.name.includes('.')
+        ? file.name.split('.').pop()?.toLowerCase() ?? ''
+        : '';
+
+      // Adapt the RAG upload response into the AttachmentRef shape ChatInput expects.
+      return {
+        recordId: attachmentId,
+        virtualRecordId: attachmentId,
+        recordName: file.name,
+        mimeType: file.type,
+        extension,
+      };
     },
-    [effectiveAgentId],
+    [],
   );
 
   const handleDeleteFile = useCallback(
