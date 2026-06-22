@@ -8,8 +8,9 @@ import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { ASK_MORE_QUESTION_SETS } from '../../constants';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import type { AppliedFilters, AttachmentRef, ChatArtifact } from '../../types';
+import type { AppliedFilters, AttachmentRef, ChatArtifact, ChatSource } from '../../types';
 import type { ConfidenceLevel, ModelInfo } from '../../types';
+import type { Source as RagSource } from '../../rag-api';
 import type { CitationMaps } from './response-tabs/citations';
 import { emptyCitationMaps, useCitationActions, isCitationPopoverKeyStillValid } from './response-tabs/citations';
 import { useInlineCitationPopoverStore } from './response-tabs/citations/citation-popover-store';
@@ -58,6 +59,26 @@ function extractTextContent(content: readonly { type: string; text?: string }[])
     .join('');
 }
 
+/** Map RAG `{filename, chunkIndex, text}` sources to the `ChatSource` shape MessageSources renders. */
+function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: ChatSource[] = [];
+  raw.forEach((item, idx) => {
+    if (!item || typeof item !== 'object') return;
+    const s = item as Partial<RagSource>;
+    const filename = typeof s.filename === 'string' ? s.filename : 'Source';
+    const text = typeof s.text === 'string' ? s.text : undefined;
+    const chunkIndex = typeof s.chunkIndex === 'number' ? s.chunkIndex : idx;
+    out.push({
+      id: `${filename}-${chunkIndex}-${idx}`,
+      title: filename,
+      type: 'document',
+      summary: text,
+    });
+  });
+  return out.length > 0 ? out : undefined;
+}
+
 
 interface MessagePair {
   key: string;
@@ -77,6 +98,8 @@ interface MessagePair {
   createdAt?: string;
   /** Attachments uploaded with this user query (PDF / JPEG / PNG). */
   attachments?: AttachmentRef[];
+  /** RAG retrieval sources for this answer (mapped from metadata.custom.sources). */
+  sources?: ChatSource[];
 }
 
 export function MessageList() {
@@ -251,12 +274,14 @@ export function MessageList() {
           confidence?: ConfidenceLevel;
           modelInfo?: ModelInfo;
           feedbackInfo?: { value?: 'like' | 'dislike' };
+          sources?: unknown;
         } } }).metadata?.custom as {
           messageId?: string;
           citationMaps?: CitationMaps;
           confidence?: ConfidenceLevel;
           modelInfo?: ModelInfo;
           feedbackInfo?: { value?: 'like' | 'dislike' };
+          sources?: unknown;
         } | undefined;
 
         // Find preceding user message
@@ -307,6 +332,7 @@ export function MessageList() {
           appliedFilters: userMessageAppliedFilters,
           createdAt: userCreatedAt,
           attachments: userMessageAttachments,
+          sources: mapRagSourcesToChatSources(metadata?.sources),
         });
       }
     }
@@ -1089,6 +1115,7 @@ export function MessageList() {
                   collections={pair.collections}
                   appliedFilters={pair.appliedFilters}
                   attachments={pair.attachments}
+                  sources={pair.sources}
                   messageId={pair.messageId}
                   isLastMessage={isLast}
                   citationMessageRowKey={pair.key}

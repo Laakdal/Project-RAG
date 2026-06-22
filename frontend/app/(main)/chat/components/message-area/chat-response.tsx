@@ -9,6 +9,7 @@ import { ResponseTabs } from './response-tabs';
 import { ConfidenceIndicator } from './confidence-indicator';
 import { AnswerContent } from './answer-content';
 import { StatusMessageComponent } from './status-message';
+import { MessageSources } from './message-sources';
 import { MessageActions } from './message-actions';
 import { SourcesTab } from './response-tabs/citations/sources-tab';
 import { CitationsTab } from './response-tabs/citations/citations-tab';
@@ -19,7 +20,7 @@ import { useCommandStore } from '@/lib/store/command-store';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import type { AttachmentRef, ConfidenceLevel, ModelInfo, StatusMessage, ResponseTab, ChatArtifact, AppliedFilters as AppliedFiltersData } from '../../types';
+import type { AttachmentRef, ConfidenceLevel, ModelInfo, StatusMessage, ResponseTab, ChatArtifact, ChatSource, AppliedFilters as AppliedFiltersData } from '../../types';
 import { FileIcon } from '@/app/components/ui/file-icon';
 import { getMimeTypeExtension } from '@/lib/utils/file-icon-utils';
 import type { CitationMaps, CitationCallbacks } from './response-tabs/citations';
@@ -95,6 +96,8 @@ interface ChatResponseProps {
   createdAt?: string;
   /** Attachments uploaded with this user query (PDF / JPEG / PNG). */
   attachments?: AttachmentRef[];
+  /** RAG retrieval sources for this answer (rendered under the answer). */
+  sources?: ChatSource[];
 }
 
 export const ChatResponse = React.memo(function ChatResponse({
@@ -108,6 +111,7 @@ export const ChatResponse = React.memo(function ChatResponse({
   collections,
   appliedFilters,
   attachments,
+  sources,
   messageId,
   isLastMessage = false,
   streamingContent = '',
@@ -347,6 +351,11 @@ export const ChatResponse = React.memo(function ChatResponse({
                 citationMaps={effectiveCitationMaps}
                 citationCallbacks={wrappedCallbacks}
               />
+            )}
+
+            {/* RAG retrieval sources — shown under the finished answer */}
+            {!isStreaming && sources && sources.length > 0 && (
+              <MessageSources sources={sources} />
             )}
 
             {/* Legacy download buttons for ::download_conversation_task markers
