@@ -106,7 +106,9 @@ router.get(
   },
 );
 
-const askSchema = z.object({ question: z.string().trim().min(1) });
+const askSchema = z.object({
+  question: z.string().trim().min(1).max(4000),
+});
 
 router.post(
   "/conversations/:id/messages",
@@ -125,13 +127,8 @@ router.post(
     }
     const { question } = parsed.data;
 
-    // Persist the user's message first.
-    await db.insert(messages).values({
-      conversationId: req.params.id,
-      role: "user",
-      content: question,
-    });
-
+    // Query first; persist the turn only after a successful answer so a
+    // failure leaves no orphaned message.
     let result;
     try {
       result = await queryRag(req.params.id, question);
@@ -140,7 +137,12 @@ router.post(
       return;
     }
 
-    // Persist the assistant answer with its sources.
+    // Persist the user's message, then the assistant answer with its sources.
+    await db.insert(messages).values({
+      conversationId: req.params.id,
+      role: "user",
+      content: question,
+    });
     await db.insert(messages).values({
       conversationId: req.params.id,
       role: "assistant",
@@ -178,6 +180,12 @@ router.post(
         file.mimetype,
       );
     } catch {
+      // Record the failed ingest so the conversation reflects the attempt.
+      await db.insert(attachments).values({
+        conversationId: req.params.id,
+        filename: file.originalname,
+        status: "failed",
+      });
       res.status(502).json({ error: "Indexing is unavailable right now" });
       return;
     }
@@ -200,4 +208,4 @@ router.post(
   },
 );
 
-export { router as chatRouter, ownedConversation };
+export { router as chatRouter };
