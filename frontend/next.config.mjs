@@ -24,7 +24,10 @@ const nextConfig = {
         return {
             beforeFiles: [
                 { source: '/auth/:path*', destination: `${backendOrigin}/auth/:path*` },
-                { source: '/chat/:path*', destination: `${backendOrigin}/chat/:path*` },
+                // Backend chat API lives under /chat/conversations/* — scope the proxy
+                // there so it does NOT shadow the frontend /chat PAGE route (`:path*`
+                // would otherwise match `/chat` itself and 404 it through the backend).
+                { source: '/chat/conversations/:path*', destination: `${backendOrigin}/chat/conversations/:path*` },
                 { source: '/health', destination: `${backendOrigin}/health` },
             ],
             afterFiles: [
