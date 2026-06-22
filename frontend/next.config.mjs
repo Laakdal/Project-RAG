@@ -24,6 +24,7 @@ const nextConfig = {
         return {
             beforeFiles: [
                 { source: '/auth/:path*', destination: `${backendOrigin}/auth/:path*` },
+                { source: '/chat/:path*', destination: `${backendOrigin}/chat/:path*` },
                 { source: '/health', destination: `${backendOrigin}/health` },
             ],
             afterFiles: [
