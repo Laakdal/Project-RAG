@@ -34,4 +34,30 @@ describe("n8n-client", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 500 });
     await expect(queryRag("conv-1", "hi")).rejects.toThrow();
   });
+
+  it("ingestFile posts to the ingest webhook and returns the parsed result", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "ok", chunkCount: 2 }),
+    });
+
+    const result = await ingestFile(
+      "conv-1",
+      "doc.pdf",
+      Buffer.from("x"),
+      "application/pdf",
+    );
+
+    expect(result).toEqual({ status: "ok", chunkCount: 2 });
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(String(url)).toContain("/webhook/rag-ingest");
+    expect(init.method).toBe("POST");
+  });
+
+  it("ingestFile throws on a non-ok response", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 500 });
+    await expect(
+      ingestFile("conv-1", "doc.pdf", Buffer.from("x"), "application/pdf"),
+    ).rejects.toThrow();
+  });
 });
