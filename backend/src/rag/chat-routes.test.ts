@@ -17,6 +17,9 @@ vi.mock("./n8n-client.js", () => ({
   ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
 }));
 
+// These resolve to the mocked fns above; override per-test with vi.mocked(...).
+import { queryRag, ingestFile } from "./n8n-client.js";
+
 // Imported after mocks are registered.
 const { chatRouter } = await import("./chat-routes.js");
 
@@ -64,7 +67,20 @@ describe("message route", () => {
       .send({ question: "What is the answer?" });
     expect(res.status).toBe(200);
     expect(res.body.answer).toBe("42");
-    expect(res.body.sources[0].filename).toBe("doc.pdf");
+    expect(res.body.sources[0]).toEqual({
+      filename: "doc.pdf",
+      chunkIndex: 1,
+      text: "the answer is 42",
+    });
+  });
+
+  it("returns 502 when n8n is unavailable", async () => {
+    dbMock.setResult([{ id: "c1" }]); // owned
+    vi.mocked(queryRag).mockRejectedValueOnce(new Error("n8n down"));
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "What is the answer?" });
+    expect(res.status).toBe(502);
   });
 
   it("returns 404 when the conversation is not owned", async () => {
@@ -97,6 +113,31 @@ describe("attachment route", () => {
         contentType: "application/pdf",
       });
     expect(res.status).toBe(202);
+    expect(res.body.attachmentId).toBe("att1");
+    expect(res.body.status).toBe("ready");
     expect(res.body.chunkCount).toBe(3);
+  });
+
+  it("returns 502 when ingestion is unavailable", async () => {
+    dbMock.setResult([{ id: "att1" }]); // owned
+    vi.mocked(ingestFile).mockRejectedValueOnce(new Error("ingest down"));
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("%PDF-1.4 fake"), {
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(502);
+  });
+
+  it("returns 413 for an oversize upload", async () => {
+    dbMock.setResult([{ id: "att1" }]); // owned
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.alloc(21 * 1024 * 1024), {
+        filename: "big.pdf",
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(413);
   });
 });
