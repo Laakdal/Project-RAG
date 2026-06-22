@@ -21,6 +21,9 @@ const envSchema = z.object({
   // set or cleared so the two stay consistent.
   COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
+  // Base URL of the n8n instance the backend forwards RAG requests to.
+  // Private Docker hostname in deployment (http://n8n:5678).
+  N8N_BASE_URL: z.string().url().default("http://localhost:5678"),
 });
 
 const parsed = envSchema.safeParse(process.env);
