@@ -5,6 +5,7 @@ import { db } from "../db/index.js";
 import { conversations, messages } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
+import { queryRag } from "./n8n-client.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -69,6 +70,52 @@ router.get(
       .where(eq(messages.conversationId, req.params.id))
       .orderBy(messages.createdAt);
     res.json(rows);
+  },
+);
+
+const askSchema = z.object({ question: z.string().trim().min(1) });
+
+router.post(
+  "/conversations/:id/messages",
+  requireCsrf,
+  async (req: Request, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = askSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "A non-empty question is required" });
+      return;
+    }
+    const { question } = parsed.data;
+
+    // Persist the user's message first.
+    await db.insert(messages).values({
+      conversationId: req.params.id,
+      role: "user",
+      content: question,
+    });
+
+    let result;
+    try {
+      result = await queryRag(req.params.id, question);
+    } catch {
+      res.status(502).json({ error: "The assistant is unavailable right now" });
+      return;
+    }
+
+    // Persist the assistant answer with its sources.
+    await db.insert(messages).values({
+      conversationId: req.params.id,
+      role: "assistant",
+      content: result.answer,
+      sources: result.sources,
+    });
+
+    res.json({ answer: result.answer, sources: result.sources });
   },
 );
 
