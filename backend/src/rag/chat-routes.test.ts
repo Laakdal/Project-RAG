@@ -14,6 +14,7 @@ vi.mock("./n8n-client.js", () => ({
     answer: "42",
     sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
   })),
+  ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
 }));
 
 // Imported after mocks are registered.
@@ -72,5 +73,30 @@ describe("message route", () => {
       .post("/chat/conversations/cX/messages")
       .send({ question: "hi" });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("attachment route", () => {
+  it("rejects a non-PDF/DOCX file with 400", async () => {
+    dbMock.setResult([{ id: "c1" }]); // owned
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("hello"), {
+        filename: "notes.txt",
+        contentType: "text/plain",
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts a PDF and returns 202 with a chunk count", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("%PDF-1.4 fake"), {
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(202);
+    expect(res.body.chunkCount).toBe(3);
   });
 });

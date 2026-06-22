@@ -1,14 +1,26 @@
 import { Router, type Request, type Response } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import multer from "multer";
 import { db } from "../db/index.js";
-import { conversations, messages } from "../db/schema.js";
+import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag } from "./n8n-client.js";
+import { queryRag, ingestFile } from "./n8n-client.js";
 
 const router = Router();
 router.use(requireAuth);
+
+// 20 MB cap; keep the file in memory so we can forward it to n8n.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
+
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 
 // Resolve a conversation owned by the session user, or null.
 async function ownedConversation(userId: string, conversationId: string) {
@@ -116,6 +128,54 @@ router.post(
     });
 
     res.json({ answer: result.answer, sources: result.sources });
+  },
+);
+
+router.post(
+  "/conversations/:id/attachments",
+  requireCsrf,
+  upload.single("file"),
+  async (req: Request, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const file = req.file;
+    if (!file || !ALLOWED_MIME.has(file.mimetype)) {
+      res.status(400).json({ error: "Only PDF and DOCX files are supported" });
+      return;
+    }
+
+    let result;
+    try {
+      result = await ingestFile(
+        req.params.id,
+        file.originalname,
+        file.buffer,
+        file.mimetype,
+      );
+    } catch {
+      res.status(502).json({ error: "Indexing is unavailable right now" });
+      return;
+    }
+
+    const rows = await db
+      .insert(attachments)
+      .values({
+        conversationId: req.params.id,
+        filename: file.originalname,
+        status: "ready",
+        chunkCount: result.chunkCount,
+      })
+      .returning({ id: attachments.id });
+
+    res.status(202).json({
+      attachmentId: rows[0].id,
+      status: "ready",
+      chunkCount: result.chunkCount,
+    });
   },
 );
 
