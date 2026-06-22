@@ -52,6 +52,13 @@ describe("n8n-client", () => {
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-ingest");
     expect(init.method).toBe("POST");
+
+    // The body is multipart FormData carrying conversationId and an explicit
+    // filename field (in addition to the binary file part).
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get("conversationId")).toBe("conv-1");
+    expect(form.get("filename")).toBe("doc.pdf");
   });
 
   it("ingestFile throws on a non-ok response", async () => {

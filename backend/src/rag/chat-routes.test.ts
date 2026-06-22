@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import { buildTestApp, makeDbMock, TEST_USER_ID } from "../test/app-harness.js";
 
@@ -27,6 +27,14 @@ function app() {
   return buildTestApp((a) => a.use("/chat", chatRouter));
 }
 
+// The db mock and n8n mocks are module-level, so clear call history before
+// each test to keep per-test call-count/argument assertions reliable.
+// clearAllMocks resets call history only; implementations and the db mock's
+// setResult state are preserved.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe("conversation routes", () => {
   it("creates a conversation owned by the session user", async () => {
     dbMock.setResult([
@@ -49,6 +57,30 @@ describe("conversation routes", () => {
     const res = await request(app()).get("/chat/conversations/cX/messages");
     expect(res.status).toBe(404);
   });
+
+  it("returns 401 when the request is unauthenticated", async () => {
+    const unauthedApp = buildTestApp((a) => a.use("/chat", chatRouter), false);
+    const res = await request(unauthedApp).get("/chat/conversations");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns the message history for an owned conversation", async () => {
+    // The ownership lookup and the messages query both read this single
+    // result. The row is valid as both an ownership row (truthy id) and a
+    // message list entry, so one setResult serves both reads.
+    const messageRow = {
+      id: "m1",
+      role: "user",
+      content: "hi",
+      sources: null,
+      createdAt: "t",
+    };
+    dbMock.setResult([messageRow]);
+    const res = await request(app()).get("/chat/conversations/c1/messages");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toEqual([messageRow]);
+  });
 });
 
 describe("message route", () => {
@@ -60,7 +92,7 @@ describe("message route", () => {
     expect(res.status).toBe(400);
   });
 
-  it("answers via n8n and returns answer + sources", async () => {
+  it("answers via n8n and persists both turns", async () => {
     dbMock.setResult([{ id: "c1" }]); // ownership + inserts resolve to this
     const res = await request(app())
       .post("/chat/conversations/c1/messages")
@@ -71,6 +103,25 @@ describe("message route", () => {
       filename: "doc.pdf",
       chunkIndex: 1,
       text: "the answer is 42",
+    });
+
+    // The query ran with (conversationId, question).
+    expect(vi.mocked(queryRag)).toHaveBeenCalledWith("c1", "What is the answer?");
+
+    // Both turns were persisted in order: the user message first, then the
+    // assistant answer with its sources. (Because the query runs before either
+    // insert, this also confirms nothing is written until the answer succeeds.)
+    const valuesSpy = dbMock.db.values as ReturnType<typeof vi.fn>;
+    expect(valuesSpy.mock.calls[0][0]).toEqual({
+      conversationId: "c1",
+      role: "user",
+      content: "What is the answer?",
+    });
+    expect(valuesSpy.mock.calls[1][0]).toEqual({
+      conversationId: "c1",
+      role: "assistant",
+      content: "42",
+      sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
     });
   });
 
