@@ -50,6 +50,7 @@ export async function ingestFile(
 ): Promise<IngestResult> {
   const form = new FormData();
   form.append("conversationId", conversationId);
+  form.append("filename", filename);
   // Wrap the buffer as a Blob so multipart sends the binary with a filename.
   form.append("file", new Blob([file], { type: mimeType }), filename);
 
