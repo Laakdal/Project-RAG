@@ -12,18 +12,13 @@
 
 import type { ExternalStoreAdapter } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
-import { useChatStore, ctxKeyFromAgent, getEffectiveModel } from './store';
-import { streamMessageForSlot, cancelStreamForSlot } from './streaming';
+import { useChatStore } from './store';
+import { cancelStreamForSlot } from './streaming';
+import { createConversation, askQuestion } from './rag-api';
 import {
-  buildAssistantApiFilters,
-  buildStreamRequestModeFields,
-  type AppliedFilterNode,
-  type AppliedFilters,
   type AttachmentRef,
   type ChatCollectionAttachment,
-  type ChatKnowledgeFilters,
   type ConversationMessage,
-  type StreamChatRequest,
 } from './types';
 import {
   buildCitationMapsFromApi,
@@ -31,6 +26,15 @@ import {
 
 /** Non-empty query required by the chat API when the user sends attachments only (matches Slack bot). */
 const ATTACHMENT_ONLY_STREAM_QUERY = 'See below attached file(s).';
+
+/** Stable id for the in-flight assistant placeholder (works on HTTP where randomUUID is missing). */
+function createPendingAssistantId(): string {
+  const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+  return `asst-pending-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
 
 /**
  * Extract text content from assistant-ui message content
@@ -179,131 +183,14 @@ export function buildExternalStoreConfig(
       if (!targetSlotId) return;
 
       const displayQuery = extractTextContent(message.content).trim();
-      const msgAttachmentsEarly = readAttachmentsFromMessage(message);
-      if (!displayQuery && (!msgAttachmentsEarly || msgAttachmentsEarly.length === 0)) return;
+      const msgAttachments = readAttachmentsFromMessage(message);
+      if (!displayQuery && (!msgAttachments || msgAttachments.length === 0)) return;
 
-      const currentState = useChatStore.getState();
-      const currentSlot = currentState.slots[targetSlotId];
+      const store = useChatStore.getState();
+      const currentSlot = store.slots[targetSlotId];
       if (!currentSlot) return;
       // Safety net: ChatInputWrapper blocks user sends while streaming; only programmatic api call `threadRuntime.append` reaches here.
       if (currentSlot.isStreaming) return;
-
-      // Extract KB / collection-root scope from message metadata (attached at send-time)
-      const msgCollections = readKbCollectionsFromMessage(message);
-      const storeApps = currentState.settings.filters.apps ?? [];
-      const storeKb = currentState.settings.filters.kb ?? [];
-
-      /** Same merge as legacy `buildAssistantApiFilters(apps + collectionRootIds)` + message-time kb override. */
-      let assistantFilters: ChatKnowledgeFilters;
-      if (msgCollections && msgCollections.length > 0) {
-        const msgRootIds = msgCollections
-          .filter((c) => (c.kind ?? 'collectionRoot') !== 'recordGroup')
-          .map((c) => c.id);
-        const msgKbIds = msgCollections
-          .filter((c) => c.kind === 'recordGroup')
-          .map((c) => c.id);
-        assistantFilters = {
-          apps: [...new Set([...storeApps, ...msgRootIds])],
-          kb: [...msgKbIds],
-        };
-      } else {
-        assistantFilters = { apps: [...storeApps], kb: [...storeKb] };
-      }
-
-      const urlParams =
-        typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const rawUrlAgent = urlParams?.get('agentId');
-      const agentIdFromUrl = rawUrlAgent?.trim() ? rawUrlAgent : undefined;
-      const slotAgent = currentSlot.threadAgentId?.trim() || null;
-      const effectiveAgentId = slotAgent ?? agentIdFromUrl ?? undefined;
-
-      const isUniversalAgentMode =
-        !effectiveAgentId && currentState.settings.queryMode === 'agent';
-
-      // Resolve tool selection for the active context:
-      // - URL-scoped agent: agentStreamTools (null = full catalog)
-      // - Universal agent (no agentId, queryMode === 'agent'): universalAgentStreamTools
-      // - All other modes: no tools sent
-      const toolsSel = effectiveAgentId
-        ? currentState.agentStreamTools
-        : isUniversalAgentMode
-          ? currentState.universalAgentStreamTools
-          : null;
-      const toolCatalog = effectiveAgentId
-        ? currentState.agentToolCatalogFullNames
-        : currentState.universalAgentToolCatalogFullNames;
-
-      /**
-       * Expand null ("all tools") to catalog fullNames; explicit list passes through.
-       *
-       * The internal selection state uses `${instanceId}:${fullName}` composite keys so
-       * multiple instances of the same toolset type can be independently selected. Strip
-       * the prefix here before putting keys on the wire — the backend only understands
-       * bare fullName strings.
-       */
-      const stripInstancePrefix = (key: string) => {
-        const colon = key.indexOf(':');
-        return colon >= 0 ? key.slice(colon + 1) : key;
-      };
-      // Deduplicate after stripping: two same-type instances share fullNames on the wire,
-      // so Set removes duplicates while preserving order.
-      const streamTools =
-        effectiveAgentId || isUniversalAgentMode
-          ? [...new Set((toolsSel === null ? [...toolCatalog] : [...toolsSel]).map(stripInstancePrefix))]
-          : [];
-
-      // Resolve the model for the CURRENT context (agent or assistant) so the
-      // submitted payload matches exactly what the chat input pill shows.
-      const modelCtxKey = ctxKeyFromAgent(effectiveAgentId ?? null);
-      const effectiveModel = getEffectiveModel(modelCtxKey) ?? {
-        modelKey: '',
-        modelName: '',
-        modelFriendlyName: '',
-      };
-
-      const isAgent = Boolean(effectiveAgentId);
-      const knowledgeScope = currentState.agentKnowledgeScope;
-      const knowledgeDefaults = currentState.agentKnowledgeDefaults;
-      /** UI “full knowledge” keeps `scope` null — still send explicit ids like the panel shows. */
-      const resolvedAgentKnowledge =
-        isAgent && knowledgeScope === null ? knowledgeDefaults : knowledgeScope;
-
-      const resolvedFilters = isAgent
-        ? {
-            apps: (resolvedAgentKnowledge?.apps ?? []).filter(
-              (id): id is string => typeof id === 'string' && id.trim().length > 0
-            ),
-            kb: (resolvedAgentKnowledge?.kb ?? []).filter(
-              (id): id is string => typeof id === 'string' && id.trim().length > 0
-            ),
-          }
-        : buildAssistantApiFilters(assistantFilters);
-
-      const metaCache = currentState.collectionMetaCache;
-      const buildAppliedFilterNodes = (ids: string[]): AppliedFilterNode[] =>
-        ids
-          .filter((id) => id.trim().length > 0)
-          .map((id) => {
-            const meta = metaCache[id];
-            return {
-              id,
-              name: meta?.name ?? currentState.collectionNamesCache[id] ?? id,
-              nodeType: meta?.nodeType ?? '',
-              connector: meta?.connector ?? '',
-            };
-          });
-
-      const hasFilters = resolvedFilters.apps.length > 0 || resolvedFilters.kb.length > 0;
-      const appliedFilters: AppliedFilters | undefined = hasFilters
-        ? {
-            apps: buildAppliedFilterNodes(resolvedFilters.apps),
-            kb: buildAppliedFilterNodes(resolvedFilters.kb),
-          }
-        : isAgent
-          ? { apps: [], kb: [] }
-          : undefined;
-
-      const msgAttachments = msgAttachmentsEarly;
 
       const apiQuery =
         displayQuery ||
@@ -312,38 +199,146 @@ export function buildExternalStoreConfig(
           : '');
       if (!apiQuery) return;
 
-      const request: StreamChatRequest = {
-        query: apiQuery,
-        ...effectiveModel,
-        ...buildStreamRequestModeFields(currentState.settings),
-        filters: resolvedFilters,
-        ...(appliedFilters ? { appliedFilters } : {}),
-        conversationId: currentSlot.convId || undefined,
-        ...(effectiveAgentId
-          ? {
-              agentId: effectiveAgentId,
-              agentStreamTools: streamTools,
-            }
-          : isUniversalAgentMode && toolsSel !== null
-            ? {
-                // Universal agent streams to the assistant endpoint (Option A contract):
-                //   POST /api/v1/conversations[/:convId]/messages/stream with chatMode "agent:..."
-                // Node.js parses chatMode and proxies to the agentIdPlaceholder path on Python,
-                // where get_assistant_agent assembles a synthetic agent config from etcd toolsets.
-                // `tools` in the body carries the selected fullName subset. Node.js MUST forward
-                // this field to Python for per-session tool selection to take effect.
-                // Do NOT route universal agent to /api/v1/agents/:id/... — that path is reserved
-                // for URL-scoped agent chat. A dedicated universal-agent endpoint (Option B) may
-                // replace this path in a future release.
-                agentStreamTools: streamTools,
-              }
-            : {}),
-        ...(msgAttachments ? { attachments: msgAttachments } : {}),
-      };
+      // A new chat has no conversation yet — create one so the URL-sync effect
+      // (page.tsx) can push `?conversationId=<id>` and the sidebar gets a row.
+      const isNewConversation = currentSlot.isTemp || !currentSlot.convId;
+      let convId = currentSlot.convId;
+      if (!convId) {
+        try {
+          const conv = await createConversation();
+          convId = conv.id;
+          store.resolveSlotConvId(targetSlotId, convId);
+        } catch (err) {
+          console.error('[rag] Failed to create conversation for slot', targetSlotId, err);
+          store.updateSlot(targetSlotId, {
+            messages: [
+              ...currentSlot.messages,
+              {
+                role: 'user' as const,
+                content: [{ type: 'text' as const, text: displayQuery }],
+                metadata: {
+                  custom: {
+                    createdAt: new Date().toISOString(),
+                    ...(msgAttachments ? { attachments: msgAttachments } : {}),
+                  },
+                },
+              },
+              {
+                role: 'assistant' as const,
+                content: [
+                  {
+                    type: 'text' as const,
+                    text: 'Failed to start the conversation. Please try again.',
+                  },
+                ],
+              },
+            ],
+          });
+          return;
+        }
+      }
 
-      // Fire-and-forget — streaming.ts handles all state updates.
-      // Keep `displayQuery` for the slot user row + streamingQuestion so attachment-only turns still match an empty text bubble.
-      streamMessageForSlot(targetSlotId, displayQuery, request);
+      // Append the user turn + an empty assistant placeholder, set busy state,
+      // and (for new chats) push the pending sidebar row. Same store mutators
+      // the streaming path used, so URL sync + sidebar + message list keep working.
+      const pendingAssistantId = createPendingAssistantId();
+      store.updateSlot(targetSlotId, {
+        isStreaming: true,
+        streamingQuestion: displayQuery,
+        streamingContent: '',
+        currentStatusMessage: null,
+        streamingCitationMaps: null,
+        messages: [
+          ...currentSlot.messages,
+          {
+            role: 'user' as const,
+            content: [{ type: 'text' as const, text: displayQuery }],
+            metadata: {
+              custom: {
+                createdAt: new Date().toISOString(),
+                ...(msgAttachments ? { attachments: msgAttachments } : {}),
+              },
+            },
+          },
+          {
+            role: 'assistant' as const,
+            id: pendingAssistantId,
+            content: [{ type: 'text' as const, text: '' }],
+          },
+        ],
+      });
+
+      if (isNewConversation) {
+        store.addPendingConversation(targetSlotId);
+      }
+
+      try {
+        const { answer, sources } = await askQuestion(convId, apiQuery);
+
+        const latest = useChatStore.getState().slots[targetSlotId];
+        const baseMessages = latest ? latest.messages : currentSlot.messages;
+        // Replace the empty assistant placeholder with the final answer; stash
+        // the RAG sources under metadata.custom.sources for the renderer.
+        const finalMessages: ThreadMessageLike[] = baseMessages.map((m) =>
+          m.id === pendingAssistantId
+            ? {
+                ...m,
+                content: [{ type: 'text' as const, text: answer }],
+                metadata: { custom: { sources: sources ?? [] } },
+              }
+            : m
+        );
+
+        useChatStore.getState().updateSlot(targetSlotId, {
+          isStreaming: false,
+          streamingQuestion: '',
+          streamingContent: '',
+          currentStatusMessage: null,
+          streamingCitationMaps: null,
+          messages: finalMessages,
+          hasLoaded: true,
+          ...(isNewConversation ? { isOwner: true } : {}),
+        });
+
+        const resolvedStore = useChatStore.getState();
+        if (isNewConversation) {
+          // Promote the pending sidebar row to a real conversation entry.
+          const nowIso = new Date().toISOString();
+          resolvedStore.resolvePendingConversation(targetSlotId, {
+            id: convId,
+            title: apiQuery.slice(0, 80),
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            isShared: false,
+            sharedWith: [],
+            isOwner: true,
+          });
+        } else {
+          resolvedStore.moveConversationToTop(convId);
+        }
+      } catch (err) {
+        console.error('[rag] askQuestion failed for slot', targetSlotId, err);
+        const errText =
+          err instanceof Error ? err.message : 'An error occurred. Please try again.';
+        const latest = useChatStore.getState().slots[targetSlotId];
+        const baseMessages = latest ? latest.messages : currentSlot.messages;
+        const finalMessages: ThreadMessageLike[] = baseMessages.map((m) =>
+          m.id === pendingAssistantId
+            ? { ...m, content: [{ type: 'text' as const, text: errText }] }
+            : m
+        );
+        useChatStore.getState().updateSlot(targetSlotId, {
+          isStreaming: false,
+          streamingQuestion: '',
+          streamingContent: '',
+          currentStatusMessage: null,
+          streamingCitationMaps: null,
+          messages: finalMessages,
+        });
+        if (isNewConversation) {
+          useChatStore.getState().clearPendingConversation(targetSlotId);
+        }
+      }
     },
 
     onCancel: async () => {
