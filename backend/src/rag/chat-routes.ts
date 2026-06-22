@@ -1,4 +1,9 @@
-import { Router, type Request, type Response } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import multer from "multer";
@@ -21,6 +26,22 @@ const ALLOWED_MIME = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+
+// Wrap multer so an oversize upload returns a clean 413 instead of falling
+// through to the global error handler (which would surface a 500).
+function uploadSingle(req: Request, res: Response, next: NextFunction): void {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({ error: "File too large (max 20 MB)" });
+      return;
+    }
+    if (err) {
+      next(err as Error);
+      return;
+    }
+    next();
+  });
+}
 
 // Resolve a conversation owned by the session user, or null.
 async function ownedConversation(userId: string, conversationId: string) {
@@ -63,7 +84,7 @@ router.get("/conversations", async (req: Request, res: Response) => {
 
 router.get(
   "/conversations/:id/messages",
-  async (req: Request, res: Response) => {
+  async (req: Request<{ id: string }>, res: Response) => {
     const userId = req.session.userId as string;
     const owned = await ownedConversation(userId, req.params.id);
     if (!owned) {
@@ -90,7 +111,7 @@ const askSchema = z.object({ question: z.string().trim().min(1) });
 router.post(
   "/conversations/:id/messages",
   requireCsrf,
-  async (req: Request, res: Response) => {
+  async (req: Request<{ id: string }>, res: Response) => {
     const userId = req.session.userId as string;
     const owned = await ownedConversation(userId, req.params.id);
     if (!owned) {
@@ -134,8 +155,8 @@ router.post(
 router.post(
   "/conversations/:id/attachments",
   requireCsrf,
-  upload.single("file"),
-  async (req: Request, res: Response) => {
+  uploadSingle,
+  async (req: Request<{ id: string }>, res: Response) => {
     const userId = req.session.userId as string;
     const owned = await ownedConversation(userId, req.params.id);
     if (!owned) {
