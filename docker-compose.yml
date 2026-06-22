@@ -31,6 +31,9 @@ services:
 
   # One-shot: apply pending DB migrations, then exit.
   migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: project-rag-backend:local
     restart: "no"
     depends_on:
@@ -45,6 +48,9 @@ services:
 
   # One-shot: create/update the admin user from ADMIN_* (idempotent upsert), then exit.
   seed-admin:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: project-rag-backend:local
     restart: "no"
     depends_on:
