@@ -8,9 +8,14 @@
 # Run:
 #   docker run --rm -p 3000:3000 frontend
 #
-# NEXT_PUBLIC_* values are inlined at BUILD time, so pass them as build args:
-#   --build-arg NEXT_PUBLIC_API_BASE_URL=http://host:3001   point at a backend
-#   --build-arg NEXT_PUBLIC_DEV_BYPASS_AUTH=1               preview the UI without a backend
+# NEXT_PUBLIC_* values are inlined at BUILD time, so pass them as build args.
+# For the split deployment (frontend local, backend on the VPS) use the
+# same-origin proxy: keep NEXT_PUBLIC_API_BASE_URL EMPTY (the browser talks only
+# to this origin so the session/CSRF cookies stay first-party) and set
+# BACKEND_ORIGIN to the backend — next.config rewrites() bakes the /auth/* and
+# /chat/conversations/* proxy to BACKEND_ORIGIN at build time.
+#   --build-arg BACKEND_ORIGIN=https://api.ariorafa.site
+#   --build-arg NEXT_PUBLIC_DEV_BYPASS_AUTH=1   preview the UI without a backend
 
 ARG NODE_VERSION=22-slim
 
@@ -40,6 +45,11 @@ ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 # backend. Defaults off; set to 1 only for previews.
 ARG NEXT_PUBLIC_DEV_BYPASS_AUTH=""
 ENV NEXT_PUBLIC_DEV_BYPASS_AUTH=${NEXT_PUBLIC_DEV_BYPASS_AUTH}
+# Same-origin proxy target. next.config rewrites() reads this at BUILD time to
+# bake the /auth/* and /chat/conversations/* proxy destination (rewrites are
+# resolved at build, not runtime, for the standalone server).
+ARG BACKEND_ORIGIN="https://api.ariorafa.site"
+ENV BACKEND_ORIGIN=${BACKEND_ORIGIN}
 ENV NEXT_OUTPUT_STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
 
