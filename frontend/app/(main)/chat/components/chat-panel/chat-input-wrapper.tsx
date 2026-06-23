@@ -7,7 +7,7 @@ import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useEffectiveAgentId } from '@/chat/hooks/use-effective-agent-id';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { ChatApi } from '@/chat/api';
-import { createConversation, uploadAttachment } from '@/chat/rag-api';
+import { ensureSlotConversation, uploadAttachment } from '@/chat/rag-api';
 import {
   buildAssistantApiFilters,
   type AttachmentRef,
@@ -119,11 +119,13 @@ export function ChatInputWrapper() {
    * Per-file upload, fired by `ChatInput` the moment a chip is added to the
    * composer. Uploads through the RAG backend, which ingests + chunks the
    * file against a conversation. A new chat has no conversation yet, so we
-   * create one first (and resolve it onto the active slot so the same id is
-   * reused on send + the URL-sync effect picks it up).
+   * ensure one first (race-free, shared with the send path) and resolve it
+   * onto the active slot so the same id is reused on send + the URL-sync
+   * effect picks it up. `signal` is forwarded so `ChatInput` can abort the
+   * upload when the user removes a chip mid-flight.
    */
   const handleUploadFile = useCallback(
-    async (file: File): Promise<AttachmentRef> => {
+    async (file: File, signal: AbortSignal): Promise<AttachmentRef> => {
       const store = useChatStore.getState();
 
       // Ensure there is an active slot to own the conversation.
@@ -133,15 +135,12 @@ export function ChatInputWrapper() {
         store.setActiveSlot(activeSlotId);
       }
 
-      // Ensure the slot has a real conversation id — uploads are conversation-scoped.
-      let conversationId = store.slots[activeSlotId]?.convId ?? null;
-      if (!conversationId) {
-        const conv = await createConversation();
-        conversationId = conv.id;
-        store.resolveSlotConvId(activeSlotId, conversationId);
-      }
+      // Ensure the slot has a real conversation id — uploads are
+      // conversation-scoped. Shared, race-free helper so a concurrent send
+      // doesn't create a second conversation.
+      const conversationId = await ensureSlotConversation(activeSlotId);
 
-      const { attachmentId } = await uploadAttachment(conversationId, file);
+      const { attachmentId } = await uploadAttachment(conversationId, file, signal);
 
       const extension = file.name.includes('.')
         ? file.name.split('.').pop()?.toLowerCase() ?? ''

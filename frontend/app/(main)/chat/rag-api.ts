@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api';
+import { useChatStore } from './store';
 
 export interface Source {
   filename: string;
@@ -40,12 +41,14 @@ export async function listMessages(conversationId: string): Promise<ChatMessage[
 export async function uploadAttachment(
   conversationId: string,
   file: File,
+  signal?: AbortSignal,
 ): Promise<{ attachmentId: string; status: string; chunkCount: number }> {
   const form = new FormData();
   form.append('file', file);
   const { data } = await apiClient.post(
     `/chat/conversations/${conversationId}/attachments`,
     form,
+    { signal },
   );
   return data;
 }
@@ -59,4 +62,41 @@ export async function askQuestion(
     { question },
   );
   return data;
+}
+
+/**
+ * In-flight `createConversation` promises keyed by slot id. Dedupes concurrent
+ * conversation creates for the same slot — e.g. a drop-file (upload) and an
+ * immediate send both racing to create a conversation would otherwise spawn two.
+ */
+const inFlightConversationCreates = new Map<string, Promise<string>>();
+
+/**
+ * Idempotent, race-free "ensure the slot has a conversation id".
+ *
+ * - If the slot already has a `convId`, returns it immediately.
+ * - Otherwise dedupes concurrent creates via a module-level in-flight cache:
+ *   the first caller starts the create, resolves the new id onto the slot via
+ *   `resolveSlotConvId`, and any concurrent caller awaits the same promise.
+ *
+ * Used by both the send path (`onNew`) and the upload path (`handleUploadFile`)
+ * so a single conversation backs both.
+ */
+export async function ensureSlotConversation(slotId: string): Promise<string> {
+  const existing = useChatStore.getState().slots[slotId]?.convId ?? null;
+  if (existing) return existing;
+
+  const pending = inFlightConversationCreates.get(slotId);
+  if (pending) return pending;
+
+  const createPromise = (async () => {
+    const conv = await createConversation();
+    useChatStore.getState().resolveSlotConvId(slotId, conv.id);
+    return conv.id;
+  })().finally(() => {
+    inFlightConversationCreates.delete(slotId);
+  });
+
+  inFlightConversationCreates.set(slotId, createPromise);
+  return createPromise;
 }
