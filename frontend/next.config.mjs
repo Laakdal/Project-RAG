@@ -6,6 +6,13 @@ const standaloneOutput = process.env.NEXT_OUTPUT_STANDALONE === '1';
 const nextConfig = {
     ...(standaloneOutput ? { output: 'standalone' } : {}),
     trailingSlash: true,
+    // Next's rewrite proxy (used to forward /chat/* etc. to the backend) gives up
+    // after a default 30s. A large attachment upload over a slow uplink takes
+    // longer than that, so raise it generously — otherwise the proxy aborts the
+    // upload mid-stream and the backend never sees it.
+    experimental: {
+        proxyTimeout: 600_000,
+    },
     /**
      * Static export does not emit per-slug callback HTML. Rewrites map
      * `/toolsets/oauth/callback/:slug` and `/connectors/oauth/callback/:slug` → the
