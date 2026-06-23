@@ -106,6 +106,30 @@ router.get(
   },
 );
 
+router.get(
+  "/conversations/:id/attachments",
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const rows = await db
+      .select({
+        id: attachments.id,
+        filename: attachments.filename,
+        status: attachments.status,
+        chunkCount: attachments.chunkCount,
+        createdAt: attachments.createdAt,
+      })
+      .from(attachments)
+      .where(eq(attachments.conversationId, req.params.id))
+      .orderBy(attachments.createdAt);
+    res.json(rows);
+  },
+);
+
 router.delete(
   "/conversations/:id",
   requireCsrf,
