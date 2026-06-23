@@ -11,6 +11,7 @@ import { sql } from "drizzle-orm";
 import { config, isProduction } from "./config.js";
 import { db, pool } from "./db/index.js";
 import authRoutes from "./auth/routes.js";
+import { chatRouter } from "./rag/chat-routes.js";
 import { CSRF_HEADER_NAME } from "./auth/csrf.js";
 
 const app = express();
@@ -65,6 +66,7 @@ app.get("/health", async (_req: Request, res: Response) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/chat", chatRouter);
 
 // 404 handler.
 app.use((_req: Request, res: Response) => {
