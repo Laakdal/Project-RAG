@@ -4,7 +4,7 @@ import {
   type Response,
   type NextFunction,
 } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import multer from "multer";
 import { db } from "../db/index.js";
@@ -77,7 +77,15 @@ router.get("/conversations", async (req: Request, res: Response) => {
       createdAt: conversations.createdAt,
     })
     .from(conversations)
-    .where(eq(conversations.userId, userId))
+    // Only surface conversations that actually have a message. A brand-new chat
+    // with nothing typed (or an upload-only chat the user abandoned) has no
+    // message yet and should not clutter the history sidebar.
+    .where(
+      and(
+        eq(conversations.userId, userId),
+        sql`exists (select 1 from ${messages} where ${messages.conversationId} = ${conversations.id})`,
+      ),
+    )
     .orderBy(desc(conversations.createdAt));
   res.json(rows);
 });
