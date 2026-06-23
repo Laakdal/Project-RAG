@@ -3,16 +3,19 @@
 import React, { useEffect, useCallback, useLayoutEffect, useRef, useMemo, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AssistantRuntimeProvider, useExternalStoreRuntime, useThreadRuntime } from '@assistant-ui/react';
+import type { ThreadMessageLike } from '@assistant-ui/react';
 import { SuggestionChip, MessageList, ChatInputWrapper, SearchResultsView } from './components';
 import { AgentChatHeader } from './components/agent-chat-header';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import {
   applyConversationModelInfoToStore,
   findModelInfoInConversationLists,
-  pickModelInfoFromConversationBundle,
 } from '@/chat/utils/apply-conversation-model-info';
 import { ChatSuggestion } from '@/chat/types';
-import { ChatApi } from '@/chat/api';
+import {
+  listConversations as ragListConversations,
+  listMessages as ragListMessages,
+} from '@/chat/rag-api';
 import { buildChatHref } from '@/chat/build-chat-url';
 import {
   AgentsApi,
@@ -22,7 +25,7 @@ import {
   extractAgentKnowledgeCollectionRows,
 } from '@/app/(main)/agents/api';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
-import { buildExternalStoreConfig, loadHistoricalMessages } from '@/chat/runtime';
+import { buildExternalStoreConfig } from '@/chat/runtime';
 import { debugLog } from '@/chat/debug-logger';
 import { useCommandStore } from '@/lib/store/command-store';
 import { usePendingChatStore } from '@/lib/store/pending-chat-store';
@@ -40,7 +43,6 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { toast } from '@/lib/store/toast-store';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { useServicesHealthStore } from '@/lib/store/services-health-store';
-import { SIDEBAR_CONVERSATIONS_PAGE_SIZE } from './constants';
 import { UsersApi } from '@/app/(main)/workspace/users/api';
 
 // Space reserved below content views to clear the absolutely-positioned chat input.
@@ -229,20 +231,32 @@ function ChatContent() {
     };
   }, [router]);
 
-  // Fetch conversations from API
+  // Fetch conversations from the RAG backend (GET /chat/conversations).
+  // The endpoint returns the user's own conversations newest-first; there is
+  // no shared-conversations concept on this backend, so that list stays empty.
   const loadConversations = useCallback(async () => {
     setIsConversationsLoading(true);
     setConversationsError(null);
 
     try {
-      const [owned, shared] = await Promise.all([
-        ChatApi.fetchConversations(1, SIDEBAR_CONVERSATIONS_PAGE_SIZE, { source: 'owned' }),
-        ChatApi.fetchConversations(1, SIDEBAR_CONVERSATIONS_PAGE_SIZE, { source: 'shared' }),
-      ]);
-      setConversations(owned.conversations);
-      setSharedConversations(shared.conversations);
-      setPagination(owned.pagination);
-      setSharedPagination(shared.pagination);
+      const conversations = await ragListConversations();
+      // Map the RAG shape {id, title, createdAt} onto the sidebar Conversation
+      // shape. `updatedAt` mirrors `createdAt` (no separate field) so the
+      // time-grouping / activity sort in the sidebar has a date to work with.
+      setConversations(
+        conversations.map((c) => ({
+          id: c.id,
+          title: c.title,
+          createdAt: c.createdAt,
+          updatedAt: c.createdAt,
+          isShared: false,
+          sharedWith: [],
+          isOwner: true,
+        }))
+      );
+      setSharedConversations([]);
+      setPagination(null);
+      setSharedPagination(null);
     } catch (error) {
       if (useServicesHealthStore.getState().apiServerReachable) {
         console.error('Failed to fetch conversations:', error);
@@ -571,77 +585,45 @@ function ChatContent() {
 
     const loadHistory = async () => {
       try {
-        const detail = historyAndShareAgentId
-          ? await AgentsApi.fetchAgentConversation(historyAndShareAgentId, convId)
-          : await ChatApi.fetchConversation(convId);
+        // Load the conversation's messages from the RAG backend
+        // (GET /chat/conversations/:id/messages). Returns chronological
+        // {id, role, content, sources, createdAt}[].
+        const messages = await ragListMessages(convId);
         if (cancelled) return;
 
-        const messages = detail.messages;
-        const isOwner = detail.conversation.access?.isOwner ?? false;
-        const apiPagination = detail.pagination;
-        const modelInfo = pickModelInfoFromConversationBundle({
-          modelInfo: detail.conversation.modelInfo,
-          messages: detail.messages,
-        });
-
         // Always reset filters so pills from a previously viewed conversation
-        // don't persist if this conversation carries no filter history.
+        // don't persist (the RAG backend carries no per-message filters).
         useChatStore.getState().setFilters({ apps: [], kb: [] });
 
-        // Restore filter state from the most recent user message that carried filters.
-        // This brings back the selected connectors/collections after a hard refresh.
-        const lastFiltered = [...messages]
-          .reverse()
-          .find((msg) => msg.messageType === 'user_query' && msg.appliedFilters);
+        // Map each message into the slot's ThreadMessageLike format — the SAME
+        // shape the send path (runtime.ts onNew) writes, so history and live
+        // messages render identically (including Sources for assistant turns).
+        const formattedMessages: ThreadMessageLike[] = messages.map((msg) =>
+          msg.role === 'user'
+            ? {
+                id: msg.id,
+                role: 'user' as const,
+                content: [{ type: 'text' as const, text: msg.content }],
+                metadata: { custom: { createdAt: msg.createdAt } },
+              }
+            : {
+                id: msg.id,
+                role: 'assistant' as const,
+                content: [{ type: 'text' as const, text: msg.content }],
+                metadata: { custom: { sources: msg.sources ?? [] } },
+              }
+        );
 
-        if (lastFiltered?.appliedFilters) {
-          const af = lastFiltered.appliedFilters;
-          const store = useChatStore.getState();
-
-          // Legacy chats stored the KB/Collections root ID in apps. With the new
-          // behavior, KB roots are never added to apps — drop them for compat.
-          const legacyFilteredApps = af.apps.filter(
-            (n) => (n.connector ?? '').trim().toUpperCase() !== 'KB'
-          );
-
-          if (historyAndShareAgentId) {
-            store.setAgentKnowledgeScope({
-              apps: legacyFilteredApps.map((n) => n.id),
-              kb: af.kb.map((n) => n.id),
-            });
-          } else {
-            store.setFilters({
-              apps: legacyFilteredApps.map((n) => n.id),
-              kb: af.kb.map((n) => n.id),
-            });
-          }
-
-          const namesCache: Record<string, string> = {};
-          const metaCache: Record<string, { name: string; nodeType: string; connector: string }> = {};
-          for (const node of [...legacyFilteredApps, ...af.kb]) {
-            namesCache[node.id] = node.name;
-            metaCache[node.id] = {
-              name: node.name,
-              nodeType: node.nodeType,
-              connector: node.connector,
-            };
-          }
-          store.setCollectionNamesCache(namesCache);
-          store.setCollectionMetaCache(metaCache);
-        }
-
-        const formattedMessages = loadHistoricalMessages(messages);
         useChatStore.getState().updateSlot(activeSlotId, {
           messages: formattedMessages,
           isInitialized: true,
           hasLoaded: true,
-          isOwner,
+          isOwner: true,
           messagePagination: {
-            currentPage: apiPagination.page,
-            hasOlderMessages: apiPagination.hasNextPage,
+            currentPage: 1,
+            hasOlderMessages: false,
             isLoadingOlder: false,
           },
-          ...(modelInfo ? { conversationModelInfo: modelInfo } : {}),
         });
       } catch (error) {
         console.error('Failed to load conversation history:', error);
