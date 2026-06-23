@@ -83,6 +83,24 @@ describe("conversation routes", () => {
   });
 });
 
+describe("delete conversation route", () => {
+  it("deletes an owned conversation and returns 204", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership lookup + delete resolve here
+    const res = await request(app()).delete("/chat/conversations/c1");
+    expect(res.status).toBe(204);
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    expect(deleteSpy).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the conversation is not owned", async () => {
+    dbMock.setResult([]); // ownership lookup empty
+    const res = await request(app()).delete("/chat/conversations/cX");
+    expect(res.status).toBe(404);
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("message route", () => {
   it("rejects an empty question with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned

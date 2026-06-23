@@ -106,6 +106,22 @@ router.get(
   },
 );
 
+router.delete(
+  "/conversations/:id",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    // messages + attachments cascade via their FK onDelete: cascade.
+    await db.delete(conversations).where(eq(conversations.id, req.params.id));
+    res.status(204).end();
+  },
+);
+
 const askSchema = z.object({
   question: z.string().trim().min(1).max(4000),
 });
