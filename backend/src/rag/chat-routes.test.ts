@@ -81,6 +81,28 @@ describe("conversation routes", () => {
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toEqual([messageRow]);
   });
+
+  it("lists attachments for an owned conversation", async () => {
+    // One result serves both the ownership lookup (truthy id) and the
+    // attachments query, matching the message-history test above.
+    const attachmentRow = {
+      id: "att1",
+      filename: "doc.pdf",
+      status: "ready",
+      chunkCount: 3,
+      createdAt: "t",
+    };
+    dbMock.setResult([attachmentRow]);
+    const res = await request(app()).get("/chat/conversations/c1/attachments");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([attachmentRow]);
+  });
+
+  it("returns 404 listing attachments for a conversation the user does not own", async () => {
+    dbMock.setResult([]); // ownership lookup finds nothing
+    const res = await request(app()).get("/chat/conversations/cX/attachments");
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("delete conversation route", () => {
