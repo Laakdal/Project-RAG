@@ -10,7 +10,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: https://api.ariorafa.site
+        # Empty so the browser uses same-origin URLs; Next proxies /auth/* and
+        # /chat/conversations/* to BACKEND_ORIGIN, keeping cookies first-party.
+        NEXT_PUBLIC_API_BASE_URL: ""
+        BACKEND_ORIGIN: https://api.ariorafa.site
         NEXT_PUBLIC_DEV_BYPASS_AUTH: "0"
     image: project-rag-frontend:local
     restart: unless-stopped
