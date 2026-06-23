@@ -225,7 +225,7 @@ describe("attachment route", () => {
     dbMock.setResult([{ id: "att1" }]); // owned
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.alloc(26 * 1024 * 1024), {
+      .attach("file", Buffer.alloc(51 * 1024 * 1024), {
         filename: "big.pdf",
         contentType: "application/pdf",
       });
