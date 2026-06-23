@@ -247,6 +247,15 @@ export function buildExternalStoreConfig(
         // helper so a concurrent upload + send don't create two conversations.
         const convId = await ensureSlotConversation(targetSlotId);
 
+        // Sending a message commits the chat to a real conversation. If an
+        // earlier upload kept the slot "temp" (to preserve the centered new-chat
+        // view), clear that now so later messages aren't treated as brand new.
+        if (useChatStore.getState().slots[targetSlotId]?.isTemp) {
+          useChatStore
+            .getState()
+            .resolveSlotConvId(targetSlotId, convId, { keepTemp: false });
+        }
+
         const { answer, sources } = await askQuestion(convId, apiQuery);
 
         const latest = useChatStore.getState().slots[targetSlotId];
