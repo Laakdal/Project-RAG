@@ -70,7 +70,11 @@ export async function uploadAttachment(
   const { data } = await apiClient.post(
     `/chat/conversations/${conversationId}/attachments`,
     form,
-    { signal },
+    // A large file over a slow uplink can take minutes; the default 90s timeout
+    // would abort it. Scope a long timeout to this upload only (other calls keep
+    // the default). Must be paired with `experimental.proxyTimeout` in
+    // next.config.mjs, which caps the Next→backend proxy leg.
+    { signal, timeout: 600_000 },
   );
   return data;
 }
