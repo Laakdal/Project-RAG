@@ -86,8 +86,17 @@ apiClient.interceptors.response.use(
       return Promise.reject(processError(error));
     }
 
+    // The legacy `/api/v1/*` surface (model list, speech, old conversation
+    // detail, etc.) is not wired up in the RAG deployment — those routes are
+    // unproxied, so Next.js answers them with its own 404. They're harmless
+    // leftovers from the adapted UI, so don't surface a scary "Not Found" toast
+    // for them; real errors on the live `/chat` and `/auth` routes still toast.
+    const requestUrl = originalRequest?.url ?? '';
+    const isDeadLegacyEndpoint =
+      error.response?.status === 404 && requestUrl.includes('/api/v1/');
+
     const processedError = processError(error);
-    if (!originalRequest?.suppressErrorToast) {
+    if (!originalRequest?.suppressErrorToast && !isDeadLegacyEndpoint) {
       showErrorToast(processedError);
     }
     return Promise.reject(processedError);
