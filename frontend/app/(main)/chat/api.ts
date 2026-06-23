@@ -780,7 +780,12 @@ export const ChatApi = {
    */
   async fetchAvailableLlms(): Promise<AvailableLlmModel[]> {
     const { data } = await apiClient.get<{ status: string; models: AvailableLlmModel[]; message: string }>(
-      '/api/v1/configurationManager/ai-models/available/llm'
+      '/api/v1/configurationManager/ai-models/available/llm',
+      // This endpoint does not exist on the RAG backend — it 404s on chat load.
+      // Suppress the global error toast so the failure is silent (the caller in
+      // fetch-models-for-context already swallows the rejection and the model
+      // controls degrade gracefully).
+      { suppressErrorToast: true }
     );
     return data.models ?? [];
   },
