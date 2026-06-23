@@ -21,6 +21,28 @@ export interface Conversation {
   createdAt: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  filename: string;
+  status: string;
+  chunkCount: number | null;
+  createdAt: string;
+}
+
+/** List the documents already ingested into a conversation (persisted server-side). */
+export async function listAttachments(
+  conversationId: string,
+): Promise<ChatAttachment[]> {
+  const { data } = await apiClient.get<ChatAttachment[]>(
+    `/chat/conversations/${conversationId}/attachments`,
+    // Best-effort: the persistent chip is a nice-to-have, so never surface a
+    // toast if this endpoint is unavailable (e.g. an older backend). The caller
+    // catches and falls back to an empty list.
+    { suppressErrorToast: true },
+  );
+  return data;
+}
+
 export async function createConversation(): Promise<Conversation> {
   const { data } = await apiClient.post<Conversation>('/chat/conversations', {});
   return data;
