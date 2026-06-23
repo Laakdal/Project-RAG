@@ -14,7 +14,7 @@ import type { ExternalStoreAdapter } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import { useChatStore } from './store';
 import { cancelStreamForSlot } from './streaming';
-import { createConversation, askQuestion } from './rag-api';
+import { askQuestion, ensureSlotConversation } from './rag-api';
 import {
   type AttachmentRef,
   type ChatCollectionAttachment,
@@ -199,48 +199,18 @@ export function buildExternalStoreConfig(
           : '');
       if (!apiQuery) return;
 
-      // A new chat has no conversation yet — create one so the URL-sync effect
-      // (page.tsx) can push `?conversationId=<id>` and the sidebar gets a row.
+      // A new chat has no conversation yet — we'll create one (below) so the
+      // URL-sync effect (page.tsx) can push `?conversationId=<id>` and the
+      // sidebar gets a row.
       const isNewConversation = currentSlot.isTemp || !currentSlot.convId;
-      let convId = currentSlot.convId;
-      if (!convId) {
-        try {
-          const conv = await createConversation();
-          convId = conv.id;
-          store.resolveSlotConvId(targetSlotId, convId);
-        } catch (err) {
-          console.error('[rag] Failed to create conversation for slot', targetSlotId, err);
-          store.updateSlot(targetSlotId, {
-            messages: [
-              ...currentSlot.messages,
-              {
-                role: 'user' as const,
-                content: [{ type: 'text' as const, text: displayQuery }],
-                metadata: {
-                  custom: {
-                    createdAt: new Date().toISOString(),
-                    ...(msgAttachments ? { attachments: msgAttachments } : {}),
-                  },
-                },
-              },
-              {
-                role: 'assistant' as const,
-                content: [
-                  {
-                    type: 'text' as const,
-                    text: 'Failed to start the conversation. Please try again.',
-                  },
-                ],
-              },
-            ],
-          });
-          return;
-        }
-      }
 
-      // Append the user turn + an empty assistant placeholder, set busy state,
-      // and (for new chats) push the pending sidebar row. Same store mutators
-      // the streaming path used, so URL sync + sidebar + message list keep working.
+      // ── SYNCHRONOUS store writes FIRST — before any await ──
+      // Set the busy flag, append the user turn + an empty assistant placeholder,
+      // and (for new chats) push the pending sidebar row. This MUST happen before
+      // creating the conversation: the composer-disable signal and the re-entry
+      // guard above both read `slot.isStreaming`, so if we awaited the create
+      // first, a rapid second send would slip through and create a SECOND
+      // conversation, orphaning this answer.
       const pendingAssistantId = createPendingAssistantId();
       store.updateSlot(targetSlotId, {
         isStreaming: true,
@@ -273,6 +243,10 @@ export function buildExternalStoreConfig(
       }
 
       try {
+        // Ensure the conversation id (create if missing). Shared, race-free
+        // helper so a concurrent upload + send don't create two conversations.
+        const convId = await ensureSlotConversation(targetSlotId);
+
         const { answer, sources } = await askQuestion(convId, apiQuery);
 
         const latest = useChatStore.getState().slots[targetSlotId];
@@ -290,7 +264,6 @@ export function buildExternalStoreConfig(
         );
 
         useChatStore.getState().updateSlot(targetSlotId, {
-          isStreaming: false,
           streamingQuestion: '',
           streamingContent: '',
           currentStatusMessage: null,
@@ -328,7 +301,6 @@ export function buildExternalStoreConfig(
             : m
         );
         useChatStore.getState().updateSlot(targetSlotId, {
-          isStreaming: false,
           streamingQuestion: '',
           streamingContent: '',
           currentStatusMessage: null,
@@ -338,6 +310,9 @@ export function buildExternalStoreConfig(
         if (isNewConversation) {
           useChatStore.getState().clearPendingConversation(targetSlotId);
         }
+      } finally {
+        // Clear the busy flag on every terminal path (success and error).
+        useChatStore.getState().updateSlot(targetSlotId, { isStreaming: false });
       }
     },
 
