@@ -931,6 +931,18 @@ export function ChatInput({
 
   const hasContent = message.trim() || uploadedFiles.length > 0 || isListening;
   const hasUploadingAttachments = uploadedFiles.some((f) => f.status === 'uploading');
+
+  // A file that's currently shown as a local upload chip should not ALSO appear
+  // as a persistent attachment pill — dedupe by the server attachment id (the
+  // upload chip's ref.recordId is that same id once the upload completes).
+  const localAttachmentIds = new Set(
+    uploadedFiles
+      .map((f) => f.ref?.recordId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const persistentAttachments = existingAttachments.filter(
+    (att) => !localAttachmentIds.has(att.id),
+  );
   const canSubmit =
     (hasContent || activeMessageAction !== null) &&
     !isUniversalAgentLoading &&
@@ -1118,14 +1130,14 @@ export function ChatInput({
       {/* Documents already ingested into this conversation (persisted
           server-side), shown as read-only chips that survive a page reload —
           distinct from the local, in-flight upload chips below. */}
-      {existingAttachments.length > 0 && (
+      {persistentAttachments.length > 0 && (
         <Flex
           align="center"
           wrap="wrap"
           gap="2"
           style={{ marginBottom: 'var(--space-2)' }}
         >
-          {existingAttachments.map((att) => (
+          {persistentAttachments.map((att) => (
             <Tooltip
               key={att.id}
               content={
