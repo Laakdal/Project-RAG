@@ -170,7 +170,12 @@ export function ChatInputWrapper() {
       // Ensure the slot has a real conversation id — uploads are
       // conversation-scoped. Shared, race-free helper so a concurrent send
       // doesn't create a second conversation.
-      const conversationId = await ensureSlotConversation(activeSlotId);
+      // keepTemp: a file upload alone must not flip the composer out of the
+      // centered new-chat view (that remounts it and drops the chip). The slot
+      // stays "temp" until the first message is sent.
+      const conversationId = await ensureSlotConversation(activeSlotId, {
+        keepTemp: true,
+      });
 
       const { attachmentId } = await uploadAttachment(conversationId, file, signal);
 
