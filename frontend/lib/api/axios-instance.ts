@@ -47,6 +47,14 @@ apiClient.interceptors.request.use(
         config.headers.set(CSRF_HEADER_NAME, csrf);
       }
     }
+
+    // FormData uploads must NOT carry the instance default
+    // `Content-Type: application/json`. Delete it so the browser sets
+    // `multipart/form-data` with its boundary — otherwise the server (multer)
+    // can't parse the file and the upload looks like an empty request.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      config.headers.delete('Content-Type');
+    }
     return config;
   },
   (error) => Promise.reject(error),
