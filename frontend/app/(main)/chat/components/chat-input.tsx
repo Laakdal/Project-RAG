@@ -124,11 +124,6 @@ export function ChatInput({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-  // Window-wide drop overlay: lets a file be dropped anywhere on the chat page,
-  // not just on the composer box. `windowDragDepth` balances the nested
-  // dragenter/dragleave events that fire as the cursor moves over the page.
-  const [isWindowDragging, setIsWindowDragging] = useState(false);
-  const windowDragDepth = useRef(0);
   const [isExpanded, setIsExpanded] = useState(variant === 'full');
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const [isModePanelOpen, setIsModePanelOpen] = useState(false);
@@ -803,55 +798,6 @@ export function ChatInput({
     }
   };
 
-  // Make the entire window a drop target for the full-size composer, so a file
-  // dropped ANYWHERE on the chat page is uploaded (not just on the composer
-  // box). A drop landing on the composer is handled by `handlePanelDrop` (which
-  // stops propagation), so this window handler only fires for drops elsewhere —
-  // no double processing. The collapsed widget keeps its local drop area.
-  useEffect(() => {
-    if (variant !== 'full' || !onUploadFile) return;
-
-    const hasFiles = (e: DragEvent) =>
-      Array.from(e.dataTransfer?.types ?? []).includes('Files');
-
-    const onWindowDragEnter = (e: DragEvent) => {
-      if (!canAcceptDrop || !hasFiles(e)) return;
-      e.preventDefault();
-      windowDragDepth.current += 1;
-      setIsWindowDragging(true);
-    };
-    const onWindowDragOver = (e: DragEvent) => {
-      if (!canAcceptDrop || !hasFiles(e)) return;
-      e.preventDefault(); // required for the drop event to fire
-    };
-    const onWindowDragLeave = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
-      windowDragDepth.current = Math.max(0, windowDragDepth.current - 1);
-      if (windowDragDepth.current === 0) setIsWindowDragging(false);
-    };
-    const onWindowDrop = (e: DragEvent) => {
-      windowDragDepth.current = 0;
-      setIsWindowDragging(false);
-      if (!canAcceptDrop || !hasFiles(e)) return;
-      // Prevent the browser's default of navigating to / opening the dropped file.
-      e.preventDefault();
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        processFiles(e.dataTransfer.files);
-      }
-    };
-
-    window.addEventListener('dragenter', onWindowDragEnter);
-    window.addEventListener('dragover', onWindowDragOver);
-    window.addEventListener('dragleave', onWindowDragLeave);
-    window.addEventListener('drop', onWindowDrop);
-    return () => {
-      window.removeEventListener('dragenter', onWindowDragEnter);
-      window.removeEventListener('dragover', onWindowDragOver);
-      window.removeEventListener('dragleave', onWindowDragLeave);
-      window.removeEventListener('drop', onWindowDrop);
-    };
-  }, [variant, onUploadFile, canAcceptDrop, processFiles]);
-
   const removeFile = useCallback((fileId: string) => {
     // Abort any in-flight upload for this chip so the network call and its
     // `.then`/`.catch` handlers don't write back into state after the chip is gone.
@@ -1151,37 +1097,6 @@ export function ChatInput({
 
   return (
     <>
-    {isWindowDragging && (
-      <Flex
-        align="center"
-        justify="center"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          backgroundColor: 'rgba(0, 0, 0, 0.35)',
-          pointerEvents: 'none',
-        }}
-      >
-        <Flex
-          align="center"
-          justify="center"
-          direction="column"
-          gap="3"
-          style={{
-            padding: '2rem 3rem',
-            borderRadius: 'var(--radius-5)',
-            border: '2px dashed var(--accent-8)',
-            backgroundColor: 'var(--accent-2)',
-          }}
-        >
-          <MaterialIcon name="file_upload" size={48} color="var(--accent-9)" />
-          <Text size="4" weight="medium" style={{ color: 'var(--accent-11)' }}>
-            {"Drop your PDF or DOCX to upload"}
-          </Text>
-        </Flex>
-      </Flex>
-    )}
     <Flex
       ref={containerRef}
       direction="column"
@@ -1192,6 +1107,7 @@ export function ChatInput({
       onDragLeave={handlePanelDragLeave}
       onDrop={handlePanelDrop}
       style={{
+        position: 'relative',
         width: isMobile ? '100%' : 'min(50rem, 100%)',
         fontFamily: 'Manrope, sans-serif',
         ...(isAnimatingIn && {
