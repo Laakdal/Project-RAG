@@ -31,9 +31,11 @@ relevant snippets. Answers a question whose content is NOT in the document with
 | Orchestration | **n8n owns the RAG**; backend is a thin authenticated proxy | Matches the project's n8n-centric design; visual, explainable pipeline for the thesis. |
 | n8n exposure | **Private** on the Docker network (`http://n8n:5678`); reached only via the backend | Keeps auth in one place; n8n is never public. |
 | Streaming | **Non-streaming** | n8n returns the full response; acceptable for a demo. Streaming can later move just the generation step into the backend. |
-| Embeddings | **OpenAI `text-embedding-3-small`** (dim 1536) | Native n8n node; cheapest; simplest. |
+| Embeddings | **Google Gemini `text-embedding-004`** (dim 768) | Already configured in n8n; no new API keys; free-tier friendly. |
 | Vector store | **Qdrant** (existing `rag_qdrant`) | Already in the stack; native n8n node. |
-| Generation | **Claude `claude-sonnet-4-6`** via n8n Anthropic node | Good grounded-answer quality at lower cost than Opus; model is a node setting, easy to change. |
+| Generation | **Google Gemini chat model** (e.g. `gemini-2.0-flash`) via the n8n Gemini node | One provider for embed + generate; already configured; model is a node setting, easy to change. |
+
+> **Provider update (2026-06-23):** the original design assumed OpenAI embeddings + Claude generation, but the n8n instance had **Google Gemini** (not OpenAI/Anthropic) configured, so the slice uses Gemini throughout. This replaces every "OpenAI"/"Claude" mention below, and sets the Qdrant vector dimension to **768** (Gemini `text-embedding-004`) instead of 1536. The backend is provider-agnostic, so it is unaffected.
 | File types | **PDF + DOCX** for Slice 1 | Covers the common cases; XLSX is a follow-up. |
 | Chat history | **Persisted in Postgres** (conversations, messages) | A chat product needs durable history; the backend already owns Postgres. |
 | Citations | **Sources list** (filename + snippet) under the answer | Inline `[1]` markers are a later refinement. |
@@ -115,7 +117,7 @@ endpoints (new `lib/api` module; remove the streaming adapter for this view).
 ## 5. Data model
 
 ### Qdrant
-- Collection **`chat_attachments`**, vector size **1536**, distance Cosine.
+- Collection **`chat_attachments`**, vector size **768** (Gemini `text-embedding-004`), distance Cosine.
 - Payload: `{conversationId: string, filename: string, chunkIndex: int, text: string}`.
 - Retrieval ALWAYS filters on `conversationId` so a chat sees only its own docs.
 
