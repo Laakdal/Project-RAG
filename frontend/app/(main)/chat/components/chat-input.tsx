@@ -65,6 +65,12 @@ interface ChatInputProps {
    * delete.
    */
   onDeleteFile?: (recordId: string) => void;
+  /**
+   * Documents already ingested into this conversation (persisted server-side),
+   * rendered as read-only chips above the composer so the user still sees what's
+   * attached after a reload. Distinct from the local, in-flight upload chips.
+   */
+  existingAttachments?: { id: string; filename: string; status: string }[];
   placeholder?: string;
   /** Placeholder shown in the collapsed widget pill (parent controls the text) */
   widgetPlaceholder?: string;
@@ -103,6 +109,7 @@ export function ChatInput({
   onSend,
   onUploadFile,
   onDeleteFile,
+  existingAttachments = [],
   placeholder,
   widgetPlaceholder,
   variant = 'full',
@@ -1192,6 +1199,60 @@ export function ChatInput({
         }),
       }}
     >
+      {/* Documents already ingested into this conversation (persisted
+          server-side), shown as read-only chips that survive a page reload —
+          distinct from the local, in-flight upload chips below. */}
+      {existingAttachments.length > 0 && (
+        <Flex
+          align="center"
+          wrap="wrap"
+          gap="2"
+          style={{ marginBottom: 'var(--space-2)' }}
+        >
+          {existingAttachments.map((att) => (
+            <Tooltip
+              key={att.id}
+              content={
+                att.status === 'ready'
+                  ? 'Attached to this chat'
+                  : `Attachment status: ${att.status}`
+              }
+              side="top"
+            >
+              <Flex
+                align="center"
+                gap="1"
+                style={{
+                  flexShrink: 0,
+                  maxWidth: 240,
+                  padding: '3px 10px',
+                  backgroundColor: 'var(--olive-a3)',
+                  border: '1px solid var(--olive-5)',
+                  borderRadius: 'var(--radius-4)',
+                }}
+              >
+                <MaterialIcon
+                  name={att.status === 'failed' ? 'error_outline' : 'description'}
+                  size={14}
+                  color={att.status === 'failed' ? 'var(--red-11)' : 'var(--olive-11)'}
+                />
+                <Text
+                  size="1"
+                  style={{
+                    color: 'var(--slate-12)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {att.filename}
+                </Text>
+              </Flex>
+            </Tooltip>
+          ))}
+        </Flex>
+      )}
+
       {/* Selected Collection Cards — shown above the main input, matching Figma spec */}
       {showSelectedCollectionsRow && (
         <Flex
