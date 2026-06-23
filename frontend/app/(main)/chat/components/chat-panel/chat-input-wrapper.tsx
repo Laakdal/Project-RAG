@@ -1,13 +1,18 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useThreadRuntime } from '@assistant-ui/react';
 import { ChatInput } from '../chat-input';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useEffectiveAgentId } from '@/chat/hooks/use-effective-agent-id';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { ChatApi } from '@/chat/api';
-import { ensureSlotConversation, uploadAttachment } from '@/chat/rag-api';
+import {
+  ensureSlotConversation,
+  uploadAttachment,
+  listAttachments,
+  type ChatAttachment,
+} from '@/chat/rag-api';
 import {
   buildAssistantApiFilters,
   type AttachmentRef,
@@ -34,6 +39,33 @@ export function ChatInputWrapper() {
   const threadRuntime = useThreadRuntime();
   const effectiveAgentId = useEffectiveAgentId();
   const isAgentChat = Boolean(effectiveAgentId);
+
+  // Documents already ingested into the active conversation, shown as persistent
+  // read-only chips so the user still sees what's attached after a reload (the
+  // composer's own upload chips are local state and vanish on refresh).
+  const activeConvId = useChatStore((s) =>
+    s.activeSlotId ? s.slots[s.activeSlotId]?.convId ?? null : null,
+  );
+  const [existingAttachments, setExistingAttachments] = useState<ChatAttachment[]>([]);
+  const [attachmentsRefresh, setAttachmentsRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!activeConvId) {
+      setExistingAttachments([]);
+      return;
+    }
+    let cancelled = false;
+    listAttachments(activeConvId)
+      .then((atts) => {
+        if (!cancelled) setExistingAttachments(atts);
+      })
+      .catch(() => {
+        if (!cancelled) setExistingAttachments([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConvId, attachmentsRefresh]);
 
   useEffect(() => {
     if (effectiveAgentId) {
@@ -142,6 +174,9 @@ export function ChatInputWrapper() {
 
       const { attachmentId } = await uploadAttachment(conversationId, file, signal);
 
+      // Surface the newly ingested document as a persistent chip right away.
+      setAttachmentsRefresh((n) => n + 1);
+
       const extension = file.name.includes('.')
         ? file.name.split('.').pop()?.toLowerCase() ?? ''
         : '';
@@ -249,6 +284,7 @@ export function ChatInputWrapper() {
       onSend={handleSend}
       onUploadFile={handleUploadFile}
       onDeleteFile={handleDeleteFile}
+      existingAttachments={existingAttachments}
       isAgentChat={isAgentChat}
       agentId={effectiveAgentId}
     />
