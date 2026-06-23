@@ -16,10 +16,13 @@ import { queryRag, ingestFile } from "./n8n-client.js";
 const router = Router();
 router.use(requireAuth);
 
-// 25 MB cap; keep the file in memory so we can forward it to n8n.
+// 50 MB cap; keep the file in memory so we can forward it to n8n. The whole
+// chain must allow at least this much: the nginx vhost body size and n8n's
+// N8N_PAYLOAD_SIZE_MAX both need headroom above 50 MB or large uploads fail
+// before reaching the ingest workflow.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 const ALLOWED_MIME = new Set([
@@ -32,7 +35,7 @@ const ALLOWED_MIME = new Set([
 function uploadSingle(req: Request, res: Response, next: NextFunction): void {
   upload.single("file")(req, res, (err: unknown) => {
     if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({ error: "File too large (max 25 MB)" });
+      res.status(413).json({ error: "File too large (max 50 MB)" });
       return;
     }
     if (err) {
