@@ -3,7 +3,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import { apiClient } from '@/lib/api/axios-instance';
 
 // ========================================
 // Types
@@ -47,20 +46,24 @@ type ServicesHealthStore = ServicesHealthState & ServicesHealthActions;
 // Constants
 // ========================================
 
-const POLL_INTERVAL = 10 * 60 * 1000;
 const CACHE_KEY = 'healthCheck';
-
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-let bgPollTimer: ReturnType<typeof setInterval> | null = null;
-let isRetrying = false;
 
 // ========================================
 // Store
 // ========================================
+//
+// The upstream template polled `/api/v1/health` + `/api/v1/health/services`
+// on a timer to gate pages behind backend service health. The RAG backend has
+// no such endpoints (only `GET /health`, which isn't proxied), so every poll
+// 404'd on the chat page. The poll is removed: services are treated as
+// reachable/available, so `ServiceGate` renders its children and the chat page
+// logs errors normally. The state shape, selectors, and helpers are kept so
+// the admin `workspace/services` page (which fetches health itself) still
+// compiles.
 
 const initialState: ServicesHealthState = {
-  loading: true,
-  healthy: null,
+  loading: false,
+  healthy: true,
   backgroundCheckFailed: false,
   apiServerReachable: true,
   infraServices: null,
@@ -71,154 +74,16 @@ const initialState: ServicesHealthState = {
 
 export const useServicesHealthStore = create<ServicesHealthStore>()(
   devtools(
-    immer((set, get) => ({
+    immer(() => ({
       ...initialState,
 
-      checkHealth: async () => {
-        try {
-          const [infraResp, servicesResp] = await Promise.allSettled([
-            apiClient.get('/api/v1/health', { suppressErrorToast: true }),
-            apiClient.get('/api/v1/health/services', { suppressErrorToast: true }),
-          ]);
-
-          const infraData =
-            infraResp.status === 'fulfilled' ? infraResp.value.data : null;
-          const servicesData =
-            servicesResp.status === 'fulfilled' ? servicesResp.value.data : null;
-
-          const infraOk = infraData?.status === 'healthy';
-          const servicesOk = servicesData?.status === 'healthy';
-          const overallHealthy = infraOk && servicesOk;
-          const serverReachable =
-            infraResp.status === 'fulfilled' || servicesResp.status === 'fulfilled';
-
-          set((state) => {
-            state.loading = false;
-            state.healthy = overallHealthy;
-            state.apiServerReachable = serverReachable;
-            state.infraServices = infraData?.services ?? null;
-            state.appServices = servicesData?.services ?? null;
-            state.infraServiceNames = infraData?.serviceNames ?? null;
-            state.lastChecked = Date.now();
-          });
-
-          if (overallHealthy) {
-            try {
-              localStorage.setItem(CACHE_KEY, 'true');
-            } catch {}
-            get().stopPolling();
-          } else {
-            try {
-              localStorage.removeItem(CACHE_KEY);
-            } catch {}
-          }
-        } catch {
-          set((state) => {
-            state.loading = false;
-            state.healthy = false;
-            state.apiServerReachable = false;
-            state.infraServices = null;
-            state.appServices = null;
-            state.lastChecked = Date.now();
-          });
-        }
-      },
-
-      retryServerConnection: async () => {
-        if (isRetrying) return;
-        isRetrying = true;
-        try {
-          await apiClient.get('/api/v1/health', {
-            suppressErrorToast: true,
-            timeout: 10000,
-          });
-          set((state) => { state.apiServerReachable = true; });
-          get().stopBackgroundPolling();
-          get().startBackgroundPolling();
-        } catch {
-          // Still unreachable
-        } finally {
-          isRetrying = false;
-        }
-      },
-
-      startPolling: () => {
-        if (pollTimer) return;
-        get().checkHealth();
-        pollTimer = setInterval(() => {
-          get().checkHealth();
-        }, POLL_INTERVAL);
-      },
-
-      stopPolling: () => {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-      },
-
-      startBackgroundPolling: () => {
-        if (bgPollTimer) return;
-
-        const runBackgroundCheck = async () => {
-          try {
-            const [infraResp, servicesResp] = await Promise.allSettled([
-              apiClient.get('/api/v1/health', { suppressErrorToast: true }),
-              apiClient.get('/api/v1/health/services', { suppressErrorToast: true }),
-            ]);
-
-            const infraData =
-              infraResp.status === 'fulfilled' ? infraResp.value.data : null;
-            const servicesData =
-              servicesResp.status === 'fulfilled' ? servicesResp.value.data : null;
-
-            const overallHealthy =
-              infraData?.status === 'healthy' && servicesData?.status === 'healthy';
-            const serverReachable =
-              infraResp.status === 'fulfilled' || servicesResp.status === 'fulfilled';
-
-            set((state) => {
-              state.loading = false;
-              state.apiServerReachable = serverReachable;
-              state.backgroundCheckFailed = !overallHealthy;
-              state.infraServices = infraData?.services ?? null;
-              state.appServices = servicesData?.services ?? null;
-              state.infraServiceNames = infraData?.serviceNames ?? null;
-              state.lastChecked = Date.now();
-            });
-
-            if (overallHealthy) {
-              try {
-                localStorage.setItem(CACHE_KEY, 'true');
-              } catch {}
-            } else {
-              try {
-                localStorage.removeItem(CACHE_KEY);
-              } catch {}
-            }
-          } catch {
-            set((state) => {
-              state.loading = false;
-              state.apiServerReachable = false;
-              state.backgroundCheckFailed = true;
-              state.lastChecked = Date.now();
-            });
-            try {
-              localStorage.removeItem(CACHE_KEY);
-            } catch {}
-          }
-        };
-
-        runBackgroundCheck();
-        bgPollTimer = setInterval(runBackgroundCheck, POLL_INTERVAL);
-      },
-
-      stopBackgroundPolling: () => {
-        if (bgPollTimer) {
-          clearInterval(bgPollTimer);
-          bgPollTimer = null;
-        }
-      },
+      // No-ops: there is no health endpoint to poll on the RAG backend.
+      checkHealth: async () => {},
+      retryServerConnection: async () => {},
+      startPolling: () => {},
+      stopPolling: () => {},
+      startBackgroundPolling: () => {},
+      stopBackgroundPolling: () => {},
 
       clearCache: () => {
         try {
