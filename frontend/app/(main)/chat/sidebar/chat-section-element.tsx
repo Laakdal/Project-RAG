@@ -9,6 +9,7 @@ import { Conversation } from '@/chat/types';
 import { useChatStore, isConversationStreamingInScope } from '@/chat/store';
 import { ChatApi } from '@/chat/api';
 import { AgentsApi } from '@/app/(main)/agents/api';
+import { deleteConversation } from '@/chat/rag-api';
 import { ICON_SIZE_DEFAULT, CHAT_ITEM_HEIGHT } from '@/app/components/sidebar';
 import { SidebarItem } from './sidebar-item';
 import { ChatItemMenu } from './chat-item-menu';
@@ -153,6 +154,39 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
     }
   };
 
+  // Shared cleanup after a successful delete: drop the row from the sidebar
+  // store and, if the deleted conversation is the one on screen, evict its
+  // slot and navigate to a fresh chat so we don't render a dead conversation.
+  const afterDeleted = () => {
+    removeConversation(conversation.id);
+    bumpConversationsVersion();
+    if (urlConversationId === conversation.id) {
+      const store = useChatStore.getState();
+      const found = agentId
+        ? store.getSlotByConvId(conversation.id, { forAgentId: agentId })
+        : store.getSlotByConvId(conversation.id, { forAgentId: null });
+      if (found) {
+        store.evictSlot(found.slotId);
+      } else {
+        store.clearActiveSlot();
+      }
+      router.replace(agentId ? buildChatHref({ agentId }) : '/chat/');
+    }
+  };
+
+  // Instant delete (no confirmation) for non-agent chats, against the rag
+  // backend. The row disappears immediately on success.
+  const handleInstantDelete = async () => {
+    if (convStreamingBlocksSidebarMutation()) return;
+    try {
+      await deleteConversation(conversation.id);
+      afterDeleted();
+    } catch {
+      // Leave the row in place on failure; nothing else to do.
+    }
+  };
+
+  // Agent chats keep the confirmation dialog (out of scope for instant delete).
   const handleConfirmDelete = async () => {
     if (convStreamingBlocksSidebarMutation()) return;
     setIsDeleting(true);
@@ -162,21 +196,8 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
       } else {
         await ChatApi.deleteConversation(conversation.id);
       }
-      removeConversation(conversation.id);
-      bumpConversationsVersion();
       setDeleteDialogOpen(false);
-      if (urlConversationId === conversation.id) {
-        const store = useChatStore.getState();
-        const found = agentId
-          ? store.getSlotByConvId(conversation.id, { forAgentId: agentId })
-          : store.getSlotByConvId(conversation.id, { forAgentId: null });
-        if (found) {
-          store.evictSlot(found.slotId);
-        } else {
-          store.clearActiveSlot();
-        }
-        router.replace(agentId ? buildChatHref({ agentId }) : '/chat/');
-      }
+      afterDeleted();
     } catch {
       // keep dialog open on error
     } finally {
@@ -281,7 +302,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
               onOpenChange={setMenuOpen}
               onRename={handleStartRename}
               onArchive={() => setArchiveDialogOpen(true)}
-              onDelete={() => setDeleteDialogOpen(true)}
+              onDelete={agentId ? () => setDeleteDialogOpen(true) : handleInstantDelete}
               showRename={true}
               showArchive={true}
             />
@@ -289,14 +310,19 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
         }
       />
 
-      {/* Delete confirmation dialog */}
-      <DeleteChatDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        onConfirm={handleConfirmDelete}
-        chatTitle={conversation.title}
-        isDeleting={isDeleting}
-      />
+      {/*
+        Confirmation dialog is kept only for agent chats. Non-agent chats
+        delete instantly (no dialog) via handleInstantDelete.
+      */}
+      {agentId && (
+        <DeleteChatDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={handleConfirmDelete}
+          chatTitle={conversation.title}
+          isDeleting={isDeleting}
+        />
+      )}
 
       <ArchiveChatDialog
         open={archiveDialogOpen}

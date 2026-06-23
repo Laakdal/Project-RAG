@@ -11,7 +11,6 @@ interface ChatItemMenuProps {
   onOpenChange?: (open: boolean) => void;
   onRename: () => void;
   onArchive: () => void;
-  /** Delete is removed from the chat menu (no backend delete endpoint); kept optional so callers can still pass it. */
   onDelete?: () => void;
   showRename?: boolean;
   showArchive?: boolean;
@@ -20,13 +19,14 @@ interface ChatItemMenuProps {
 /**
  * Meatball (three-dot) dropdown menu for a chat sidebar item.
  *
- * Shows on hover of the parent row. Options: Rename, Archive.
+ * Shows on hover of the parent row. Options: Rename, Archive, Delete.
  */
 export function ChatItemMenu({
   isParentHovered,
   onOpenChange: onOpenChangeProp,
   onRename,
   onArchive,
+  onDelete,
   showRename = true,
   showArchive = true,
 }: ChatItemMenuProps) {
@@ -99,6 +99,18 @@ export function ChatItemMenu({
             </Flex>
           </DropdownMenu.Item>
         )}
+        <DropdownMenu.Item
+          color="red"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.();
+          }}
+        >
+          <Flex align="center" gap="1">
+            <MaterialIcon name="delete" size={16} color="var(--red-11)" />
+            <Text size="2" style={{ color: 'var(--red-11)' }}>{"Delete"}</Text>
+          </Flex>
+        </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   );

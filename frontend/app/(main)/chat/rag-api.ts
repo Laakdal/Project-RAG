@@ -53,6 +53,10 @@ export async function uploadAttachment(
   return data;
 }
 
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await apiClient.delete(`/chat/conversations/${conversationId}`);
+}
+
 export async function askQuestion(
   conversationId: string,
   question: string,
