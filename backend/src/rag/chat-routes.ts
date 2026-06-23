@@ -166,6 +166,18 @@ router.post(
       sources: result.sources,
     });
 
+    // Title a fresh conversation from its first message (only while the title
+    // is still the default, so later messages don't overwrite it).
+    await db
+      .update(conversations)
+      .set({ title: question.slice(0, 80) })
+      .where(
+        and(
+          eq(conversations.id, req.params.id),
+          eq(conversations.title, "New chat"),
+        ),
+      );
+
     res.json({ answer: result.answer, sources: result.sources });
   },
 );
