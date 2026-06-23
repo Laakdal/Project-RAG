@@ -932,39 +932,9 @@ function ChatContent() {
     }
   }, [conversationId, clearPreview]);
 
-  // ── Collapse nav sidebar when split-pane preview opens, restore on close ──
-  const didAutoCollapseNavRef = useRef(false);
-  useEffect(() => {
-    const store = useSidebarWidthStore.getState();
-    if (showSplitPane) {
-      if (!store.isNavCollapsed) {
-        store.setNavCollapsed(true);
-        didAutoCollapseNavRef.current = true;
-      }
-    } else {
-      if (didAutoCollapseNavRef.current) {
-        store.setNavCollapsed(false);
-        didAutoCollapseNavRef.current = false;
-      }
-    }
-  }, [showSplitPane]);
-
-  // If the user manually expands the sidebar while the preview is open, forget
-  // that we auto-collapsed it so closing the preview doesn't re-collapse it.
-  const prevIsNavCollapsedRef = useRef(isNavCollapsed);
-  useEffect(() => {
-    const wasCollapsed = prevIsNavCollapsedRef.current;
-    prevIsNavCollapsedRef.current = isNavCollapsed;
-    if (
-      showSplitPane &&
-      didAutoCollapseNavRef.current &&
-      wasCollapsed &&
-      !isNavCollapsed
-    ) {
-      // User manually expanded → relinquish ownership of the collapsed state
-      didAutoCollapseNavRef.current = false;
-    }
-  }, [isNavCollapsed, showSplitPane]);
+  // The nav sidebar stays open when a split-pane preview opens — the user keeps
+  // their chat history visible. (It previously auto-collapsed to make room; the
+  // manual collapse button still works for anyone who wants the extra width.)
   // ─────────────────────────────────────────────────────────────────────────
 
   const [chatPanelWidthPx, setChatPanelWidthPx] = useState<number>(() => {
