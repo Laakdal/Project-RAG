@@ -108,7 +108,15 @@ const inFlightConversationCreates = new Map<string, Promise<string>>();
  * Used by both the send path (`onNew`) and the upload path (`handleUploadFile`)
  * so a single conversation backs both.
  */
-export async function ensureSlotConversation(slotId: string): Promise<string> {
+export async function ensureSlotConversation(
+  slotId: string,
+  opts?: { keepTemp?: boolean },
+): Promise<string> {
+  // The upload path passes keepTemp so creating a conversation for an attachment
+  // does NOT flip the slot out of the centered "new chat" view (which would
+  // remount the composer and drop the upload chip). The send path leaves it
+  // unset so the first message commits the chat to a real conversation.
+  const keepTemp = opts?.keepTemp === true;
   const existing = useChatStore.getState().slots[slotId]?.convId ?? null;
   if (existing) return existing;
 
@@ -117,7 +125,7 @@ export async function ensureSlotConversation(slotId: string): Promise<string> {
 
   const createPromise = (async () => {
     const conv = await createConversation();
-    useChatStore.getState().resolveSlotConvId(slotId, conv.id);
+    useChatStore.getState().resolveSlotConvId(slotId, conv.id, { keepTemp });
     return conv.id;
   })().finally(() => {
     inFlightConversationCreates.delete(slotId);
