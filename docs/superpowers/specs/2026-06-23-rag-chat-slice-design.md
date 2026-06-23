@@ -189,3 +189,11 @@ conversation titling/auto-summary.
   size against the manual test.
 - **Qdrant filter syntax** in the n8n node for `conversationId` must be confirmed
   during the build.
+
+## As-built note (2026-06-23, post-implementation)
+
+The n8n workflows were built against the live instance and adjusted to its realities:
+- **Embeddings:** `gemini-embedding-001` (**3072-dim**) — `text-embedding-004` returned empty vectors on this API key. Ingest and query share this model.
+- **Generation:** `gemini-3.1-flash-lite` — `gemini-2.0-flash` had zero free-tier quota.
+- **Vector store:** dedicated collection **`project_rag_chat`** (3072 / Cosine), schema-matched to the instance's working `rag_collection` (the chat slice does NOT share that collection).
+- **Extraction:** PDF via the `extractFromFile` (pdf) node (the langchain pdfjs loader crashes with `DOMMatrix is not defined` in this n8n runtime); DOCX via a Switch → `docxLoader` (mammoth) branch. Both PDF and DOCX verified end-to-end.
