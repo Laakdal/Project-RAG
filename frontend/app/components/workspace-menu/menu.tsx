@@ -4,12 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog, Flex, Box, Text, IconButton, VisuallyHidden } from '@radix-ui/themes';
 import { signOut } from '@/lib/auth/session';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { UserAvatar } from '@/app/components/ui/user-avatar';
-import GeneralPage from '@/workspace/general/page';
 import ProfilePage from '@/workspace/profile/page';
-import type { OrgInfo } from './types';
 import { POPUP_WIDTH } from './types';
-import { Divider } from './menu-item';
 import { SettingsSection } from './settings-section';
 import { AppearancePanel } from './appearance-panel';
 
@@ -21,15 +17,13 @@ import { AppearancePanel } from './appearance-panel';
 type ActiveSubPanel = null | 'appearance';
 
 /** Which settings section is shown in the settings modal */
-type SettingsTab = 'general' | 'profile';
+type SettingsTab = 'profile';
 
 interface WorkspaceMenuProps {
   /** Whether the popup is visible */
   isOpen: boolean;
   /** Called when the popup should close */
   onClose: () => void;
-  /** Organisation details fetched at the page level */
-  org: OrgInfo | null;
   /** Ref to the trigger element so click-outside ignores it */
   triggerRef?: React.RefObject<HTMLElement | null>;
 }
@@ -45,7 +39,6 @@ interface SettingsNavItem {
 }
 
 const SETTINGS_NAV: SettingsNavItem[] = [
-  { id: 'general', icon: 'business', label: "General" },
   { id: 'profile', icon: 'person', label: "Profile" },
 ];
 
@@ -114,11 +107,11 @@ interface WorkspaceSettingsModalProps {
 /**
  * Centered settings dialog.
  *
- * Left navigation (General / Profile) + a scrollable content panel that reuses
- * the existing workspace settings pages, plus an X to close.
+ * Left navigation + a scrollable content panel that reuses the existing
+ * Profile settings page, plus an X to close.
  */
 function WorkspaceSettingsModal({ open, onOpenChange }: WorkspaceSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -207,12 +200,12 @@ function WorkspaceSettingsModal({ open, onOpenChange }: WorkspaceSettingsModalPr
               </IconButton>
             </Dialog.Close>
 
-            {/* Scrollable settings content — reuses the workspace settings pages */}
+            {/* Scrollable settings content — reuses the Profile settings page */}
             <Box
               className="no-scrollbar"
               style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
             >
-              {activeTab === 'general' ? <GeneralPage /> : <ProfilePage />}
+              <ProfilePage />
             </Box>
           </Box>
         </Flex>
@@ -228,10 +221,10 @@ function WorkspaceSettingsModal({ open, onOpenChange }: WorkspaceSettingsModalPr
 /**
  * Floating popup triggered from the sidebar footer button.
  *
- * Composed of discrete sections (settings, external links, org),
- * with the organisation badge rendered directly here.
+ * Holds the settings entry (which opens the settings modal), the appearance
+ * sub-panel, and logout.
  */
-export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMenuProps) {
+export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [activePanel, setActivePanel] = useState<ActiveSubPanel>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -273,8 +266,6 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
     if (!isOpen) setActivePanel(null);
   }, [isOpen]);
 
-  const orgLogoUrl = org?.logoUrl ?? null;
-
   const togglePanel = (panel: 'appearance') => {
     setActivePanel((prev) => (prev === panel ? null : panel));
   };
@@ -312,7 +303,7 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
             fontFamily: 'Manrope, sans-serif',
           }}
         >
-          {/* ── Section 1: Settings ── */}
+          {/* ── Settings / Appearance / Logout ── */}
           <SettingsSection
             onWorkspaceSettings={openSettings}
             onAppearanceToggle={() => togglePanel('appearance')}
@@ -322,50 +313,6 @@ export function WorkspaceMenu({ isOpen, onClose, org, triggerRef }: WorkspaceMen
               void signOut();
             }}
           />
-
-          <Divider />
-
-          {/* ── Section 2: Current Organisation ── */}
-          {org && (
-            <Flex direction="column" gap="3">
-              {/* Org badge */}
-              <Flex
-                align="center"
-                gap="2"
-                style={{
-                  height: 40,
-                  padding: '0 8px',
-                  // backgroundColor: 'var(--olive-2)',
-                  // border: '1px solid var(--olive-3)',
-                  borderRadius: 'var(--radius-1)',
-                  flexShrink: 0,
-                }}
-              >
-                {/* Org avatar badge */}
-                <UserAvatar
-                  fullName={org?.shortName || org?.registeredName}
-                  src={orgLogoUrl}
-                  size={24}
-                  radius="small"
-                />
-
-                {/* Org name */}
-                <Text
-                  size="2"
-                  weight="medium"
-                  style={{
-                    flex: 1,
-                    color: 'var(--accent-12)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {org?.shortName || org?.registeredName}
-                </Text>
-              </Flex>
-            </Flex>
-          )}
 
           {/* ── Sub-panels — float to the right, top-aligned ── */}
           <AppearancePanel isOpen={activePanel === 'appearance'} />
