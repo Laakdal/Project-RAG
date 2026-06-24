@@ -62,7 +62,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <Box style={{ height: "100%", overflowY: "auto", position: "relative" }}>
+    <Box style={{ height: "100%", overflowY: "auto", position: "relative", isolation: "isolate" }}>
       {/* Hidden avatar file input */}
       <input
         ref={avatarInputRef}
