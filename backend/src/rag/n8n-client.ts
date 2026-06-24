@@ -9,6 +9,10 @@ export type QuerySource = {
 export type QueryResult = {
   answer: string;
   sources: QuerySource[];
+  // Present only when the workflow was asked to summarize a title (first
+  // message of a conversation). Optional because the query workflow doesn't
+  // emit it yet; the backend falls back to a heuristic when it's absent.
+  title?: string;
 };
 
 export type IngestResult = {
@@ -29,11 +33,14 @@ export async function queryRag(
   conversationId: string,
   question: string,
   history: ChatTurn[] = [],
+  // True only for the first message of a conversation, asking the workflow to
+  // also summarize a short title. Defaults false so non-first turns skip it.
+  generateTitle = false,
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle }),
   });
   if (!res.ok) {
     throw new Error(`n8n query failed: ${res.status}`);
@@ -42,6 +49,8 @@ export async function queryRag(
   return {
     answer: data.answer ?? "",
     sources: Array.isArray(data.sources) ? data.sources : [],
+    // Only surface a non-empty string title; the workflow may omit it.
+    title: typeof data.title === "string" ? data.title : undefined,
   };
 }
 
