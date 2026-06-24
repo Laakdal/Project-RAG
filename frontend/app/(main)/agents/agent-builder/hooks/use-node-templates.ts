@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import type { Connector } from '@/lib/connectors/types';
 import type { KnowledgeBaseForBuilder, AgentToolsListRow } from '../../types';
 import type { AvailableLlmModel } from '@/chat/types';
 import type { NodeTemplate } from '../types';
