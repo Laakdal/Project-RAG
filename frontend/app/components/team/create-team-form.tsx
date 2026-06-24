@@ -17,10 +17,10 @@ import {
 } from '@/app/(main)/workspace/components';
 import type { CheckboxOption } from '@/app/(main)/workspace/components';
 import { usePaginatedUserOptions } from '@/app/(main)/workspace/hooks/use-paginated-user-options';
-import { TeamsApi } from '@/app/(main)/workspace/teams/api';
-import { TEAM_ROLE_LABELS } from '@/app/(main)/workspace/teams/constants';
+import { TeamsApi } from '@/lib/api/teams';
+import { TEAM_ROLE_LABELS } from '@/lib/constants/team-roles';
 import { RoleDropdownMenu } from '@/app/components/share';
-import type { Team, TeamMemberRole } from '@/app/(main)/workspace/teams/types';
+import type { Team, TeamMemberRole } from '@/lib/types/teams';
 
 export interface CreateTeamFormHandle {
   /** Trigger submission. No-op if the form is invalid or already submitting. */
