@@ -17,6 +17,8 @@ export const useSidebarWidthStore = create<SidebarWidthState>()(
     (set) => ({
       sidebarWidth: SIDEBAR_WIDTH,
       setSidebarWidth: (width) => set({ sidebarWidth: width }),
+      // Sidebar is open by default on load. This is session-only (see partialize
+      // below), so it always re-initializes to `false` (open) on every load.
       isNavCollapsed: false,
       setNavCollapsed: (collapsed) => set({ isNavCollapsed: collapsed }),
     }),
