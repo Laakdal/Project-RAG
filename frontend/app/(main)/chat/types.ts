@@ -35,7 +35,7 @@ export interface ChatSource {
   summary?: string;
   category?: string;
   topics?: string[];
-  citationLabel?: string; // e.g., "Sales 1" for inline citation display
+  citationLabel?: string; // e.g., "1" — numbered position in the per-answer sources list
 }
 
 export interface ModelInfo {
