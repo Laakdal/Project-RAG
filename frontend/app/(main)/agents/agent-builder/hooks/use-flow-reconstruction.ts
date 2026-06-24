@@ -7,7 +7,7 @@ import {
   normalizeDisplayName,
   formattedProvider,
 } from '../display-utils';
-import { WEB_SEARCH_PROVIDER_META } from '../../../workspace/web-search/types';
+import { WEB_SEARCH_PROVIDER_META } from '../web-search-config';
 import { FLOW_EDGE } from '../flow-theme';
 import { selectPreferredModel, llmNodeTypeSlug } from '../agent-model-utils';
 import type { AgentConfiguredModel, AgentToolset, AgentToolDefinition } from '../../types';
