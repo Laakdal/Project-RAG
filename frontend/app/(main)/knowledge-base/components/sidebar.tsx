@@ -8,7 +8,7 @@ import { ConnectorIcon } from '@/app/components/ui/ConnectorIcon';
 import { FolderIcon } from '@/app/components/ui';
 import { SidebarChevronSlotShimmer, SidebarListShimmerRows } from '../sidebar/sidebar-list-shimmer';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
-import { buildConnectorsUrl } from '@/app/(main)/workspace/connectors/utils/build-connectors-url';
+import { buildConnectorsUrl } from '@/lib/connectors/build-connectors-url';
 import { useKnowledgeBaseStore } from '../store';
 import { TREE_BASE_PADDING, TREE_INDENT_PER_LEVEL, TREE_LINE_OFFSET } from '@/app/components/sidebar';
 import type {
