@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Flex, Text } from '@radix-ui/themes';
 
@@ -9,7 +9,6 @@ import { useCommandStore } from '@/lib/store/command-store';
 import { useMobileSidebarStore } from '@/lib/store/mobile-sidebar-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { debugLog } from '@/chat/debug-logger';
-import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ChatSection } from './chat-section';
 import { groupConversationsByTime, getNonEmptyGroups } from './time-group';
 
@@ -64,8 +63,6 @@ export const ChatSections = React.memo(function ChatSections({
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const isMobile = useIsMobile();
 
-  const [recentsCollapsed, setRecentsCollapsed] = useState(true);
-
   const handleNewChat = () => dispatch('newChat');
   const handleSelectConversation = () => {
     if (isMobile) closeMobileSidebar();
@@ -97,22 +94,18 @@ export const ChatSections = React.memo(function ChatSections({
       gap="3"
       style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
-      {/* Recents — collapsible wrapper for Your Chats */}
+      {/* Recents — always visible wrapper for Your Chats */}
       <Flex
         direction="column"
-        style={recentsCollapsed ? undefined : { flex: 1, minHeight: 0, overflow: 'hidden' }}
+        style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
       >
-        {/* Recents header with collapse toggle */}
+        {/* Recents header */}
         <Flex
           align="center"
-          justify="between"
-          onClick={() => setRecentsCollapsed((c) => !c)}
           style={{
             height: 32,
             padding: '0 var(--space-3)',
             flexShrink: 0,
-            cursor: 'pointer',
-            borderRadius: 'var(--radius-2)',
             userSelect: 'none',
           }}
         >
@@ -126,40 +119,28 @@ export const ChatSections = React.memo(function ChatSections({
           >
             {"Recents"}
           </Text>
-          <MaterialIcon
-            name="chevron_right"
-            size={16}
-            color="var(--slate-11)"
-            style={{
-              transform: recentsCollapsed ? 'rotate(0deg)' : 'rotate(90deg)',
-              transition: 'transform 0.2s ease',
-              display: 'block',
-            }}
-          />
         </Flex>
 
-        {!recentsCollapsed && (
-          <Flex
-            direction="column"
-            gap="3"
-            style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
-          >
-            {/* Your Chats — time-grouped (label header suppressed; date-group headers remain) */}
-            <ChatSection
-              timeGroups={yourNonEmptyGroups}
-              isLoading={isConversationsLoading}
-              hasError={!!conversationsError}
-              currentConversationId={currentConversationId}
-              onSelectConversation={handleSelectConversation}
-              onNewChat={handleNewChat}
-              skeletonCount={YOUR_CHATS_SKELETON_COUNT}
-              isScrollable
-              hasMore={hasMoreYour}
-              onMore={() => onOpenMoreChats('your')}
-              pendingConversations={activePendingConversations}
-            />
-          </Flex>
-        )}
+        <Flex
+          direction="column"
+          gap="3"
+          style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+        >
+          {/* Your Chats — time-grouped (label header suppressed; date-group headers remain) */}
+          <ChatSection
+            timeGroups={yourNonEmptyGroups}
+            isLoading={isConversationsLoading}
+            hasError={!!conversationsError}
+            currentConversationId={currentConversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
+            skeletonCount={YOUR_CHATS_SKELETON_COUNT}
+            isScrollable
+            hasMore={hasMoreYour}
+            onMore={() => onOpenMoreChats('your')}
+            pendingConversations={activePendingConversations}
+          />
+        </Flex>
       </Flex>
     </Flex>
   );
