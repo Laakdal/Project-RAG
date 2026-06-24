@@ -14,7 +14,6 @@ import {
 import { ThemeableAssetIcon } from '@/app/components/ui/themeable-asset-icon';
 import { resolveLlmProviderIconPath, AGENT_LLM_FALLBACK_ICON } from '@/lib/utils/llm-provider-icons';
 import type { AvailableLlmModel, ModelOverride } from '@/chat/types';
-import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 
 interface ModelSelectorPanelProps {
   /** Currently selected model override (null = use default from API) */
@@ -46,7 +45,6 @@ export function ModelSelectorPanel({
   agentId,
 }: ModelSelectorPanelProps) {
   const router = useRouter();
-  const isAdmin = useUserStore(selectIsAdmin);
 
   const ctxKey = ctxKeyFromAgent(agentId);
   // Read the shared cache so the panel re-renders as soon as the fetcher
@@ -131,26 +129,6 @@ export function ModelSelectorPanel({
           <Text size="1" weight="medium" style={{ color: 'var(--slate-12)' }}>
             {"Configured Models"}
           </Text>
-          {isAdmin && (
-            <span
-              onClick={() => {
-                router.push('/workspace/ai-models');
-              }}
-              style={{
-                fontSize: 'var(--font-size-1)',
-                fontWeight: 'var(--font-weight-medium)',
-                color: 'var(--slate-11)',
-                cursor: 'pointer',
-                background: 'none',
-                border: '1px solid var(--slate-7)',
-                borderRadius: 'var(--radius-2)',
-                padding: '2px var(--space-2)',
-                lineHeight: 'inherit',
-              }}
-            >
-              {"Open Models"}
-            </span>
-          )}
         </Flex>
       )}
 
