@@ -2,9 +2,9 @@ import type {
   AuthSchemaField,
   ConnectorAuthConfig,
   DocumentationLink,
-} from '@/app/(main)/workspace/connectors/types';
+} from '@/lib/connectors/types';
 import type { ToolsetOauthConfigListRow } from '@/app/(main)/toolsets/api';
-import { normalizeDocumentationLinks } from '@/app/(main)/workspace/connectors/normalize-documentation-links';
+import { normalizeDocumentationLinks } from '@/lib/connectors/documentation-links';
 
 export { normalizeDocumentationLinks };
 
