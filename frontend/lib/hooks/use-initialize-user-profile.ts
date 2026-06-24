@@ -22,7 +22,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { useUserStore } from '@/lib/store/user-store';
 import { apiClient } from '@/lib/api';
 import { getUserIdFromToken } from '@/lib/utils/jwt';
-import { GroupType } from '@/app/(main)/workspace/groups/types';
+import { GroupType } from '@/lib/types/user-groups';
 
 const LOG = '[user-initializer]';
 
