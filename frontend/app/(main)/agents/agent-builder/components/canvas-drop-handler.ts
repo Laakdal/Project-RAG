@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import type { Connector } from '@/lib/connectors/types';
 import type { FlowNodeData, NodeTemplate } from '../types';
 import { normalizeDisplayName, normalizePaletteLabel } from '../display-utils';
 import {
