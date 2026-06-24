@@ -6,8 +6,8 @@ import {
   buildToolsCatalogFromToolsets,
   mergeToolsFromAgentDetail,
 } from '../../api';
-import { ConnectorsApi } from '@/app/(main)/workspace/connectors/api';
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import { ConnectorsApi } from '@/lib/connectors/api';
+import type { Connector } from '@/lib/connectors/types';
 import { ChatApi } from '@/chat/api';
 import type { AvailableLlmModel } from '@/chat/types';
 import type { AgentDetail } from '../../types';
