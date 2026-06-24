@@ -66,6 +66,12 @@ interface ChatInputProps {
    */
   onDeleteFile?: (recordId: string) => void;
   /**
+   * Called when the user clicks the ✕ on a persistent (already-ingested) chip.
+   * The wrapper removes it optimistically and fires a best-effort server delete;
+   * errors are swallowed there, so this never needs to surface failures.
+   */
+  onDeleteAttachment?: (attachmentId: string) => void;
+  /**
    * Documents already ingested into this conversation (persisted server-side),
    * rendered as read-only chips above the composer so the user still sees what's
    * attached after a reload. Distinct from the local, in-flight upload chips.
@@ -98,6 +104,24 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * A transparent 1×1 image used as the drag image so the browser doesn't paint
+ * a ghost thumbnail of the dragged element while a file is dragged over the
+ * composer. Created lazily on first use (needs the DOM) and memoised so we
+ * never allocate a new element per dragenter.
+ */
+let transparentDragImg: HTMLImageElement | null = null;
+function getTransparentDragImage(): HTMLImageElement | null {
+  if (typeof document === 'undefined') return null;
+  if (!transparentDragImg) {
+    const img = new Image(1, 1);
+    img.src =
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    transparentDragImg = img;
+  }
+  return transparentDragImg;
+}
+
 function isFileTypeSupported(file: File): boolean {
   const mimeType = file.type;
   if (Object.keys(ACCEPTED_MIME_TYPES).includes(mimeType)) return true;
@@ -109,6 +133,7 @@ export function ChatInput({
   onSend,
   onUploadFile,
   onDeleteFile,
+  onDeleteAttachment,
   existingAttachments = [],
   placeholder,
   widgetPlaceholder,
@@ -768,6 +793,17 @@ export function ChatInput({
     if (!canAcceptDrop) return;
     if (!e.dataTransfer?.types.includes('Files')) return;
     e.preventDefault();
+    // Suppress the OS/browser drag thumbnail so dragging a file over the
+    // composer doesn't leave a floating ghost image hovering over the overlay.
+    const img = getTransparentDragImage();
+    if (img) {
+      try {
+        e.dataTransfer.setDragImage(img, 0, 0);
+      } catch {
+        // setDragImage can throw in some browsers for cross-origin file drags;
+        // it's purely cosmetic, so ignore.
+      }
+    }
     setIsPanelDragging(true);
   };
 
@@ -1111,6 +1147,11 @@ export function ChatInput({
       onDrop={handlePanelDrop}
       style={{
         position: 'relative',
+        // Establish a self-contained stacking + clip context so the absolutely
+        // positioned drop overlay (last child) paints above the composer chrome
+        // and clips cleanly to the visible bounds instead of overflowing it.
+        isolation: 'isolate',
+        overflow: 'hidden',
         width: isMobile ? '100%' : 'min(50rem, 100%)',
         fontFamily: 'Manrope, sans-serif',
         ...(isAnimatingIn && {
@@ -1166,6 +1207,22 @@ export function ChatInput({
                 >
                   {att.filename}
                 </Text>
+                {onDeleteAttachment && (
+                  <IconButton
+                    variant="ghost"
+                    size="1"
+                    color="gray"
+                    onClick={() => onDeleteAttachment(att.id)}
+                    style={{ margin: 0, flexShrink: 0 }}
+                    aria-label={`Detach ${att.filename}`}
+                  >
+                    <MaterialIcon
+                      name="close"
+                      size={ICON_SIZES.SECONDARY}
+                      color="var(--slate-11)"
+                    />
+                  </IconButton>
+                )}
               </Flex>
             </Tooltip>
           ))}
@@ -1457,7 +1514,10 @@ export function ChatInput({
           <Text size="2" style={{ color: 'var(--slate-12)' }}>{"Upload your File"}</Text>
           <Box
             style={{
+              // Sits above the panel-level drop overlay (zIndex:10) so the
+              // dedicated upload box owns drag/drop directly while it's open.
               position: 'relative',
+              zIndex: 11,
               border: `2px dashed ${isDragging ? 'var(--accent-8)' : 'var(--slate-6)'}`,
               borderRadius: 'var(--radius-4)',
               padding: 'var(--space-7)',
@@ -1864,40 +1924,45 @@ export function ChatInput({
         </Flex>
       </Flex>
 
-      {/* Drop overlay — shown only when the dedicated upload area is NOT open.
-          When showUploadArea=true the inner drop box handles drag/drop directly. */}
-      {isPanelDragging && !showUploadArea && (
-        <Box
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 10,
-            borderRadius: 'inherit',
-            border: '2px dashed var(--accent-8)',
-            backgroundColor: 'var(--accent-2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: 'var(--space-2)',
-            pointerEvents: 'none',
-          }}
-        >
-          <MaterialIcon name="file_upload" size={36} color="var(--accent-9)" />
-          <Text size="3" weight="medium" style={{ color: 'var(--accent-11)' }}>
-            {"Drop files here"}
-          </Text>
-          <Text size="1" style={{ color: 'var(--slate-11)' }}>
-            {`Supports: ${SUPPORTED_FILE_TYPES.join(', ')}.`}
-          </Text>
-          <Text size="1" style={{ color: 'var(--slate-10)' }}>
-            {uploadedFiles.length > 0
-              ? `${CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length} of ${CHAT_ATTACHMENT_MAX_FILES} files remaining`
-              : `Up to ${CHAT_ATTACHMENT_MAX_FILES} files per message`}
-          </Text>
-        </Box>
-      )}
     </Flex>
+
+    {/* Drop overlay — last child of the outer composer Flex so DOM order = paint
+        order. Covers the whole composer (chips + collections + input) and is
+        clipped to the visible bounds by the parent's overflow:hidden + isolate.
+        Shown whenever a file is dragged over the panel; when the dedicated
+        upload area is open its inner box (zIndex:11) sits above this and handles
+        the drop directly. pointerEvents:none so drag events keep reaching the
+        outer Flex handlers underneath. */}
+    {isPanelDragging && (
+      <Box
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 10,
+          border: '2px dashed var(--accent-8)',
+          backgroundColor: 'var(--accent-2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 'var(--space-2)',
+          pointerEvents: 'none',
+        }}
+      >
+        <MaterialIcon name="file_upload" size={36} color="var(--accent-9)" />
+        <Text size="3" weight="medium" style={{ color: 'var(--accent-11)' }}>
+          {"Drop files here"}
+        </Text>
+        <Text size="1" style={{ color: 'var(--slate-11)' }}>
+          {`Supports: ${SUPPORTED_FILE_TYPES.join(', ')}.`}
+        </Text>
+        <Text size="1" style={{ color: 'var(--slate-10)' }}>
+          {uploadedFiles.length > 0
+            ? `${CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length} of ${CHAT_ATTACHMENT_MAX_FILES} files remaining`
+            : `Up to ${CHAT_ATTACHMENT_MAX_FILES} files per message`}
+        </Text>
+      </Box>
+    )}
     </Flex>
 
     {/* Mobile query modes sheet — mode switcher → sheet flow */}
