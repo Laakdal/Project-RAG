@@ -135,7 +135,14 @@ router.get(
         createdAt: attachments.createdAt,
       })
       .from(attachments)
-      .where(eq(attachments.conversationId, req.params.id))
+      // Hide failed ingests, including any legacy "failed" rows already in the
+      // table from before the upload handler stopped persisting them.
+      .where(
+        and(
+          eq(attachments.conversationId, req.params.id),
+          sql`${attachments.status} <> 'failed'`,
+        ),
+      )
       .orderBy(attachments.createdAt);
     res.json(rows);
   },
@@ -245,6 +252,11 @@ router.post(
       return;
     }
 
+    // A failed ingest must leave no persisted attachment: if ingestFile throws
+    // (n8n unreachable / non-ok HTTP) or returns a non-ok status, we skip the
+    // insert entirely. The endpoint still answers 200 with status:"failed" so
+    // the frontend keeps its contract and drops the chip; attachmentId is unused
+    // by the client in that case.
     let result;
     try {
       result = await ingestFile(
@@ -254,13 +266,12 @@ router.post(
         file.mimetype,
       );
     } catch {
-      // Record the failed ingest so the conversation reflects the attempt.
-      await db.insert(attachments).values({
-        conversationId: req.params.id,
-        filename: file.originalname,
-        status: "failed",
-      });
-      res.status(502).json({ error: "Indexing is unavailable right now" });
+      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
+      return;
+    }
+
+    if (result.status !== "ok") {
+      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
       return;
     }
 
