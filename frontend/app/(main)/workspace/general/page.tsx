@@ -348,7 +348,7 @@ export default function GeneralPage() {
   }
 
   return (
-    <Box style={{ height: '100%', overflowY: 'auto', position: 'relative' }}>
+    <Box style={{ height: '100%', overflowY: 'auto', position: 'relative', isolation: 'isolate' }}>
       {/* Hidden file input for logo */}
       <input
         ref={fileInputRef}
