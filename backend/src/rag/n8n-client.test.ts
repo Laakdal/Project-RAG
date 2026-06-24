@@ -24,11 +24,40 @@ describe("n8n-client", () => {
     expect(result.sources[0].filename).toBe("geo.pdf");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-query");
+    // generateTitle defaults to false when not requested.
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
       history: [],
+      generateTitle: false,
     });
+  });
+
+  it("queryRag sends generateTitle and reads back a title from the response", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "Paris.",
+        sources: [],
+        title: "France capital",
+      }),
+    });
+
+    const result = await queryRag("conv-1", "Capital of France?", [], true);
+
+    expect(result.title).toBe("France capital");
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body).generateTitle).toBe(true);
+  });
+
+  it("queryRag omits title when the response has none", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ answer: "Paris.", sources: [] }),
+    });
+
+    const result = await queryRag("conv-1", "Capital of France?", [], true);
+    expect(result.title).toBeUndefined();
   });
 
   it("queryRag throws on a non-ok response", async () => {
