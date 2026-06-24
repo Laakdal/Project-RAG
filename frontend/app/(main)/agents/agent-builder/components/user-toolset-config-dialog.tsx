@@ -16,14 +16,14 @@ import {
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
 import { LoadingButton } from '@/app/components/ui/loading-button';
-import { SchemaFormField } from '@/app/(main)/workspace/connectors/components/schema-form-field';
-import type { AuthSchemaField } from '@/app/(main)/workspace/connectors/types';
+import { SchemaFormField } from '@/lib/connectors/schema-form-field';
+import type { AuthSchemaField } from '@/lib/connectors/types';
 import {
   isNoneAuthType,
   isOAuthType,
   isCredentialAuthType,
-} from '@/app/(main)/workspace/connectors/utils/auth-helpers';
-import { formatAuthTypeName } from '@/app/(main)/workspace/connectors/components/authenticate-tab/helpers';
+} from '@/lib/connectors/auth-helpers';
+import { formatAuthTypeName } from '@/lib/connectors/auth-type-name';
 import { ToolsetsApi, type BuilderSidebarToolset } from '@/app/(main)/toolsets/api';
 import {
   apiErrorDetail,
