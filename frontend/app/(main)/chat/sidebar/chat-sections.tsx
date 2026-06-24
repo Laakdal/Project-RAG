@@ -144,9 +144,8 @@ export const ChatSections = React.memo(function ChatSections({
             gap="3"
             style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
           >
-            {/* Your Chats — time-grouped */}
+            {/* Your Chats — time-grouped (label header suppressed; date-group headers remain) */}
             <ChatSection
-              title={"Your Chats"}
               timeGroups={yourNonEmptyGroups}
               isLoading={isConversationsLoading}
               hasError={!!conversationsError}
