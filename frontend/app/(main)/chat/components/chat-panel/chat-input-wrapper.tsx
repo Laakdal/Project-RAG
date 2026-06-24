@@ -11,6 +11,7 @@ import {
   ensureSlotConversation,
   uploadAttachment,
   listAttachments,
+  deleteAttachment,
   type ChatAttachment,
 } from '@/chat/rag-api';
 import {
@@ -217,6 +218,21 @@ export function ChatInputWrapper() {
     [effectiveAgentId],
   );
 
+  // Detach a persistent (already-ingested) attachment when the user clicks the
+  // ✕ on its chip. Optimistically drop it from the local list for instant
+  // feedback, fire the best-effort server delete, then bump the refresh counter
+  // so the list reconciles with the backend (the delete swallows its own
+  // errors, so a failed detach simply reappears on refresh).
+  const handleDeleteAttachment = useCallback(
+    (attachmentId: string) => {
+      if (!activeConvId) return;
+      setExistingAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+      void deleteAttachment(activeConvId, attachmentId);
+      setAttachmentsRefresh((n) => n + 1);
+    },
+    [activeConvId],
+  );
+
   const handleSend = async (message: string, attachments?: AttachmentRef[]) => {
     if (!message.trim() && (!attachments || attachments.length === 0)) return;
 
@@ -298,6 +314,7 @@ export function ChatInputWrapper() {
       onSend={handleSend}
       onUploadFile={handleUploadFile}
       onDeleteFile={handleDeleteFile}
+      onDeleteAttachment={handleDeleteAttachment}
       existingAttachments={existingAttachments}
       isAgentChat={isAgentChat}
       agentId={effectiveAgentId}
