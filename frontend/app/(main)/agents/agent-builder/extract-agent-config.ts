@@ -5,7 +5,7 @@ import type {
   KnowledgeReference,
   ToolsetReference,
 } from './types';
-import type { WebSearchProviderType } from '../../workspace/web-search/types';
+import type { WebSearchProviderType } from './web-search-config';
 
 interface ToolsetDataInternal {
   name: string;
