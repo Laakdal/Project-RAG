@@ -43,7 +43,7 @@ export default function AuthenticationPage() {
 
   useEffect(() => {
     if (isProfileInitialized && isAdmin === false) {
-      router.replace('/workspace/general');
+      router.replace('/workspace/profile');
     }
   }, [isProfileInitialized, isAdmin, router]);
 
