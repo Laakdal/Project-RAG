@@ -2,7 +2,7 @@
 
 import { KnowledgeBaseApi } from '@/knowledge-base/api';
 import type { RecordDetailsResponse } from '@/knowledge-base/types';
-import { isLocalFsConnectorType } from '@/app/(main)/workspace/connectors/utils/local-fs-helpers';
+import { isLocalFsConnectorType } from '@/lib/connectors/local-fs-helpers';
 
 interface ElectronLocalFsOpenPayload {
   connectorId: string;
