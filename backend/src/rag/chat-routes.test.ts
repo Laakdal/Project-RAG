@@ -166,6 +166,43 @@ describe("delete conversation route", () => {
   });
 });
 
+describe("delete attachment route", () => {
+  it("deletes an attachment for an owned conversation and returns 204", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership lookup + delete resolve here
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    const whereSpy = dbMock.db.where as ReturnType<typeof vi.fn>;
+    const res = await request(app()).delete(
+      "/chat/conversations/c1/attachments/att1",
+    );
+    expect(res.status).toBe(204);
+
+    // The delete targets the attachments table (not conversations), so a stray
+    // call here can't drop the whole conversation.
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+    const deletedTable = deleteSpy.mock.calls[0][0] as Record<symbol, unknown>;
+    const nameSymbol = Object.getOwnPropertySymbols(deletedTable).find(
+      (s) => s.toString() === "Symbol(drizzle:Name)",
+    );
+    expect(nameSymbol && deletedTable[nameSymbol]).toBe("attachments");
+
+    // The delete is scoped by a WHERE clause (conversationId + id), so the row
+    // removed is bound to this conversation and attachment id.
+    expect(whereSpy).toHaveBeenCalled();
+    const lastWhere = whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0];
+    expect(lastWhere).toBeDefined();
+  });
+
+  it("returns 404 when the conversation is not owned", async () => {
+    dbMock.setResult([]); // ownership lookup empty
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    const res = await request(app()).delete(
+      "/chat/conversations/cX/attachments/att1",
+    );
+    expect(res.status).toBe(404);
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("message route", () => {
   it("rejects an empty question with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned
@@ -188,11 +225,15 @@ describe("message route", () => {
       text: "the answer is 42",
     });
 
-    // The query ran with (conversationId, question, history).
+    // The query ran with (conversationId, question, history, generateTitle).
+    // The shared db mock returns one truthy row for both the ownership lookup
+    // and the history read, so history is non-empty here and generateTitle is
+    // false; the first-message path is covered by its own test below.
     expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
       "c1",
       "What is the answer?",
       expect.any(Array),
+      false,
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -210,6 +251,65 @@ describe("message route", () => {
       content: "42",
       sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
     });
+  });
+
+  it("titles the first message via heuristic when n8n returns no title", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + inserts + update
+    // The first turn has no prior history. The shared mock returns one row for
+    // every read, so steer the history query (it ends with .limit(10)) to an
+    // empty result while the ownership lookup (.limit(1)) still finds the row.
+    const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
+    limitSpy.mockImplementation((n: number) =>
+      n === 10
+        ? { then: (r: (v: unknown) => unknown) => Promise.resolve([]).then(r) }
+        : dbMock.db,
+    );
+    // n8n returns no title, so the route falls back to titleFromQuestion.
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "42", sources: [] });
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "Apa isi dokumen ini? Tolong jelaskan." });
+    expect(res.status).toBe(200);
+
+    // generateTitle is true on the first turn.
+    expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
+      "c1",
+      "Apa isi dokumen ini? Tolong jelaskan.",
+      expect.any(Array),
+      true,
+    );
+
+    // The conversation title was set from the heuristic (first sentence).
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    expect(setSpy).toHaveBeenCalledWith({ title: "Apa isi dokumen ini" });
+
+    limitSpy.mockImplementation(() => dbMock.db); // restore default chaining
+  });
+
+  it("prefers the LLM-summarized title from n8n on the first message", async () => {
+    dbMock.setResult([{ id: "c1" }]);
+    const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
+    limitSpy.mockImplementation((n: number) =>
+      n === 10
+        ? { then: (r: (v: unknown) => unknown) => Promise.resolve([]).then(r) }
+        : dbMock.db,
+    );
+    vi.mocked(queryRag).mockResolvedValueOnce({
+      answer: "42",
+      sources: [],
+      title: "Document overview",
+    });
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "Apa isi dokumen ini?" });
+    expect(res.status).toBe(200);
+
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    expect(setSpy).toHaveBeenCalledWith({ title: "Document overview" });
+
+    limitSpy.mockImplementation(() => dbMock.db);
   });
 
   it("returns 502 when n8n is unavailable", async () => {
