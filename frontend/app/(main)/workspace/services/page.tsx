@@ -208,7 +208,7 @@ export default function ServicesPage() {
 
   useEffect(() => {
     if (isProfileInitialized && isAdmin === false) {
-      router.replace('/workspace/general');
+      router.replace('/workspace/profile');
     }
   }, [isProfileInitialized, isAdmin, router]);
 
