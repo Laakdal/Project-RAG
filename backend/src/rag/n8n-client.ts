@@ -23,14 +23,17 @@ function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
 }
 
+export type ChatTurn = { role: string; content: string };
+
 export async function queryRag(
   conversationId: string,
   question: string,
+  history: ChatTurn[] = [],
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question }),
+    body: JSON.stringify({ conversationId, question, history }),
   });
   if (!res.ok) {
     throw new Error(`n8n query failed: ${res.status}`);
