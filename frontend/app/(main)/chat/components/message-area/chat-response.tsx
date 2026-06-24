@@ -530,36 +530,29 @@ export const ChatResponse = React.memo(function ChatResponse({
         </Flex>
       )}
 
-      {/* Answer (left) + retrieval sources (right column) */}
-      <Flex
-        direction={isMobile ? 'column' : 'row'}
-        gap="5"
-        align="start"
-        style={{ width: '100%' }}
-      >
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          {answerBody}
+      {/* Answer body */}
+      <Box style={{ width: '100%', minWidth: 0 }}>
+        {answerBody}
 
-          {/* Message Actions (feedback, copy, regenerate, model info) */}
-          <MessageActions
-            content={displayContent}
-            citationMaps={effectiveCitationMaps}
-            modelInfo={modelInfo}
-            isStreaming={isStreaming}
-            messageId={messageId}
-            question={question}
-            isLastMessage={isLastMessage}
-            appliedFilters={appliedFilters}
-          />
-        </Box>
-
-        {/* RAG retrieval sources — right-hand column beside the answer */}
+        {/* RAG retrieval sources — footer beneath the answer (numbered list).
+            Rendered only after streaming finishes; the sources arrive in the
+            final REST response, not in SSE chunks. */}
         {!isStreaming && sources && sources.length > 0 && (
-          <Box style={{ width: isMobile ? '100%' : 280, flexShrink: 0 }}>
-            <MessageSources sources={sources} />
-          </Box>
+          <MessageSources sources={sources} />
         )}
-      </Flex>
+
+        {/* Message Actions (feedback, copy, regenerate, model info) */}
+        <MessageActions
+          content={displayContent}
+          citationMaps={effectiveCitationMaps}
+          modelInfo={modelInfo}
+          isStreaming={isStreaming}
+          messageId={messageId}
+          question={question}
+          isLastMessage={isLastMessage}
+          appliedFilters={appliedFilters}
+        />
+      </Box>
     </Box>
   );
 
