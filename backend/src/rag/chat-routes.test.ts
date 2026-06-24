@@ -27,6 +27,24 @@ function app() {
   return buildTestApp((a) => a.use("/chat", chatRouter));
 }
 
+// Walk a Drizzle SQL condition and collect the raw text from its StringChunk
+// nodes. Used to assert which literals a built WHERE clause contains without
+// stringifying the (circular) column references inside it.
+function sqlLiterals(node: unknown, seen = new Set<unknown>()): string[] {
+  if (node == null || typeof node !== "object" || seen.has(node)) return [];
+  seen.add(node);
+  const out: string[] = [];
+  const obj = node as Record<string, unknown>;
+  if (obj.constructor?.name === "StringChunk" && Array.isArray(obj.value)) {
+    out.push(...obj.value.filter((v): v is string => typeof v === "string"));
+  }
+  for (const v of Object.values(obj)) {
+    if (Array.isArray(v)) for (const item of v) out.push(...sqlLiterals(item, seen));
+    else if (v && typeof v === "object") out.push(...sqlLiterals(v, seen));
+  }
+  return out;
+}
+
 // The db mock and n8n mocks are module-level, so clear call history before
 // each test to keep per-test call-count/argument assertions reliable.
 // clearAllMocks resets call history only; implementations and the db mock's
@@ -102,6 +120,31 @@ describe("conversation routes", () => {
     dbMock.setResult([]); // ownership lookup finds nothing
     const res = await request(app()).get("/chat/conversations/cX/attachments");
     expect(res.status).toBe(404);
+  });
+
+  it("excludes failed attachments from the list", async () => {
+    // The db mock returns whatever setResult holds, so the route's SQL filter
+    // isn't executed in-process. Assert instead that the attachments query is
+    // built with a WHERE clause that excludes status 'failed', so legacy failed
+    // rows can never reach the response.
+    const readyRow = {
+      id: "att1",
+      filename: "doc.pdf",
+      status: "ready",
+      chunkCount: 3,
+      createdAt: "t",
+    };
+    dbMock.setResult([readyRow]); // ownership lookup + attachments query
+    const whereSpy = dbMock.db.where as ReturnType<typeof vi.fn>;
+    const res = await request(app()).get("/chat/conversations/c1/attachments");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([readyRow]);
+
+    // The last WHERE built (the attachments select) carries the failed filter.
+    // Drizzle stores raw SQL text in StringChunk nodes; collect those literals
+    // (the table-column chunks are circular, so we can't JSON.stringify them).
+    const lastWhere = whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0];
+    expect(sqlLiterals(lastWhere).join(" ")).toContain("<> 'failed'");
   });
 });
 
@@ -213,16 +256,35 @@ describe("attachment route", () => {
     expect(res.body.chunkCount).toBe(3);
   });
 
-  it("returns 502 when ingestion is unavailable", async () => {
-    dbMock.setResult([{ id: "att1" }]); // owned
+  it("does not persist an attachment when ingestion throws and returns 200 with status:failed", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership lookup
     vi.mocked(ingestFile).mockRejectedValueOnce(new Error("ingest down"));
+    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
       .attach("file", Buffer.from("%PDF-1.4 fake"), {
         filename: "doc.pdf",
         contentType: "application/pdf",
       });
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
+    // No attachment row was written for the failed ingest.
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not persist an attachment when ingestion returns a non-ok status and returns 200 with status:failed", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership lookup
+    vi.mocked(ingestFile).mockResolvedValueOnce({ status: "error", chunkCount: 0 });
+    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("%PDF-1.4 fake"), {
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("returns 413 for an oversize upload", async () => {
