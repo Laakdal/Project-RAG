@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/react';
 import type { AgentDetail } from '../types';
-import type { WebSearchProviderType } from '../../workspace/web-search/types';
+import type { WebSearchProviderType } from './web-search-config';
 
 export interface AgentWebSearchAttachment {
   /** Provider identifier, e.g. 'duckduckgo' | 'serper' | 'tavily' | 'exa'. */
