@@ -12,6 +12,7 @@ import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, ingestFile } from "./n8n-client.js";
+import { titleFromQuestion } from "./title-generator.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -149,6 +150,33 @@ router.get(
 );
 
 router.delete(
+  "/conversations/:id/attachments/:attachmentId",
+  requireCsrf,
+  async (
+    req: Request<{ id: string; attachmentId: string }>,
+    res: Response,
+  ) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    // Scope the delete to this conversation so an attachment id can't be used to
+    // remove a row from another (even owned) conversation.
+    await db
+      .delete(attachments)
+      .where(
+        and(
+          eq(attachments.conversationId, req.params.id),
+          eq(attachments.id, req.params.attachmentId),
+        ),
+      );
+    res.status(204).end();
+  },
+);
+
+router.delete(
   "/conversations/:id",
   requireCsrf,
   async (req: Request<{ id: string }>, res: Response) => {
@@ -196,11 +224,15 @@ router.post(
       .limit(10);
     const history = priorRows.reverse();
 
+    // The first message titles the conversation. Ask the workflow to summarize
+    // a title only on that first turn (no prior history yet).
+    const isFirstMessage = history.length === 0;
+
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result;
     try {
-      result = await queryRag(req.params.id, question, history);
+      result = await queryRag(req.params.id, question, history, isFirstMessage);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -220,16 +252,21 @@ router.post(
     });
 
     // Title a fresh conversation from its first message (only while the title
-    // is still the default, so later messages don't overwrite it).
-    await db
-      .update(conversations)
-      .set({ title: question.slice(0, 80) })
-      .where(
-        and(
-          eq(conversations.id, req.params.id),
-          eq(conversations.title, "New chat"),
-        ),
-      );
+    // is still the default, so later messages don't overwrite it). Prefer the
+    // LLM-summarized title from the workflow; fall back to a deterministic
+    // heuristic when the workflow returns none.
+    if (isFirstMessage) {
+      const title = result.title?.trim() || titleFromQuestion(question);
+      await db
+        .update(conversations)
+        .set({ title })
+        .where(
+          and(
+            eq(conversations.id, req.params.id),
+            eq(conversations.title, "New chat"),
+          ),
+        );
+    }
 
     res.json({ answer: result.answer, sources: result.sources });
   },
