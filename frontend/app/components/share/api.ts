@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api';
-import { UsersApi } from '@/app/(main)/workspace/users/api';
+import { UsersApi } from '@/lib/api/users';
 import { toShareUsers } from './utils';
 import type { ShareTeam, ShareUser } from './types';
 
@@ -7,7 +7,7 @@ import type { ShareTeam, ShareUser } from './types';
  * Common APIs used by the share sidebar regardless of entity type.
  * Teams and users are shared resources across all entity types.
  *
- * Team CRUD lives in {@link '@/app/(main)/workspace/teams/api'.TeamsApi} — do
+ * Team creation lives in {@link '@/lib/api/teams'.TeamsApi} — do
  * not duplicate it here.
  */
 export const ShareCommonApi = {
