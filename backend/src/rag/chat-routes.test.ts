@@ -145,8 +145,12 @@ describe("message route", () => {
       text: "the answer is 42",
     });
 
-    // The query ran with (conversationId, question).
-    expect(vi.mocked(queryRag)).toHaveBeenCalledWith("c1", "What is the answer?");
+    // The query ran with (conversationId, question, history).
+    expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
+      "c1",
+      "What is the answer?",
+      expect.any(Array),
+    );
 
     // Both turns were persisted in order: the user message first, then the
     // assistant answer with its sources. (Because the query runs before either
