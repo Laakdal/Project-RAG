@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { UsersApi } from '../users/api';
+import { UsersApi } from '@/lib/api/users';
 import type { CheckboxOption } from '../components';
 
 const DEFAULT_LIMIT = 25;
