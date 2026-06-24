@@ -70,10 +70,13 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
     const text = typeof s.text === 'string' ? s.text : undefined;
     const chunkIndex = typeof s.chunkIndex === 'number' ? s.chunkIndex : idx;
     out.push({
+      // Same (filename, chunkIndex) can legitimately repeat within one answer,
+      // so keep `idx` to guarantee a unique key per card.
       id: `${filename}-${chunkIndex}-${idx}`,
       title: filename,
       type: 'document',
       summary: text,
+      citationLabel: String(idx + 1),
     });
   });
   return out.length > 0 ? out : undefined;
