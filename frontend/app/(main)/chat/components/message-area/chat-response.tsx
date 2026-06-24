@@ -1,18 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Button, Heading, IconButton } from '@radix-ui/themes';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { SelectedCollections } from '../selected-collections';
 import { AppliedFilters } from '../applied-filters';
-import { ResponseTabs } from './response-tabs';
 import { ConfidenceIndicator } from './confidence-indicator';
 import { AnswerContent } from './answer-content';
 import { StatusMessageComponent } from './status-message';
 import { MessageSources } from './message-sources';
 import { MessageActions } from './message-actions';
-import { SourcesTab } from './response-tabs/citations/sources-tab';
-import { CitationsTab } from './response-tabs/citations/citations-tab';
 import { ArtifactsPanel } from './artifacts-panel';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
@@ -20,7 +17,7 @@ import { useCommandStore } from '@/lib/store/command-store';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import type { AttachmentRef, ConfidenceLevel, ModelInfo, StatusMessage, ResponseTab, ChatArtifact, ChatSource, AppliedFilters as AppliedFiltersData } from '../../types';
+import type { AttachmentRef, ConfidenceLevel, ModelInfo, StatusMessage, ChatArtifact, ChatSource, AppliedFilters as AppliedFiltersData } from '../../types';
 import { FileIcon } from '@/app/components/ui/file-icon';
 import { getMimeTypeExtension } from '@/lib/utils/file-icon-utils';
 import type { CitationMaps, CitationCallbacks } from './response-tabs/citations';
@@ -37,7 +34,6 @@ import {
 } from '@/app/components/file-preview/utils';
 import { KnowledgeBaseApi } from '@/knowledge-base/api';
 import { CitationMessageRowKeyContext } from './response-tabs/citations/citation-popover-control';
-import { useInlineCitationPopoverStore } from './response-tabs/citations/citation-popover-store';
 
 // Stable empty reference — avoids creating new objects in default params
 const EMPTY_CITATION_MAPS: CitationMaps = emptyCitationMaps();
@@ -154,19 +150,6 @@ export const ChatResponse = React.memo(function ChatResponse({
   // eslint-disable-next-line react-hooks/refs -- intentional: update previous-props snapshot for next render diff
   prevCRRef.current = currentCRVals;
 
-  // ── Local tab state with mutual exclusivity ────────────────────────
-  // Each ChatResponse manages its own tab locally. 'answer' is the default.
-  // To enforce that only one message can show sources/citations at a time,
-  // we track the active expanded message ID in the slot store.
-  const [localTab, setLocalTab] = useState<ResponseTab>('answer');
-
-  // Read the slot-level activeExpandedMessageId so we can reset to 'answer'
-  // when a different message becomes the expanded one.
-  const activeExpandedMessageId = useChatStore((s) =>
-    s.activeSlotId ? s.slots[s.activeSlotId]?.activeExpandedMessageId ?? null : null
-  );
-  const updateSlot = useChatStore((s) => s.updateSlot);
-  const activeSlotId = useChatStore((s) => s.activeSlotId);
   const setPreviewFile = useChatStore((s) => s.setPreviewFile);
   const setPreviewMode = useChatStore((s) => s.setPreviewMode);
 
@@ -223,46 +206,6 @@ export const ChatResponse = React.memo(function ChatResponse({
     },
     [setPreviewFile, setPreviewMode],
   );
-
-  // If another message was expanded (or expansion was cleared), reset to 'answer'.
-  // We only react when our localTab is non-answer — avoids unnecessary effects.
-  const prevExpandedRef = useRef(activeExpandedMessageId);
-  useEffect(() => {
-    if (
-      localTab !== 'answer' &&
-      activeExpandedMessageId !== messageId &&
-      activeExpandedMessageId !== prevExpandedRef.current
-    ) {
-      setLocalTab('answer');
-    }
-    prevExpandedRef.current = activeExpandedMessageId;
-  }, [activeExpandedMessageId, localTab, messageId]);
-
-  // Also ensure we reset if the slot switches to a different conversation
-  // (activeExpandedMessageId becomes null on slot evict/init).
-  const activeTab = (activeExpandedMessageId === messageId || !messageId)
-    ? localTab
-    : 'answer';
-
-  const setActiveTab = useCallback((tab: ResponseTab) => {
-    setLocalTab(tab);
-    if (!activeSlotId) return;
-    if (tab === 'answer') {
-      // Clear expansion only if we own it
-      updateSlot(activeSlotId, { activeExpandedMessageId: null });
-    } else {
-      updateSlot(activeSlotId, { activeExpandedMessageId: messageId ?? null });
-    }
-  }, [activeSlotId, messageId, updateSlot]);
-
-  const setInlineCitationKey = useInlineCitationPopoverStore((s) => s.setActiveKey);
-  const prevLocalTabForCite = useRef<ResponseTab>('answer');
-  useEffect(() => {
-    if (prevLocalTabForCite.current === 'answer' && localTab !== 'answer') {
-      setInlineCitationKey(null);
-    }
-    prevLocalTabForCite.current = localTab;
-  }, [localTab, setInlineCitationKey]);
 
   // Merge streaming citations when streaming, fall back to metadata citations
   const effectiveCitationMaps = isStreaming && streamingCitationMaps
@@ -327,124 +270,94 @@ export const ChatResponse = React.memo(function ChatResponse({
     };
   }, [citationCallbacks, effectiveCitationMaps]);
 
-  // Derive counts from citation maps
-  const sourcesCount = effectiveCitationMaps.sourcesOrder.length;
-  const citationCount = Object.keys(effectiveCitationMaps.citationsOrder).length;
+  const answerBody = (
+    <Box style={{ padding: 'var(--space-4) 0' }}>
+      {/* Status indicator — always above content, same slot as ConfidenceIndicator */}
+      {isStreaming && streamingStatusToShow && (
+        <StatusMessageComponent status={streamingStatusToShow} />
+      )}
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'answer':
-        return (
-          <Box style={{ padding: 'var(--space-4) 0' }}>
-            {/* Status indicator — always above content, same slot as ConfidenceIndicator */}
-            {isStreaming && streamingStatusToShow && (
-              <StatusMessageComponent status={streamingStatusToShow} />
-            )}
+      {/* Show confidence only when not streaming and has answer */}
+      {!isStreaming && confidence && <ConfidenceIndicator confidence={confidence} />}
 
-            {/* Show confidence only when not streaming and has answer */}
-            {!isStreaming && confidence && <ConfidenceIndicator confidence={confidence} />}
+      {/* Show content - either streaming or final */}
+      {displayContent && (
+        <AnswerContent
+          content={displayContent}
+          citationMaps={effectiveCitationMaps}
+          citationCallbacks={wrappedCallbacks}
+        />
+      )}
 
-            {/* Show content - either streaming or final */}
-            {displayContent && (
-              <AnswerContent
-                content={displayContent}
-                citationMaps={effectiveCitationMaps}
-                citationCallbacks={wrappedCallbacks}
-              />
-            )}
+      {/* Legacy download buttons for ::download_conversation_task markers
+          (e.g. "CSV of full query results"). Works for both S3 presigned
+          URLs and local storage endpoints — see DownloadTasks for the
+          auth-handling split. */}
+      {downloadTasks.length > 0 && <DownloadTasks tasks={downloadTasks} />}
 
-            {/* RAG retrieval sources — shown under the finished answer */}
-            {!isStreaming && sources && sources.length > 0 && (
-              <MessageSources sources={sources} />
-            )}
-
-            {/* Legacy download buttons for ::download_conversation_task markers
-                (e.g. "CSV of full query results"). Works for both S3 presigned
-                URLs and local storage endpoints — see DownloadTasks for the
-                auth-handling split. */}
-            {downloadTasks.length > 0 && <DownloadTasks tasks={downloadTasks} />}
-
-            {/* Artifacts generated by sandbox tools — streamed live via SSE
-                during generation, then persisted as markers in the saved
-                answer content so they keep rendering on historical loads. */}
-            {effectiveArtifacts.length > 0 && (
-              <ArtifactsPanel
-                artifacts={effectiveArtifacts}
-                onPreview={async (artifact) => {
-                  if (artifact.recordId) {
-                    try {
-                      const { KnowledgeBaseApi } = await import('@/app/(main)/knowledge-base/api');
-                      // PPT/PPTX and legacy Word (.doc) need server-side PDF
-                      // conversion — mirror the citation preview flow so the
-                      // browser actually has a renderer for the returned blob.
-                      const streamAsPdf =
-                        isPresentationFile(artifact.mimeType, artifact.fileName) ||
-                        isLegacyWordDocFile(artifact.mimeType, artifact.fileName);
-                      const streamOptions = streamAsPdf
-                        ? { convertTo: 'application/pdf' }
-                        : undefined;
-                      const blob = await KnowledgeBaseApi.streamRecord(
-                        artifact.recordId,
-                        streamOptions,
-                      );
-                      const resolvedType = resolvePreviewMimeAfterStream(
-                        artifact.mimeType,
-                        artifact.fileName,
-                        blob,
-                        !!streamOptions,
-                      );
-                      // DOCX is rendered client-side directly from the Blob;
-                      // everything else uses an object URL (consistent with
-                      // the citation preview path).
-                      const isDocx = isDocxFile(artifact.mimeType, artifact.fileName);
-                      const objectUrl = isDocx ? '' : URL.createObjectURL(blob);
-                      useChatStore.getState().setPreviewFile({
-                        id: artifact.recordId,
-                        url: objectUrl,
-                        blob: isDocx ? blob : undefined,
-                        name: artifact.fileName,
-                        type: resolvedType,
-                        size: artifact.sizeBytes,
-                        hideFileDetails: true,
-                        showDownload: true,
-                      });
-                      return;
-                    } catch {
-                      // Fall back to raw URL
-                    }
-                  }
-                  useChatStore.getState().setPreviewFile({
-                    id: artifact.id,
-                    url: artifact.downloadUrl,
-                    name: artifact.fileName,
-                    type: artifact.mimeType,
-                    size: artifact.sizeBytes,
-                    hideFileDetails: true,
-                    showDownload: true,
-                  });
-                }}
-              />
-            )}
-          </Box>
-        );
-      case 'sources':
-        return (
-          <SourcesTab
-            citationMaps={effectiveCitationMaps}
-            callbacks={wrappedCallbacks}
-          />
-        );
-      case 'citation':
-        return (
-          <CitationsTab
-            citationMaps={effectiveCitationMaps}
-            callbacks={wrappedCallbacks}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+      {/* Artifacts generated by sandbox tools — streamed live via SSE
+          during generation, then persisted as markers in the saved
+          answer content so they keep rendering on historical loads. */}
+      {effectiveArtifacts.length > 0 && (
+        <ArtifactsPanel
+          artifacts={effectiveArtifacts}
+          onPreview={async (artifact) => {
+            if (artifact.recordId) {
+              try {
+                const { KnowledgeBaseApi } = await import('@/app/(main)/knowledge-base/api');
+                // PPT/PPTX and legacy Word (.doc) need server-side PDF
+                // conversion — mirror the citation preview flow so the
+                // browser actually has a renderer for the returned blob.
+                const streamAsPdf =
+                  isPresentationFile(artifact.mimeType, artifact.fileName) ||
+                  isLegacyWordDocFile(artifact.mimeType, artifact.fileName);
+                const streamOptions = streamAsPdf
+                  ? { convertTo: 'application/pdf' }
+                  : undefined;
+                const blob = await KnowledgeBaseApi.streamRecord(
+                  artifact.recordId,
+                  streamOptions,
+                );
+                const resolvedType = resolvePreviewMimeAfterStream(
+                  artifact.mimeType,
+                  artifact.fileName,
+                  blob,
+                  !!streamOptions,
+                );
+                // DOCX is rendered client-side directly from the Blob;
+                // everything else uses an object URL (consistent with
+                // the citation preview path).
+                const isDocx = isDocxFile(artifact.mimeType, artifact.fileName);
+                const objectUrl = isDocx ? '' : URL.createObjectURL(blob);
+                useChatStore.getState().setPreviewFile({
+                  id: artifact.recordId,
+                  url: objectUrl,
+                  blob: isDocx ? blob : undefined,
+                  name: artifact.fileName,
+                  type: resolvedType,
+                  size: artifact.sizeBytes,
+                  hideFileDetails: true,
+                  showDownload: true,
+                });
+                return;
+              } catch {
+                // Fall back to raw URL
+              }
+            }
+            useChatStore.getState().setPreviewFile({
+              id: artifact.id,
+              url: artifact.downloadUrl,
+              name: artifact.fileName,
+              type: artifact.mimeType,
+              size: artifact.sizeBytes,
+              hideFileDetails: true,
+              showDownload: true,
+            });
+          }}
+        />
+      )}
+    </Box>
+  );
 
   const [isQuestionHovered, setIsQuestionHovered] = useState(false);
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
@@ -617,30 +530,36 @@ export const ChatResponse = React.memo(function ChatResponse({
         </Flex>
       )}
 
-      {/* Tabs */}
-      <ResponseTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        sourcesCount={sourcesCount}
-        citationCount={citationCount}
-      />
+      {/* Answer (left) + retrieval sources (right column) */}
+      <Flex
+        direction={isMobile ? 'column' : 'row'}
+        gap="5"
+        align="start"
+        style={{ width: '100%' }}
+      >
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          {answerBody}
 
-      {/* Tab Content */}
-      {renderTabContent()}
+          {/* Message Actions (feedback, copy, regenerate, model info) */}
+          <MessageActions
+            content={displayContent}
+            citationMaps={effectiveCitationMaps}
+            modelInfo={modelInfo}
+            isStreaming={isStreaming}
+            messageId={messageId}
+            question={question}
+            isLastMessage={isLastMessage}
+            appliedFilters={appliedFilters}
+          />
+        </Box>
 
-      {/* Message Actions (feedback, copy, regenerate, model info) */}
-      {activeTab === 'answer' && (
-        <MessageActions
-          content={displayContent}
-          citationMaps={effectiveCitationMaps}
-          modelInfo={modelInfo}
-          isStreaming={isStreaming}
-          messageId={messageId}
-          question={question}
-          isLastMessage={isLastMessage}
-          appliedFilters={appliedFilters}
-        />
-      )}
+        {/* RAG retrieval sources — right-hand column beside the answer */}
+        {!isStreaming && sources && sources.length > 0 && (
+          <Box style={{ width: isMobile ? '100%' : 280, flexShrink: 0 }}>
+            <MessageSources sources={sources} />
+          </Box>
+        )}
+      </Flex>
     </Box>
   );
 
