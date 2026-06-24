@@ -29,7 +29,7 @@ function AppearanceIcon({ color }: { color: string }) {
 
 /**
  * Top section of the workspace menu:
- *   Appearance, Workspace Settings, Language, Log Out
+ *   Appearance, Settings, Language, Log Out
  */
 export function SettingsSection({
   onWorkspaceSettings,
@@ -77,8 +77,7 @@ export function SettingsSection({
               color="var(--slate-11)"
             />
           }
-          label={"Workspace Settings"}
-          href="/workspace/"
+          label={"Settings"}
           onClick={onWorkspaceSettings}
         />
       )}
