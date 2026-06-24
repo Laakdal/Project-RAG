@@ -7,9 +7,9 @@ import { useProfileStore, isProfileFormDirty } from '../store';
 import { ProfileApi } from '../api';
 import { getUserIdFromToken, getUserEmailFromToken } from '@/lib/utils/jwt';
 import { isProcessedError } from '@/lib/api';
-import { getUserGroupsForProfile } from '../../users/api';
-import { USER_ROLES } from '../../constants';
-import { GroupType } from '../../groups/types';
+import { getUserGroupsForProfile } from '@/lib/api/user-groups';
+import { USER_ROLES } from '@/lib/constants/user-roles';
+import { GroupType } from '@/lib/types/user-groups';
 
 // ========================================
 // Hook
