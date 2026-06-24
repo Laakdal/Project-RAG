@@ -8,7 +8,7 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { useMobileSidebarStore } from '@/lib/store/mobile-sidebar-store';
-import { buildConnectorsUrl } from '@/app/(main)/workspace/connectors/utils/build-connectors-url';
+import { buildConnectorsUrl } from '@/lib/connectors/build-connectors-url';
 import { useKnowledgeBaseStore } from '../store';
 import { loadMoreRootAppList, loadMoreAppChildPage } from '../utils/sidebar-paginated-fetch';
 import { fetchAppDirectChildren } from '../utils/fetch-app-direct-children';
