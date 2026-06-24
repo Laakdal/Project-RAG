@@ -976,7 +976,7 @@ function UsersPageContent() {
   // ── Redirect non-admin users ──────────────────────────────
   useEffect(() => {
     if (isProfileInitialized && isAdmin === false) {
-      router.replace('/workspace/general');
+      router.replace('/workspace/profile');
     }
   }, [isProfileInitialized, isAdmin, router]);
 
