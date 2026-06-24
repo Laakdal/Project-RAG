@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { WebSearchApi } from '../../../workspace/web-search/api';
-import type { ConfiguredWebSearchProvider } from '../../../workspace/web-search/types';
+import { WebSearchApi } from '../web-search-config';
+import type { ConfiguredWebSearchProvider } from '../web-search-config';
 
 interface UseWebSearchConfigResult {
   configuredProviders: ConfiguredWebSearchProvider[];
