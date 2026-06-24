@@ -28,7 +28,7 @@ import { ServiceAccountConfirmDialog } from './components/service-account-confir
 import { AgentToolsetCredentialsDialog } from './components/agent-toolset-credentials-dialog';
 import type { BuilderSidebarToolset } from '@/app/(main)/toolsets/api';
 import type { AgentWebSearchAttachment, FlowNodeData } from './types';
-import type { WebSearchProviderType } from '../../workspace/web-search/types';
+import type { WebSearchProviderType } from './web-search-config';
 import { normalizeDisplayName, formattedProvider } from './display-utils';
 import { FLOW_EDGE } from './flow-theme';
 import { connectionError } from './connection-rules';
