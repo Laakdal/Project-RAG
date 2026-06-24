@@ -6,7 +6,7 @@ import { Box, Flex, Text, TextField, IconButton, ScrollArea } from '@radix-ui/th
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ConnectorIcon } from '@/app/components/ui';
 import { CONTENT_PADDING, HEADER_HEIGHT, ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import type { Connector } from '@/lib/connectors/types';
 import type { BuilderSidebarToolset } from '@/app/(main)/toolsets/api';
 import type { NodeTemplate } from '../types';
 import { filterTemplatesBySearch, groupConnectorInstances, prepareDragData } from '../sidebar-utils';
