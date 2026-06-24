@@ -4,13 +4,13 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
- * /workspace root — redirects to /workspace/general
+ * /workspace root — redirects to /workspace/profile
  */
 export default function WorkspacePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/workspace/general');
+    router.replace('/workspace/profile');
   }, [router]);
 
   return null;
