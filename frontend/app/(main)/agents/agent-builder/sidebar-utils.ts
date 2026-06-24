@@ -1,4 +1,4 @@
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import type { Connector } from '@/lib/connectors/types';
 import type { NodeTemplate } from './types';
 import { normalizeDisplayName } from './display-utils';
 
