@@ -284,8 +284,9 @@ export interface ChatSettings {
  * Per-attachment upload state. Uploads start the moment the user adds the
  * file to the composer (not at send time), so each chip carries its own
  * status. Send is blocked until every chip is `'uploaded'` (or removed).
+ * A failed upload removes its own chip, so there is no error state.
  */
-export type AttachmentUploadStatus = 'uploading' | 'uploaded' | 'error';
+export type AttachmentUploadStatus = 'uploading' | 'uploaded';
 
 export interface UploadedFile {
   id: string;
@@ -297,8 +298,6 @@ export interface UploadedFile {
   status: AttachmentUploadStatus;
   /** Server-assigned ref, present once status === 'uploaded'. */
   ref?: AttachmentRef;
-  /** User-facing message when status === 'error'. */
-  errorMessage?: string;
 }
 
 export type SupportedFileType = 'TXT' | 'PDF' | 'DOCX' | 'PNG' | 'JPEG' | 'JPG';
