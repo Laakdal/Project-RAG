@@ -679,30 +679,9 @@ export function UniversalAgentResourcesPanel({
               <Flex direction="column" gap="2" style={{ padding: 'var(--space-3)' }}>
                 <Text size="2" style={{ color: 'var(--slate-9)' }}>
                   {toolGroups.length === 0
-                    ? 'No authenticated actions found. Connect integrations in Workspace → Actions.'
+                    ? 'No authenticated actions found.'
                     : 'No actions match your search.'}
                 </Text>
-                <Flex
-                  align="center"
-                  justify="between"
-                  gap="2"
-                  style={{
-                    ...OLIVE_ROW,
-                    padding: 'var(--space-2) var(--space-2) var(--space-2) var(--space-3)',
-                  }}
-                >
-                  <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-                    <MaterialIcon name="apps" size={18} color="var(--gray-11)" />
-                    <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }} truncate>
-                      {"Browse workspace actions"}
-                    </Text>
-                  </Flex>
-                  <IconButton asChild size="1" variant="soft" color="gray" style={{ flexShrink: 0 }}>
-                    <Link href="/workspace/actions" aria-label="Open workspace actions">
-                      <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
-                    </Link>
-                  </IconButton>
-                </Flex>
               </Flex>
             )}
 
@@ -866,33 +845,6 @@ export function UniversalAgentResourcesPanel({
                   </Flex>
                 )}
 
-                {/* Configure more actions link */}
-                <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-1)' }}>
-                  <Text size="1" style={{ color: 'var(--gray-11)' }}>
-                    {"Configure more actions"}
-                  </Text>
-                  <Flex
-                    align="center"
-                    justify="between"
-                    gap="2"
-                    style={{
-                      ...OLIVE_ROW,
-                      padding: 'var(--space-2) var(--space-2) var(--space-2) var(--space-3)',
-                    }}
-                  >
-                    <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-                      <MaterialIcon name="apps" size={18} color="var(--gray-11)" />
-                      <Text size="2" weight="medium" style={{ color: 'var(--gray-11)' }} truncate>
-                        {"Browse workspace actions"}
-                      </Text>
-                    </Flex>
-                    <IconButton asChild size="1" variant="soft" color="gray" style={{ flexShrink: 0 }}>
-                      <Link href="/workspace/actions" aria-label="Open workspace actions">
-                        <MaterialIcon name="open_in_new" size={16} color="var(--gray-11)" />
-                      </Link>
-                    </IconButton>
-                  </Flex>
-                </Flex>
               </>
             )}
           </>
