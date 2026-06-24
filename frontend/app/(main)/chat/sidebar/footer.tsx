@@ -6,29 +6,21 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { UserAvatar } from '@/app/components/ui/user-avatar';
 import { HEADER_ELEMENT_SIZE, ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { WorkspaceMenu } from '@/app/components/workspace-menu';
-import type { OrgInfo } from '@/app/components/workspace-menu';
+
+const APP_NAME = 'Project RAG';
 
 /**
- * Sidebar footer — organisation selector button + popup menu.
- *
- * The org/branding endpoints (`/api/v1/org`, `/api/v1/org/logo`) do not exist
- * on the RAG backend, so we no longer fetch them — that probe 404'd and
- * surfaced a "Not Found" toast on chat load. The footer renders with no org
- * details (initials/blank), which is acceptable for this backend.
+ * Sidebar footer — workspace button + popup menu (settings, appearance, logout).
  */
 export function ChatSidebarFooter() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [org] = useState<OrgInfo | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
-
-  const orgLogoUrl = org?.logoUrl ?? null;
 
   return (
     <Box style={{ padding: 'var(--space-2)', position: 'relative' }}>
       <WorkspaceMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        org={org}
         triggerRef={triggerRef}
       />
 
@@ -47,15 +39,13 @@ export function ChatSidebarFooter() {
           cursor: 'pointer',
         }}
       >
-        {/* Org avatar — logo if available, else initial */}
         <UserAvatar
-          fullName={org?.shortName || org?.registeredName}
-          src={orgLogoUrl}
+          fullName={APP_NAME}
+          src={null}
           size={HEADER_ELEMENT_SIZE}
           radius="small"
         />
 
-        {/* Org name */}
         <Text
           size="2"
           weight="medium"
@@ -68,7 +58,7 @@ export function ChatSidebarFooter() {
             whiteSpace: 'nowrap',
           }}
         >
-          {org?.shortName || org?.registeredName}
+          {APP_NAME}
         </Text>
 
         <MaterialIcon
