@@ -1,5 +1,5 @@
-import { UsersApi } from '@/app/(main)/workspace/users/api';
-import type { User } from '@/app/(main)/workspace/users/types';
+import { UsersApi } from '@/lib/api/users';
+import type { User } from '@/lib/types/users';
 import type { ShareUser } from './types';
 
 /** Map merged Mongo users to ShareUser with Mongo `userId` as `id`. */
