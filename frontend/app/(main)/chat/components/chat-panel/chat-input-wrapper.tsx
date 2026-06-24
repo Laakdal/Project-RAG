@@ -177,7 +177,16 @@ export function ChatInputWrapper() {
         keepTemp: true,
       });
 
-      const { attachmentId } = await uploadAttachment(conversationId, file, signal);
+      const { attachmentId, status } = await uploadAttachment(conversationId, file, signal);
+
+      // A file whose ingestion failed is treated as a failed upload: throw so the
+      // composer drops the chip (ChatInput.startUpload) and never attaches it to a
+      // message. We also skip the refresh so it is never surfaced as a persistent
+      // chip. The backend may keep a `failed` record, but it is filtered out of the
+      // persistent list (ChatInput.persistentAttachments).
+      if (status === 'failed') {
+        throw new Error('This file could not be processed.');
+      }
 
       // Surface the newly ingested document as a persistent chip right away.
       setAttachmentsRefresh((n) => n + 1);
