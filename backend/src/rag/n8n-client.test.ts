@@ -27,6 +27,7 @@ describe("n8n-client", () => {
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
+      history: [],
     });
   });
 
