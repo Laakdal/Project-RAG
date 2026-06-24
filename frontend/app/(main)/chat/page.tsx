@@ -37,6 +37,7 @@ import { ShareSidebar, ShareHeaderGroup } from '@/app/components/share';
 import type { SharedAvatarMember } from '@/app/components/share';
 import { createChatShareAdapter } from './share-adapter';
 import { ChatSearch } from './components/search';
+import { ConversationFilesPanel } from './components/conversation-files-panel';
 import { isCommandKey } from '@/lib/utils/platform';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -1318,6 +1319,12 @@ function ChatContent() {
               )}
             </Box>
           </>
+        )}
+
+        {/* Files-in-this-chat side panel — only when a conversation is open and
+            the split-pane preview is NOT showing (one right panel at a time). */}
+        {conversationId && !showSplitPane && !isMobile && (
+          <ConversationFilesPanel conversationId={conversationId} />
         )}
       </Flex>
 
