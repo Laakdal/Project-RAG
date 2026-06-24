@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api';
-import { UsersApi } from '@/app/(main)/workspace/users/api';
-import type { User } from '@/app/(main)/workspace/users/types';
+import { UsersApi } from '@/lib/api/users';
+import type { User } from '@/lib/types/users';
 import { fetchShareUsersPaginated } from '@/app/components/share/utils';
 import type { ShareAdapter, SharedMember, ShareSubmission } from '@/app/components/share/types';
 import { useUserStore } from '@/lib/store/user-store';
