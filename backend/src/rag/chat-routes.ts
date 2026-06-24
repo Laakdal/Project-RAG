@@ -178,11 +178,22 @@ router.post(
     }
     const { question } = parsed.data;
 
+    // Recent turns for multi-turn memory, oldest→newest. The current question
+    // isn't persisted yet, so this is purely the PRIOR conversation. Capped so
+    // the prompt stays bounded.
+    const priorRows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(eq(messages.conversationId, req.params.id))
+      .orderBy(desc(messages.createdAt))
+      .limit(10);
+    const history = priorRows.reverse();
+
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result;
     try {
-      result = await queryRag(req.params.id, question);
+      result = await queryRag(req.params.id, question, history);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
