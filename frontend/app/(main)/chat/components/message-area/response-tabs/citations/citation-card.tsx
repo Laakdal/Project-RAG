@@ -4,7 +4,7 @@ import React from 'react';
 import { Flex, Box, Text, Badge, Button } from '@radix-ui/themes';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { ConnectorIcon } from '@/app/components/ui/ConnectorIcon';
-import { isLocalFsConnectorType } from '@/app/(main)/workspace/connectors/utils/local-fs-helpers';
+import { isLocalFsConnectorType } from '@/lib/connectors/local-fs-helpers';
 import { openRecordSource } from '@/chat/utils/open-record-source';
 import { getConnectorConfig, formatSyncLabel } from './utils';
 import { FileIcon } from '@/app/components/ui/file-icon';
