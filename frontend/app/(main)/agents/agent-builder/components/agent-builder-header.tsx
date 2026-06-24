@@ -18,7 +18,7 @@ import {
 } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 
-import { UsersApi } from '@/app/(main)/workspace/users/api';
+import { UsersApi } from '@/lib/api/users';
 
 export function AgentBuilderHeader(props: {
   agentName: string;
