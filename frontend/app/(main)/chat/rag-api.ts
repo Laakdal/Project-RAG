@@ -79,6 +79,27 @@ export async function uploadAttachment(
   return data;
 }
 
+/**
+ * Detach + delete a persisted attachment from a conversation. Best-effort and
+ * fire-and-forget: the caller removes the chip optimistically and refreshes the
+ * list afterwards, so a failed delete must never surface a toast or reject. All
+ * errors are swallowed here.
+ */
+export async function deleteAttachment(
+  conversationId: string,
+  attachmentId: string,
+): Promise<void> {
+  try {
+    await apiClient.delete(
+      `/chat/conversations/${conversationId}/attachments/${attachmentId}`,
+      { suppressErrorToast: true },
+    );
+  } catch {
+    // Swallow: an orphan record is acceptable; the optimistic removal +
+    // refresh in the caller keeps the UI honest.
+  }
+}
+
 export async function deleteConversation(conversationId: string): Promise<void> {
   await apiClient.delete(`/chat/conversations/${conversationId}`);
 }
