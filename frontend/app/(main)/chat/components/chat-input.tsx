@@ -54,7 +54,7 @@ interface ChatInputProps {
    * Per-file upload. Fired the moment a file is added to the composer
    * (not at send time). Receives an abort signal so the composer can cancel
    * the in-flight request when the user removes the chip mid-upload.
-   * Throws on failure — the chip is marked `'error'` and surfaces a retry.
+   * Throws on failure — the chip is removed and a toast surfaces the error.
    */
   onUploadFile?: (file: File, signal: AbortSignal) => Promise<AttachmentRef>;
   /**
@@ -153,7 +153,7 @@ export function ChatInput({
   /**
    * Per-file AbortController keyed by `UploadedFile.id`. Held in a ref (not
    * state) because controllers are imperative — they belong outside the
-   * render cycle. Used by `removeFile`/retry/unmount to cancel in-flight
+   * render cycle. Used by `removeFile`/unmount to cancel in-flight
    * uploads cleanly. Entries are deleted in the upload finalizer so the map
    * doesn't leak across long-lived sessions.
    */
@@ -582,11 +582,10 @@ export function ChatInput({
     }
 
     // ── Normal send flow ──────────────────────────────────────
-    // Only forward chips whose upload completed successfully. Errored
-    // chips are dropped silently here — `canSubmit` lets them through
-    // (otherwise the send button would be stuck), but the user has
-    // already seen a toast per failed upload and the chip exposes a
-    // retry icon if they want to recover.
+    // Only forward chips whose upload completed successfully. Failed uploads
+    // remove their own chip in startUpload, so every remaining chip is either
+    // still uploading (blocked by canSubmit) or uploaded — forward only the
+    // uploaded refs.
     if ((message.trim() || uploadedFiles.length > 0) && onSend) {
       const refs = uploadedFiles
         .filter((f) => f.status === 'uploaded' && f.ref)
@@ -614,9 +613,9 @@ export function ChatInput({
   };
 
   /**
-   * Fire the upload for a single chip. Called both on initial add and on
-   * retry. The chip MUST already exist in `uploadedFiles` — we only flip
-   * status and store the ref / error.
+   * Fire the upload for a single chip. Called when a file is added to the
+   * composer. The chip MUST already exist in `uploadedFiles` — we only flip
+   * status and store the ref.
    *
    * On abort (user removed the chip mid-flight) we silently swallow the
    * error — the chip is already gone from state, no UX needed.
@@ -631,9 +630,7 @@ export function ChatInput({
     uploadControllersRef.current.set(file.id, controller);
 
     setUploadedFiles((prev) =>
-      prev.map((f) =>
-        f.id === file.id ? { ...f, status: 'uploading', errorMessage: undefined } : f,
-      ),
+      prev.map((f) => (f.id === file.id ? { ...f, status: 'uploading' } : f)),
     );
 
     onUploadFile(file.file, controller.signal)
@@ -648,13 +645,12 @@ export function ChatInput({
         const errorMessage =
           (err as { message?: string })?.message ??
           'Upload failed';
-        setUploadedFiles((prev) =>
-          prev.map((f) =>
-            f.id === file.id ? { ...f, status: 'error', errorMessage, ref: undefined } : f,
-          ),
-        );
+        // Drop the chip entirely on failure — a failed upload is never shown,
+        // never attached to the message, and never surfaced as a persistent
+        // chip. A toast still tells the user it didn't go through.
+        setUploadedFiles((prev) => prev.filter((f) => f.id !== file.id));
         toast.error(
-          `Failed to upload ${file.name}: ${errorMessage}`,
+          `Couldn't attach ${file.name}: ${errorMessage}`,
         );
       })
       .finally(() => {
@@ -820,13 +816,6 @@ export function ChatInput({
     }
   }, [uploadedFiles, onDeleteFile]);
 
-  const retryFile = useCallback((fileId: string) => {
-    // Find the target outside the updater — Strict Mode runs updaters twice
-    // which would trigger two upload calls for the same retry.
-    const target = uploadedFiles.find((f) => f.id === fileId);
-    if (target) startUpload(target);
-  }, [uploadedFiles, startUpload]);
-
   /**
    * Handle Ctrl+V / paste events.
    *
@@ -940,8 +929,10 @@ export function ChatInput({
       .map((f) => f.ref?.recordId)
       .filter((id): id is string => Boolean(id)),
   );
+  // Hide attachments whose ingestion failed — a failed upload must leave no
+  // trace in the composer, including after a page reload.
   const persistentAttachments = existingAttachments.filter(
-    (att) => !localAttachmentIds.has(att.id),
+    (att) => att.status !== 'failed' && !localAttachmentIds.has(att.id),
   );
   const canSubmit =
     (hasContent || activeMessageAction !== null) &&
@@ -1269,10 +1260,7 @@ export function ChatInput({
                   width: '196px',
                   padding: 'var(--space-2)',
                   backgroundColor: 'var(--olive-a2)',
-                  border:
-                    file.status === 'error'
-                      ? '1px solid var(--red-7)'
-                      : '1px solid var(--olive-3)',
+                  border: '1px solid var(--olive-3)',
                   borderRadius: 'var(--radius-1)',
                 }}
               >
@@ -1280,9 +1268,7 @@ export function ChatInput({
                   {/* Header: file icon + per-status action affordance.
                       - uploading: spinner replaces the close button.
                       - uploaded:  close button removes the chip (and signals
-                        the server orphan via the future cleanup endpoint).
-                      - error:     retry + close so the user can recover
-                        without losing the other chips' completed uploads. */}
+                        the server orphan via the future cleanup endpoint). */}
                   <Flex align="center" justify="between">
                     <FileIcon
                       extension={getMimeTypeExtension(file.type) || undefined}
@@ -1315,45 +1301,23 @@ export function ChatInput({
                         </Box>
                       </Tooltip>
                     ) : (
-                      <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-                        {file.status === 'error' && (
-                          <Tooltip
-                            content="Retry upload"
-                            side="top"
-                          >
-                            <IconButton
-                              variant="ghost"
-                              size="1"
-                              onClick={() => retryFile(file.id)}
-                              style={{ margin: 0, flexShrink: 0 }}
-                              aria-label={`Retry uploading ${file.name}`}
-                            >
-                              <MaterialIcon
-                                name="refresh"
-                                size={ICON_SIZES.SECONDARY}
-                                color="var(--red-11)"
-                              />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        <IconButton
-                          variant="ghost"
-                          size="1"
-                          onClick={() => removeFile(file.id)}
-                          style={{ margin: 0, flexShrink: 0 }}
-                          aria-label={`Remove ${file.name}`}
-                        >
-                          <MaterialIcon
-                            name="close"
-                            size={ICON_SIZES.SECONDARY}
-                            color="var(--slate-11)"
-                          />
-                        </IconButton>
-                      </Flex>
+                      <IconButton
+                        variant="ghost"
+                        size="1"
+                        onClick={() => removeFile(file.id)}
+                        style={{ margin: 0, flexShrink: 0 }}
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <MaterialIcon
+                          name="close"
+                          size={ICON_SIZES.SECONDARY}
+                          color="var(--slate-11)"
+                        />
+                      </IconButton>
                     )}
                   </Flex>
 
-                  {/* Content: filename + size (or error message in red). */}
+                  {/* Content: filename + size. */}
                   <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
                     <Text
                       size="1"
@@ -1370,15 +1334,13 @@ export function ChatInput({
                     <Text
                       size="1"
                       style={{
-                        color: file.status === 'error' ? 'var(--red-11)' : 'var(--slate-11)',
+                        color: 'var(--slate-11)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {file.status === 'error'
-                        ? file.errorMessage || 'Upload failed'
-                        : formatFileSize(file.size)}
+                      {formatFileSize(file.size)}
                     </Text>
                   </Flex>
                 </Flex>
