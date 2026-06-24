@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api';
-import type { DocumentationLink } from '@/app/(main)/workspace/connectors/types';
-import { normalizeDocumentationLinks } from '@/app/(main)/workspace/connectors/normalize-documentation-links';
+import type { DocumentationLink } from '@/lib/connectors/types';
+import { normalizeDocumentationLinks } from '@/lib/connectors/documentation-links';
 
 const PAGE_SIZE = 20;
 
