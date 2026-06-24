@@ -1,6 +1,6 @@
 'use client';
 
-import { Flex, IconButton, Tooltip } from '@radix-ui/themes';
+import { Flex, IconButton, Text, Tooltip } from '@radix-ui/themes';
 import Link from 'next/link';
 import { HEADER_ELEMENT_SIZE } from '@/app/components/sidebar';
 import { UserAvatar } from '@/app/components/ui/user-avatar';
@@ -34,14 +34,30 @@ export function ChatSidebarHeader() {
 
   return (
     <Flex align="center" justify="between" gap="2" style={{ height: '100%', padding: 'var(--space-4)' }}>
-      <img
-        src="/logo.png"
-        alt=""
-        width={HEADER_ELEMENT_SIZE}
-        height={HEADER_ELEMENT_SIZE}
-        style={{ borderRadius: 'var(--radius-2)', flexShrink: 0, objectFit: 'cover' }}
-      />
-      <Flex align="center" gap="2">
+      <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+        <img
+          src="/logo.png"
+          alt=""
+          width={HEADER_ELEMENT_SIZE}
+          height={HEADER_ELEMENT_SIZE}
+          style={{ borderRadius: 'var(--radius-2)', flexShrink: 0, objectFit: 'cover' }}
+        />
+        <Text
+          as="span"
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--slate-12)',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {"Project RAG"}
+        </Text>
+      </Flex>
+      <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
         {isMobile ? (
           <IconButton
             variant="ghost"
