@@ -18,7 +18,7 @@ import { Box } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { FlowNodeData } from '../types';
 import type { NodeTemplate } from '../types';
-import type { Connector } from '@/app/(main)/workspace/connectors/types';
+import type { Connector } from '@/lib/connectors/types';
 import { FlowNode } from './flow-node';
 import CustomEdge from './custom-edge';
 import { handleFlowCanvasDrop } from './canvas-drop-handler';
