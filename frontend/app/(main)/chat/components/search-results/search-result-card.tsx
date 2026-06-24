@@ -3,7 +3,7 @@
 import React from 'react';
 import { Flex, Box, Text, Badge } from '@radix-ui/themes';
 import { ConnectorIcon } from '@/app/components/ui/ConnectorIcon';
-import { isLocalFsConnectorType } from '@/app/(main)/workspace/connectors/utils/local-fs-helpers';
+import { isLocalFsConnectorType } from '@/lib/connectors/local-fs-helpers';
 import { openRecordSource } from '@/chat/utils/open-record-source';
 import { getConnectorConfig } from '../message-area/response-tabs/citations/utils';
 import type { SearchResultItem } from '@/chat/types';
