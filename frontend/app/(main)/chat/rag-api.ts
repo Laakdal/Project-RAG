@@ -26,6 +26,8 @@ export interface ChatAttachment {
   filename: string;
   status: string;
   chunkCount: number | null;
+  /** True when the original file is stored server-side and can be opened. */
+  hasFile?: boolean;
   createdAt: string;
 }
 
