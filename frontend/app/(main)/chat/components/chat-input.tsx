@@ -3,10 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { FileIcon } from '@/app/components/ui/file-icon';
-import { Spinner } from '@/app/components/ui/spinner';
 import { Flex, Box, Text, IconButton, Tooltip, Popover } from '@radix-ui/themes';
-import { getMimeTypeExtension } from '@/lib/utils/file-icon-utils';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { ChatInputExpansionPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-expansion-panel';
 import { ChatInputOverlayPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-overlay-panel';
@@ -58,25 +55,11 @@ interface ChatInputProps {
    */
   onUploadFile?: (file: File, signal: AbortSignal) => Promise<AttachmentRef>;
   /**
-   * Called fire-and-forget when the user removes a chip whose upload already
-   * completed. The chip is removed from state synchronously; this callback
-   * should trigger a best-effort server-side delete in the background.
-   * Errors MUST be swallowed by the caller — never block the UI on a failed
-   * delete.
+   * Optional best-effort server-side delete callback. Currently unused — file
+   * removal is owned by the files panel (which calls the delete API directly) —
+   * but retained so existing callers keep type-checking.
    */
   onDeleteFile?: (recordId: string) => void;
-  /**
-   * Called when the user clicks the ✕ on a persistent (already-ingested) chip.
-   * The wrapper removes it optimistically and fires a best-effort server delete;
-   * errors are swallowed there, so this never needs to surface failures.
-   */
-  onDeleteAttachment?: (attachmentId: string) => void;
-  /**
-   * Documents already ingested into this conversation (persisted server-side),
-   * rendered as read-only chips above the composer so the user still sees what's
-   * attached after a reload. Distinct from the local, in-flight upload chips.
-   */
-  existingAttachments?: { id: string; filename: string; status: string }[];
   placeholder?: string;
   /** Placeholder shown in the collapsed widget pill (parent controls the text) */
   widgetPlaceholder?: string;
@@ -97,12 +80,6 @@ const ACCEPTED_MIME_TYPES = {
 // Extension fallback for files that arrive without a recognisable MIME type
 // (e.g. on some Windows setups the file.type may be empty).
 const ACCEPTED_EXTENSIONS = ['pdf', 'docx'];
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 /**
  * A transparent 1×1 image used as the drag image so the browser doesn't paint
@@ -132,9 +109,6 @@ function isFileTypeSupported(file: File): boolean {
 export function ChatInput({
   onSend,
   onUploadFile,
-  onDeleteFile,
-  onDeleteAttachment,
-  existingAttachments = [],
   placeholder,
   widgetPlaceholder,
   variant = 'full',
@@ -157,7 +131,6 @@ export function ChatInput({
   /** Agent chat: Connectors / Collections / Actions (Figma agent input). */
   const [isAgentResourcesPanelOpen, setIsAgentResourcesPanelOpen] = useState(false);
   const [isModelPanelOpen, setIsModelPanelOpen] = useState(false);
-  const [isAddFileButtonHovered, setIsAddFileButtonHovered] = useState(false);
   const [isMobileModesOpen, setIsMobileModesOpen] = useState(false);
   const [isCompactToolbar, setIsCompactToolbar] = useState(false);
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false);
@@ -172,15 +145,12 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const chipsScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   /**
    * Per-file AbortController keyed by `UploadedFile.id`. Held in a ref (not
    * state) because controllers are imperative — they belong outside the
-   * render cycle. Used by `removeFile`/unmount to cancel in-flight
-   * uploads cleanly. Entries are deleted in the upload finalizer so the map
-   * doesn't leak across long-lived sessions.
+   * render cycle. Used on unmount to cancel in-flight uploads cleanly.
+   * Entries are deleted in the upload finalizer so the map doesn't leak
+   * across long-lived sessions.
    */
   const uploadControllersRef = useRef<Map<string, AbortController>>(new Map());
   const resolvedPlaceholder = placeholder ?? "Ask anything...";
@@ -245,6 +215,7 @@ export function ChatInput({
   // Expansion panel view mode (inline vs overlay) from store
   const expansionViewMode = useChatStore((s) => s.expansionViewMode);
   const setExpansionViewMode = useChatStore((s) => s.setExpansionViewMode);
+  const setComposerUploads = useChatStore((s) => s.setComposerUploads);
 
   // Active slot ID for regenerate/edit flows
   const activeSlotId = useChatStore((s) => s.activeSlotId);
@@ -830,28 +801,6 @@ export function ChatInput({
     }
   };
 
-  const removeFile = useCallback((fileId: string) => {
-    // Abort any in-flight upload for this chip so the network call and its
-    // `.then`/`.catch` handlers don't write back into state after the chip is gone.
-    const ctrl = uploadControllersRef.current.get(fileId);
-    if (ctrl) {
-      ctrl.abort();
-      uploadControllersRef.current.delete(fileId);
-    }
-
-    // Capture the record ref before setState — Strict Mode runs updaters twice,
-    // so any side effect inside an updater fires twice.
-    const fileToDelete = uploadedFiles.find((f) => f.id === fileId);
-
-    // Pure state update — remove the chip.
-    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
-
-    // Fire-and-forget server delete outside the updater.
-    if (fileToDelete?.status === 'uploaded' && fileToDelete.ref?.recordId && onDeleteFile) {
-      onDeleteFile(fileToDelete.ref.recordId);
-    }
-  }, [uploadedFiles, onDeleteFile]);
-
   /**
    * Handle Ctrl+V / paste events.
    *
@@ -918,25 +867,6 @@ export function ChatInput({
     };
   }, []);
 
-  // Keep scroll-arrow visibility in sync with the chips container scroll state.
-  const updateChipsScrollState = useCallback(() => {
-    const el = chipsScrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 0);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-  }, []);
-
-  // Re-check whenever the file list changes (chips added / removed).
-  useEffect(() => {
-    updateChipsScrollState();
-  }, [uploadedFiles, updateChipsScrollState]);
-
-  const scrollChips = useCallback((direction: 'left' | 'right') => {
-    const el = chipsScrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction === 'left' ? -220 : 220, behavior: 'smooth' });
-  }, []);
-
   const toggleUploadArea = () => {
     const next = !showUploadArea;
     if (next) {
@@ -957,19 +887,6 @@ export function ChatInput({
   const hasContent = message.trim() || uploadedFiles.length > 0 || isListening;
   const hasUploadingAttachments = uploadedFiles.some((f) => f.status === 'uploading');
 
-  // A file that's currently shown as a local upload chip should not ALSO appear
-  // as a persistent attachment pill — dedupe by the server attachment id (the
-  // upload chip's ref.recordId is that same id once the upload completes).
-  const localAttachmentIds = new Set(
-    uploadedFiles
-      .map((f) => f.ref?.recordId)
-      .filter((id): id is string => Boolean(id)),
-  );
-  // Hide attachments whose ingestion failed — a failed upload must leave no
-  // trace in the composer, including after a page reload.
-  const persistentAttachments = existingAttachments.filter(
-    (att) => att.status !== 'failed' && !localAttachmentIds.has(att.id),
-  );
   const canSubmit =
     (hasContent || activeMessageAction !== null) &&
     !isUniversalAgentLoading &&
@@ -990,6 +907,15 @@ export function ChatInput({
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
+
+  // Mirror in-flight composer uploads into the store so the right-side "Files in
+  // this chat" panel can render them (uploading → ready); the composer no longer
+  // shows its own file-chip block.
+  useEffect(() => {
+    setComposerUploads(
+      uploadedFiles.map((f) => ({ id: f.id, name: f.name, status: f.status })),
+    );
+  }, [uploadedFiles, setComposerUploads]);
 
   // Close panels on outside click
   useEffect(() => {
@@ -1159,76 +1085,6 @@ export function ChatInput({
         }),
       }}
     >
-      {/* Documents already ingested into this conversation (persisted
-          server-side), shown as read-only chips that survive a page reload —
-          distinct from the local, in-flight upload chips below. */}
-      {persistentAttachments.length > 0 && (
-        <Flex
-          align="center"
-          wrap="wrap"
-          gap="2"
-          style={{ marginBottom: 'var(--space-2)' }}
-        >
-          {persistentAttachments.map((att) => (
-            <Tooltip
-              key={att.id}
-              content={
-                att.status === 'ready'
-                  ? 'Attached to this chat'
-                  : `Attachment status: ${att.status}`
-              }
-              side="top"
-            >
-              <Flex
-                align="center"
-                gap="1"
-                style={{
-                  flexShrink: 0,
-                  maxWidth: 240,
-                  padding: '3px 10px',
-                  backgroundColor: 'var(--olive-a3)',
-                  border: '1px solid var(--olive-5)',
-                  borderRadius: 'var(--radius-4)',
-                }}
-              >
-                <MaterialIcon
-                  name={att.status === 'failed' ? 'error_outline' : 'description'}
-                  size={14}
-                  color={att.status === 'failed' ? 'var(--red-11)' : 'var(--olive-11)'}
-                />
-                <Text
-                  size="1"
-                  style={{
-                    color: 'var(--slate-12)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {att.filename}
-                </Text>
-                {onDeleteAttachment && (
-                  <IconButton
-                    variant="ghost"
-                    size="1"
-                    color="gray"
-                    onClick={() => onDeleteAttachment(att.id)}
-                    style={{ margin: 0, flexShrink: 0 }}
-                    aria-label={`Detach ${att.filename}`}
-                  >
-                    <MaterialIcon
-                      name="close"
-                      size={ICON_SIZES.SECONDARY}
-                      color="var(--slate-11)"
-                    />
-                  </IconButton>
-                )}
-              </Flex>
-            </Tooltip>
-          ))}
-        </Flex>
-      )}
-
       {/* Selected Collection Cards — shown above the main input, matching Figma spec */}
       {showSelectedCollectionsRow && (
         <Flex
@@ -1248,205 +1104,6 @@ export function ChatInput({
             removable={!isRegenerateMode}
             onRemove={isRegenerateMode ? undefined : handleRemoveCollection}
           />
-        </Flex>
-      )}
-
-      {/* Uploaded Files Preview — separate container above the main input, matching Figma spec */}
-      {uploadedFiles.length > 0 && (
-        <Flex
-          align="center"
-          style={{
-            backgroundColor: 'var(--slate-1)',
-            borderTop:
-              showSelectedCollectionsRow
-                ? 'none'
-                : '1px solid var(--slate-5)',
-            borderLeft: '1px solid var(--slate-5)',
-            borderRight: '1px solid var(--slate-5)',
-            borderTopLeftRadius:
-              showSelectedCollectionsRow
-                ? '0'
-                : 'var(--radius-1)',
-            borderTopRightRadius:
-              showSelectedCollectionsRow
-                ? '0'
-                : 'var(--radius-1)',
-            padding: 'var(--space-3) var(--space-4)',
-            gap: 'var(--space-1)',
-          }}
-        >
-          {/* Left scroll arrow */}
-          {canScrollLeft && (
-            <Box
-              onClick={() => scrollChips('left')}
-              style={{
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 24,
-                height: 24,
-                borderRadius: 'var(--radius-round)',
-                backgroundColor: 'var(--slate-4)',
-                cursor: 'pointer',
-              }}
-              aria-label="Scroll attachments left"
-            >
-              <MaterialIcon name="chevron_left" size={16} color="var(--slate-11)" />
-            </Box>
-          )}
-
-          {/* Scrollable chips row */}
-          <Box
-            ref={chipsScrollRef}
-            onScroll={updateChipsScrollState}
-            style={{
-              flex: 1,
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              scrollbarWidth: 'none',
-            }}
-            className="no-scrollbar"
-          >
-          <Flex gap="2" style={{ minWidth: 'max-content' }}>
-            {uploadedFiles.map((file) => (
-              <Box
-                key={file.id}
-                style={{
-                  flexShrink: 0,
-                  width: '196px',
-                  padding: 'var(--space-2)',
-                  backgroundColor: 'var(--olive-a2)',
-                  border: '1px solid var(--olive-3)',
-                  borderRadius: 'var(--radius-1)',
-                }}
-              >
-                <Flex direction="column" gap="2">
-                  {/* Header: file icon + per-status action affordance.
-                      - uploading: spinner replaces the close button.
-                      - uploaded:  close button removes the chip (and signals
-                        the server orphan via the future cleanup endpoint). */}
-                  <Flex align="center" justify="between">
-                    <FileIcon
-                      extension={getMimeTypeExtension(file.type) || undefined}
-                      filename={file.name}
-                      size={16}
-                      fallbackIcon="insert_drive_file"
-                    />
-                    {file.status === 'uploading' ? (
-                      <Tooltip
-                        content="Uploading…"
-                        side="top"
-                      >
-                        <Box
-                          aria-label={`Uploading ${file.name}`}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 20,
-                            height: 20,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Spinner
-                            size={14}
-                            thickness={1.5}
-                            color="var(--slate-11)"
-                            ariaLabel={`Uploading ${file.name}`}
-                          />
-                        </Box>
-                      </Tooltip>
-                    ) : (
-                      <IconButton
-                        variant="ghost"
-                        size="1"
-                        onClick={() => removeFile(file.id)}
-                        style={{ margin: 0, flexShrink: 0 }}
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <MaterialIcon
-                          name="close"
-                          size={ICON_SIZES.SECONDARY}
-                          color="var(--slate-11)"
-                        />
-                      </IconButton>
-                    )}
-                  </Flex>
-
-                  {/* Content: filename + size. */}
-                  <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
-                    <Text
-                      size="1"
-                      weight="medium"
-                      style={{
-                        color: 'var(--slate-12)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {file.name}
-                    </Text>
-                    <Text
-                      size="1"
-                      style={{
-                        color: 'var(--slate-11)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {formatFileSize(file.size)}
-                    </Text>
-                  </Flex>
-                </Flex>
-              </Box>
-            ))}
-
-            {/* Add Button */}
-            <Box
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                flexShrink: 0,
-                width: '76px',
-                border: '1px dashed var(--accent-9)',
-                borderRadius: 'var(--radius-1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'background-color 0.15s',
-                backgroundColor: isAddFileButtonHovered ? 'var(--accent-a2)' : 'transparent',
-              }}
-              onMouseEnter={() => setIsAddFileButtonHovered(true)}
-              onMouseLeave={() => setIsAddFileButtonHovered(false)}
-            >
-              <MaterialIcon name="add" size={24} color="var(--accent-9)" />
-            </Box>
-          </Flex>
-          </Box>
-
-          {/* Right scroll arrow */}
-          {canScrollRight && (
-            <Box
-              onClick={() => scrollChips('right')}
-              style={{
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 24,
-                height: 24,
-                borderRadius: 'var(--radius-round)',
-                backgroundColor: 'var(--slate-4)',
-                cursor: 'pointer',
-              }}
-              aria-label="Scroll attachments right"
-            >
-              <MaterialIcon name="chevron_right" size={16} color="var(--slate-11)" />
-            </Box>
-          )}
         </Flex>
       )}
 
