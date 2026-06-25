@@ -300,6 +300,14 @@ interface ChatState {
   isSearching: boolean;
   searchError: string | null;
 
+  // ── Composer uploads + files panel (global) ──
+  /** Mirror of the active composer's in-flight uploads, surfaced in the right files panel. */
+  composerUploads: Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>;
+  /** Bumped whenever a conversation's persisted attachments change (upload/delete) so the files panel refetches. */
+  attachmentsVersion: number;
+  setComposerUploads: (list: Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>) => void;
+  bumpAttachmentsVersion: () => void;
+
   // ── Slot actions ──
   /** Create a new slot. Returns the generated slotId. */
   createSlot: (convId: string | null) => string;
@@ -539,6 +547,9 @@ const initialState = {
   searchId: null as string | null,
   isSearching: false,
   searchError: null as string | null,
+
+  composerUploads: [] as Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>,
+  attachmentsVersion: 0,
 };
 
 // ── Store creation ──────────────────────────────────────────────────
@@ -967,6 +978,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   bumpConversationsVersion: () =>
     set((state) => ({ conversationsVersion: state.conversationsVersion + 1 })),
+
+  setComposerUploads: (list) => set({ composerUploads: list }),
+  bumpAttachmentsVersion: () =>
+    set((state) => ({ attachmentsVersion: state.attachmentsVersion + 1 })),
 
   addPendingConversation: (slotId) =>
     set((state) => ({
