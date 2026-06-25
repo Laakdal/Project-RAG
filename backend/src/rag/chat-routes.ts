@@ -133,6 +133,8 @@ router.get(
         filename: attachments.filename,
         status: attachments.status,
         chunkCount: attachments.chunkCount,
+        // Whether the original file is stored (so the UI knows it can be opened).
+        hasFile: sql<boolean>`${attachments.data} is not null`,
         createdAt: attachments.createdAt,
       })
       .from(attachments)
@@ -146,6 +148,52 @@ router.get(
       )
       .orderBy(attachments.createdAt);
     res.json(rows);
+  },
+);
+
+// Serve the original file inline so the browser can preview it (e.g. open a PDF
+// in a new tab). Only files stored on a successful ingest have bytes; older
+// rows and failed ingests have none and resolve to 404.
+router.get(
+  "/conversations/:id/attachments/:attachmentId/file",
+  async (
+    req: Request<{ id: string; attachmentId: string }>,
+    res: Response,
+  ) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const rows = await db
+      .select({
+        data: attachments.data,
+        mimeType: attachments.mimeType,
+        filename: attachments.filename,
+      })
+      .from(attachments)
+      // Scope to this conversation so an attachment id can't pull a file from
+      // another (even owned) conversation.
+      .where(
+        and(
+          eq(attachments.id, req.params.attachmentId),
+          eq(attachments.conversationId, req.params.id),
+          sql`${attachments.status} <> 'failed'`,
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row || !row.data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    // Sanitize the filename for the header (drop quotes / CR / LF / backslash).
+    const safeName = row.filename.replace(/["\\\r\n]/g, "_");
+    res.setHeader("Content-Type", row.mimeType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+    res.setHeader("Content-Length", String(row.data.length));
+    res.send(row.data);
   },
 );
 
@@ -319,6 +367,9 @@ router.post(
         filename: file.originalname,
         status: "ready",
         chunkCount: result.chunkCount,
+        // Keep the original so the file can be opened/previewed later.
+        mimeType: file.mimetype,
+        data: file.buffer,
       })
       .returning({ id: attachments.id });
 
