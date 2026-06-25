@@ -116,6 +116,22 @@ describe("conversation routes", () => {
     expect(res.body).toEqual([attachmentRow]);
   });
 
+  it("reports whether each attachment has a stored file", async () => {
+    dbMock.setResult([
+      {
+        id: "att1",
+        filename: "doc.pdf",
+        status: "ready",
+        chunkCount: 3,
+        hasFile: true,
+        createdAt: "t",
+      },
+    ]);
+    const res = await request(app()).get("/chat/conversations/c1/attachments");
+    expect(res.status).toBe(200);
+    expect(res.body[0].hasFile).toBe(true);
+  });
+
   it("returns 404 listing attachments for a conversation the user does not own", async () => {
     dbMock.setResult([]); // ownership lookup finds nothing
     const res = await request(app()).get("/chat/conversations/cX/attachments");
@@ -356,6 +372,21 @@ describe("attachment route", () => {
     expect(res.body.chunkCount).toBe(3);
   });
 
+  it("stores the file bytes and mime type on a successful upload", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
+    const valuesSpy = dbMock.db.values as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("%PDF-1.4 fake"), {
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(202);
+    const inserted = valuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.mimeType).toBe("application/pdf");
+    expect(Buffer.isBuffer(inserted.data)).toBe(true);
+  });
+
   it("does not persist an attachment when ingestion throws and returns 200 with status:failed", async () => {
     dbMock.setResult([{ id: "att1" }]); // ownership lookup
     vi.mocked(ingestFile).mockRejectedValueOnce(new Error("ingest down"));
@@ -396,5 +427,41 @@ describe("attachment route", () => {
         contentType: "application/pdf",
       });
     expect(res.status).toBe(413);
+  });
+});
+
+describe("serve attachment file route", () => {
+  it("streams the stored file inline for an owned conversation", async () => {
+    const pdf = Buffer.from("%PDF-1.4 hello");
+    // One result serves the ownership lookup (truthy id-less row is still
+    // truthy) and the file select (data/mimeType/filename).
+    dbMock.setResult([
+      { data: pdf, mimeType: "application/pdf", filename: "doc.pdf" },
+    ]);
+    const res = await request(app()).get(
+      "/chat/conversations/c1/attachments/att1/file",
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/pdf");
+    expect(res.headers["content-disposition"]).toBe(
+      'inline; filename="doc.pdf"',
+    );
+    expect(res.headers["content-length"]).toBe(String(pdf.length));
+  });
+
+  it("returns 404 when the attachment has no stored bytes", async () => {
+    dbMock.setResult([{ data: null, mimeType: null, filename: "doc.pdf" }]);
+    const res = await request(app()).get(
+      "/chat/conversations/c1/attachments/att1/file",
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 serving a file for a conversation the user does not own", async () => {
+    dbMock.setResult([]); // ownership lookup empty
+    const res = await request(app()).get(
+      "/chat/conversations/cX/attachments/att1/file",
+    );
+    expect(res.status).toBe(404);
   });
 });
