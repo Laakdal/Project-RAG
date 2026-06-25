@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   integer,
   jsonb,
   pgTable,
@@ -7,6 +8,14 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+
+// Postgres `bytea` column for the original uploaded file bytes (comes back as a
+// Node Buffer). Used so attachments can be served back for in-browser preview.
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -55,6 +64,11 @@ export const attachments = pgTable("attachments", {
   filename: text("filename").notNull(),
   status: text("status").notNull().default("indexing"), // indexing | ready | failed
   chunkCount: integer("chunk_count"),
+  // Original file bytes + content type, stored on a successful ingest so the
+  // file can be opened/previewed in the browser. Nullable: legacy rows (and
+  // failed ingests, which persist nothing) have none.
+  mimeType: text("mime_type"),
+  data: bytea("data"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
