@@ -31,6 +31,17 @@ const ALLOWED_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+// Types we are willing to render inline (Content-Disposition: inline) in the
+// browser. These are non-scripting in the document context — a PDF is shown by
+// the sandboxed PDF viewer, images don't execute — so they can't run script on
+// our origin. Anything NOT in this set (incl. the client's declared MIME we
+// can't trust, DOCX, text/html, image/svg+xml) is served as a neutral download.
+const INLINE_SAFE_MIME = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+]);
+
 // Wrap multer so an oversize upload returns a clean 413 instead of falling
 // through to the global error handler (which would surface a 500).
 function uploadSingle(req: Request, res: Response, next: NextFunction): void {
@@ -190,8 +201,26 @@ router.get(
     }
     // Sanitize the filename for the header (drop quotes / CR / LF / backslash).
     const safeName = row.filename.replace(/["\\\r\n]/g, "_");
-    res.setHeader("Content-Type", row.mimeType || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+
+    // SECURITY: never trust the client-declared upload MIME type to render a file
+    // inline on this cookie-bearing origin — a spoofed text/html or image/svg+xml
+    // would execute script in our origin (stored XSS). Only a small allowlist of
+    // script-safe types is served inline; everything else is a neutral download.
+    const inline =
+      !!row.mimeType && INLINE_SAFE_MIME.has(row.mimeType);
+
+    // Defense in depth: stop content-sniffing (so a mislabeled file can't be
+    // re-interpreted as HTML) and sandbox the response (no script / opaque origin).
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "sandbox");
+    res.setHeader(
+      "Content-Type",
+      inline ? (row.mimeType as string) : "application/octet-stream",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `${inline ? "inline" : "attachment"}; filename="${safeName}"`,
+    );
     res.setHeader("Content-Length", String(row.data.length));
     res.send(row.data);
   },
