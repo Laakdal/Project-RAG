@@ -984,6 +984,60 @@ function ChatContent() {
   useEffect(() => () => { splitResizeCleanupRef.current?.(); }, []);
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── "Files in this chat" panel — collapsible + resizable (240–480px), persisted ──
+  const [filesPanelWidthPx, setFilesPanelWidthPx] = useState<number>(() => {
+    if (typeof window === 'undefined') return 320;
+    const saved = parseInt(localStorage.getItem('rag.filesPanel.width') ?? '', 10);
+    return Number.isFinite(saved) && saved >= 240 && saved <= 480 ? saved : 320;
+  });
+  const [filesPanelCollapsed, setFilesPanelCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('rag.filesPanel.collapsed') === '1';
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('rag.filesPanel.collapsed', filesPanelCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [filesPanelCollapsed]);
+
+  const filesPanelWidthRef = useRef(filesPanelWidthPx);
+  useLayoutEffect(() => {
+    filesPanelWidthRef.current = filesPanelWidthPx;
+  }, [filesPanelWidthPx]);
+  const filesResizeCleanupRef = useRef<(() => void) | null>(null);
+  const beginFilesResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = filesPanelWidthRef.current;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    let finalW = startW;
+    const move = (ev: PointerEvent) => {
+      // Dragging the handle LEFT (clientX decreases) widens the right panel.
+      finalW = clamp(startW + (startX - ev.clientX), 240, 480);
+      setFilesPanelWidthPx(finalW);
+    };
+    const cleanup = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', cleanup);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      filesResizeCleanupRef.current = null;
+      try {
+        localStorage.setItem('rag.filesPanel.width', String(finalW));
+      } catch {
+        /* ignore */
+      }
+    };
+    filesResizeCleanupRef.current = cleanup;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', cleanup);
+  }, []);
+  useEffect(() => () => { filesResizeCleanupRef.current?.(); }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── Chat column body (shared between split-pane and full-width modes) ──────
   const chatColumnBody = (
     <>
@@ -1321,10 +1375,70 @@ function ChatContent() {
           </>
         )}
 
-        {/* Files-in-this-chat side panel — only when a conversation is open and
-            the split-pane preview is NOT showing (one right panel at a time). */}
+        {/* Files-in-this-chat side panel — collapsible + resizable. Only when a
+            conversation is open and the split-pane preview is NOT showing (one
+            right panel at a time). */}
         {conversationId && !showSplitPane && !isMobile && (
-          <ConversationFilesPanel conversationId={conversationId} />
+          filesPanelCollapsed ? (
+            <Flex
+              direction="column"
+              align="center"
+              style={{
+                flex: '0 0 40px',
+                height: '100%',
+                borderLeft: '1px solid var(--slate-6)',
+                paddingTop: 'var(--space-3)',
+              }}
+            >
+              <Tooltip content="Show files in this chat" side="left">
+                <IconButton
+                  variant="ghost"
+                  size="1"
+                  color="gray"
+                  onClick={() => setFilesPanelCollapsed(false)}
+                  aria-label="Expand files panel"
+                >
+                  <MaterialIcon name="keyboard_tab" size={18} color="var(--slate-11)" style={{ transform: 'scaleX(-1)' }} />
+                </IconButton>
+              </Tooltip>
+            </Flex>
+          ) : (
+            <>
+              {/* Resize handle — drag left/right to set the panel width */}
+              <Box
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize files panel"
+                onPointerDown={beginFilesResize}
+                style={{
+                  width: '6px',
+                  flexShrink: 0,
+                  alignSelf: 'stretch',
+                  cursor: 'col-resize',
+                  touchAction: 'none',
+                  backgroundColor: 'var(--slate-3)',
+                }}
+                onPointerEnter={(ev) => {
+                  ev.currentTarget.style.backgroundColor = 'var(--slate-6)';
+                }}
+                onPointerLeave={(ev) => {
+                  ev.currentTarget.style.backgroundColor = 'var(--slate-3)';
+                }}
+              />
+              <Box
+                style={{
+                  flex: `0 0 ${filesPanelWidthPx}px`,
+                  height: '100%',
+                  borderLeft: '1px solid var(--slate-6)',
+                }}
+              >
+                <ConversationFilesPanel
+                  conversationId={conversationId}
+                  onCollapse={() => setFilesPanelCollapsed(true)}
+                />
+              </Box>
+            </>
+          )
         )}
       </Flex>
 
