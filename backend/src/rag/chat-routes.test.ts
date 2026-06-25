@@ -447,6 +447,29 @@ describe("serve attachment file route", () => {
       'inline; filename="doc.pdf"',
     );
     expect(res.headers["content-length"]).toBe(String(pdf.length));
+    // Hardened even on the happy path: no content-sniffing, sandboxed render.
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["content-security-policy"]).toBe("sandbox");
+  });
+
+  it("forces a non-allowlisted mime type to a neutral download (no inline XSS)", async () => {
+    // A file whose stored mime is script-capable (e.g. spoofed at upload) must
+    // never render inline on our origin — it is served as an octet-stream
+    // attachment with nosniff so the browser can't execute it.
+    const evil = Buffer.from("<script>alert(document.cookie)</script>");
+    dbMock.setResult([
+      { data: evil, mimeType: "text/html", filename: "x.html" },
+    ]);
+    const res = await request(app()).get(
+      "/chat/conversations/c1/attachments/att1/file",
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/octet-stream");
+    expect(res.headers["content-disposition"]).toBe(
+      'attachment; filename="x.html"',
+    );
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["content-security-policy"]).toBe("sandbox");
   });
 
   it("returns 404 when the attachment has no stored bytes", async () => {
