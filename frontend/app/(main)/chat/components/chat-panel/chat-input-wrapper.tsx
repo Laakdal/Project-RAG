@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useThreadRuntime } from '@assistant-ui/react';
 import { ChatInput } from '../chat-input';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
@@ -10,9 +10,6 @@ import { ChatApi } from '@/chat/api';
 import {
   ensureSlotConversation,
   uploadAttachment,
-  listAttachments,
-  deleteAttachment,
-  type ChatAttachment,
 } from '@/chat/rag-api';
 import {
   buildAssistantApiFilters,
@@ -40,33 +37,6 @@ export function ChatInputWrapper() {
   const threadRuntime = useThreadRuntime();
   const effectiveAgentId = useEffectiveAgentId();
   const isAgentChat = Boolean(effectiveAgentId);
-
-  // Documents already ingested into the active conversation, shown as persistent
-  // read-only chips so the user still sees what's attached after a reload (the
-  // composer's own upload chips are local state and vanish on refresh).
-  const activeConvId = useChatStore((s) =>
-    s.activeSlotId ? s.slots[s.activeSlotId]?.convId ?? null : null,
-  );
-  const [existingAttachments, setExistingAttachments] = useState<ChatAttachment[]>([]);
-  const [attachmentsRefresh, setAttachmentsRefresh] = useState(0);
-
-  useEffect(() => {
-    if (!activeConvId) {
-      setExistingAttachments([]);
-      return;
-    }
-    let cancelled = false;
-    listAttachments(activeConvId)
-      .then((atts) => {
-        if (!cancelled) setExistingAttachments(atts);
-      })
-      .catch(() => {
-        if (!cancelled) setExistingAttachments([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeConvId, attachmentsRefresh]);
 
   useEffect(() => {
     if (effectiveAgentId) {
@@ -182,15 +152,14 @@ export function ChatInputWrapper() {
 
       // A file whose ingestion failed is treated as a failed upload: throw so the
       // composer drops the chip (ChatInput.startUpload) and never attaches it to a
-      // message. We also skip the refresh so it is never surfaced as a persistent
-      // chip. The backend may keep a `failed` record, but it is filtered out of the
-      // persistent list (ChatInput.persistentAttachments).
+      // message. We also skip the version bump so it never shows in the files
+      // panel. The backend may keep a `failed` record, but the panel filters it out.
       if (status === 'failed') {
         throw new Error('This file could not be processed.');
       }
 
-      // Surface the newly ingested document as a persistent chip right away.
-      setAttachmentsRefresh((n) => n + 1);
+      // Tell the right-side files panel to refetch so the new document shows up.
+      store.bumpAttachmentsVersion();
 
       const extension = file.name.includes('.')
         ? file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -216,21 +185,6 @@ export function ChatInputWrapper() {
       });
     },
     [effectiveAgentId],
-  );
-
-  // Detach a persistent (already-ingested) attachment when the user clicks the
-  // ✕ on its chip. Optimistically drop it from the local list for instant
-  // feedback, fire the best-effort server delete, then bump the refresh counter
-  // so the list reconciles with the backend (the delete swallows its own
-  // errors, so a failed detach simply reappears on refresh).
-  const handleDeleteAttachment = useCallback(
-    (attachmentId: string) => {
-      if (!activeConvId) return;
-      setExistingAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
-      void deleteAttachment(activeConvId, attachmentId);
-      setAttachmentsRefresh((n) => n + 1);
-    },
-    [activeConvId],
   );
 
   const handleSend = async (message: string, attachments?: AttachmentRef[]) => {
@@ -314,8 +268,6 @@ export function ChatInputWrapper() {
       onSend={handleSend}
       onUploadFile={handleUploadFile}
       onDeleteFile={handleDeleteFile}
-      onDeleteAttachment={handleDeleteAttachment}
-      existingAttachments={existingAttachments}
       isAgentChat={isAgentChat}
       agentId={effectiveAgentId}
     />
