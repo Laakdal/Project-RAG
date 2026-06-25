@@ -3,6 +3,7 @@
 import React from 'react';
 import { Flex, Card, Text } from '@radix-ui/themes';
 import type { ChatSource } from '../../types';
+import { cleanFilename } from '../../utils/clean-filename';
 
 interface MessageSourcesProps {
   sources: ChatSource[];
@@ -70,7 +71,7 @@ export function MessageSources({ sources }: MessageSourcesProps) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {source.title}
+                  {cleanFilename(source.title)}
                 </Text>
 
                 {source.summary && (
