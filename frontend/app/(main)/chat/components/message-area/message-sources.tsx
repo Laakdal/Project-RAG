@@ -42,15 +42,31 @@ function SourceNumberCircle({ label }: { label: string }) {
 export function MessageSources({ sources }: MessageSourcesProps) {
   if (!sources || sources.length === 0) return null;
 
+  // The same document usually matches several chunks, which would otherwise
+  // repeat the filename once per chunk. Group by document so each file is a
+  // single source, with its matched excerpts listed underneath.
+  const groups: { title: string; excerpts: string[] }[] = [];
+  const byName = new Map<string, { title: string; excerpts: string[] }>();
+  for (const source of sources) {
+    const key = cleanFilename(source.title);
+    let group = byName.get(key);
+    if (!group) {
+      group = { title: source.title, excerpts: [] };
+      byName.set(key, group);
+      groups.push(group);
+    }
+    if (source.summary) group.excerpts.push(source.summary);
+  }
+
   return (
     <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-4)', width: '100%' }}>
       <Text size="1" weight="medium" style={{ color: 'var(--slate-11)' }}>
-        Sources ({sources.length})
+        Sources ({groups.length})
       </Text>
       <Flex direction="column" gap="2">
-        {sources.map((source, idx) => (
+        {groups.map((group, idx) => (
           <Card
-            key={source.id}
+            key={`${cleanFilename(group.title)}-${idx}`}
             style={{
               backgroundColor: 'var(--slate-2)',
               borderRadius: 'var(--radius-2)',
@@ -59,26 +75,51 @@ export function MessageSources({ sources }: MessageSourcesProps) {
             }}
           >
             <Flex gap="2" align="start">
-              <SourceNumberCircle label={source.citationLabel ?? String(idx + 1)} />
+              <SourceNumberCircle label={String(idx + 1)} />
               <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
-                <Text
-                  size="2"
-                  weight="medium"
-                  style={{
-                    color: 'var(--slate-12)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {cleanFilename(source.title)}
-                </Text>
-
-                {source.summary && (
-                  <Text size="1" style={{ color: 'var(--slate-11)', lineHeight: '1.4' }}>
-                    {source.summary}
+                {/* Filename once, with an excerpt count when several chunks matched. */}
+                <Flex align="baseline" gap="2" style={{ minWidth: 0 }}>
+                  <Text
+                    size="2"
+                    weight="medium"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      color: 'var(--slate-12)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {cleanFilename(group.title)}
                   </Text>
-                )}
+                  {group.excerpts.length > 1 && (
+                    <Text size="1" style={{ color: 'var(--slate-10)', flexShrink: 0 }}>
+                      {group.excerpts.length} excerpts
+                    </Text>
+                  )}
+                </Flex>
+
+                {/* Each matched chunk, clamped to two lines and separated by a faint rule. */}
+                {group.excerpts.map((excerpt, i) => (
+                  <Text
+                    key={`${idx}-${i}`}
+                    size="1"
+                    style={{
+                      color: 'var(--slate-11)',
+                      lineHeight: '1.4',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      ...(i > 0
+                        ? { borderTop: '1px solid var(--slate-4)', paddingTop: 4, marginTop: 2 }
+                        : null),
+                    }}
+                  >
+                    {excerpt}
+                  </Text>
+                ))}
               </Flex>
             </Flex>
           </Card>
