@@ -6,6 +6,7 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useChatStore } from '../store';
 import { listAttachments, deleteAttachment, type ChatAttachment } from '../rag-api';
 import { cleanFilename } from '../utils/clean-filename';
+import { PdfPreviewDialog } from './pdf-preview-dialog';
 
 interface ConversationFilesPanelProps {
   /** Conversation whose attached documents to list. */
@@ -50,6 +51,8 @@ export function ConversationFilesPanel({
   const bumpAttachmentsVersion = useChatStore((s) => s.bumpAttachmentsVersion);
 
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  // The PDF currently open in the preview modal (null = closed).
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,17 +127,24 @@ export function ConversationFilesPanel({
       ) : (
         <Flex direction="column" gap="2">
           {rows.map((row) => {
-            // A ready file with stored bytes opens in a new browser tab. The
-            // relative URL goes through the same-origin proxy so cookies ride along.
-            const openFile =
+            // A ready file with stored bytes can be opened. PDFs preview in a
+            // modal; anything else (e.g. DOCX, which the server returns as a
+            // download) is handed off to the browser. The relative URL goes
+            // through the same-origin proxy so cookies ride along.
+            const serveUrl =
               row.kind === 'ready' && row.hasFile
-                ? () =>
-                    window.open(
-                      `/chat/conversations/${conversationId}/attachments/${row.attachmentId}/file`,
-                      '_blank',
-                      'noopener',
-                    )
-                : undefined;
+                ? `/chat/conversations/${conversationId}/attachments/${row.attachmentId}/file`
+                : null;
+            const isPdf = fileBadge(cleanFilename(row.name)) === 'PDF';
+            const openFile = serveUrl
+              ? () => {
+                  if (isPdf) {
+                    setPreview({ url: serveUrl, name: row.name });
+                  } else {
+                    window.open(serveUrl, '_blank', 'noopener');
+                  }
+                }
+              : undefined;
             return (
             <Box
               key={row.key}
@@ -216,6 +226,12 @@ export function ConversationFilesPanel({
           })}
         </Flex>
       )}
+
+      <PdfPreviewDialog
+        url={preview?.url ?? null}
+        filename={preview?.name ?? ''}
+        onClose={() => setPreview(null)}
+      />
     </Box>
   );
 }
