@@ -43,4 +43,10 @@ describe("requireAdmin", () => {
     const res = await request(app(false)).get("/admin-only");
     expect(res.status).toBe(401);
   });
+
+  it("returns 403 for a disabled admin", async () => {
+    dbMock.setResult([{ isAdmin: true, disabledAt: new Date().toISOString() }]);
+    const res = await request(app()).get("/admin-only");
+    expect(res.status).toBe(403);
+  });
 });
