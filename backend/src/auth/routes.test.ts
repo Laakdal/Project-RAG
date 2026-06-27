@@ -43,5 +43,24 @@ describe("login disabled-account check", () => {
       .post("/auth/login")
       .send({ email: "u@example.com", password: "whatever" });
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "This account has been disabled" });
+  });
+
+  it("does not reveal disabled state to a wrong-password attempt (still 401)", async () => {
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+    dbMock.setResult([
+      {
+        id: TEST_USER_ID,
+        email: "u@example.com",
+        name: "U",
+        isAdmin: false,
+        passwordHash: "stored",
+        disabledAt: new Date().toISOString(),
+      },
+    ]);
+    const res = await request(app())
+      .post("/auth/login")
+      .send({ email: "u@example.com", password: "wrong" });
+    expect(res.status).toBe(401);
   });
 });
