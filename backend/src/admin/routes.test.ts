@@ -8,6 +8,8 @@ vi.mock("../auth/middleware.js", () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
+vi.mock("../auth/csrf.js", () => ({ requireCsrf: (_req: unknown, _res: unknown, next: () => void) => next(), CSRF_HEADER_NAME: "x-csrf-token" }));
+vi.mock("../auth/password.js", () => ({ hashPassword: vi.fn(async () => "new-hash"), verifyPassword: vi.fn(async () => true) }));
 
 const { adminRouter } = await import("./routes.js");
 
@@ -58,5 +60,44 @@ describe("GET /admin/stats", () => {
     expect(res.body).toHaveProperty("conversations");
     expect(res.body).toHaveProperty("messages");
     expect(res.body).toHaveProperty("attachments");
+  });
+});
+
+describe("POST /admin/users", () => {
+  it("creates a user and returns 201", async () => {
+    dbMock.setResult([
+      {
+        id: "u2",
+        email: "new@example.com",
+        name: "New",
+        isAdmin: false,
+        disabledAt: null,
+        createdAt: "t",
+        lastLoginAt: null,
+      },
+    ]);
+    const res = await request(app())
+      .post("/admin/users")
+      .send({ email: "new@example.com", name: "New", password: "StrongPass1!", isAdmin: false });
+    expect(res.status).toBe(201);
+    expect(res.body.email).toBe("new@example.com");
+  });
+
+  it("rejects a weak password with 400", async () => {
+    const res = await request(app())
+      .post("/admin/users")
+      .send({ email: "new@example.com", password: "weak" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 409 on a duplicate email", async () => {
+    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
+    insertSpy.mockImplementationOnce(() => {
+      throw Object.assign(new Error("duplicate"), { code: "23505" });
+    });
+    const res = await request(app())
+      .post("/admin/users")
+      .send({ email: "dupe@example.com", password: "StrongPass1!" });
+    expect(res.status).toBe(409);
   });
 });
