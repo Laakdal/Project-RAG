@@ -74,6 +74,7 @@ export async function attachUser(
           email: users.email,
           name: users.name,
           isAdmin: users.isAdmin,
+          disabledAt: users.disabledAt,
           createdAt: users.createdAt,
           lastLoginAt: users.lastLoginAt,
         })

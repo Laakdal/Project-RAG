@@ -36,6 +36,13 @@
       "when": 1782900000000,
       "tag": "0004_attachment_file_bytes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782541450129,
+      "tag": "0005_user_disabled_at",
+      "breakpoints": true
     }
   ]
 }
