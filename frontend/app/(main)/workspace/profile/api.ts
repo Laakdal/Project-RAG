@@ -108,7 +108,7 @@ export const ProfileApi = {
 
   /** POST /auth/change-password — verifies the current password server-side. */
   async changePassword(payload: ChangePasswordPayload): Promise<void> {
-    await apiClient.post(`/auth/change-password`, payload);
+    await apiClient.post(`/auth/change-password`, payload, { suppressErrorToast: true });
   },
 
 

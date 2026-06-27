@@ -32,40 +32,40 @@ export interface CreateUserPayload {
 export const AdminApi = {
   /** GET /admin/users */
   async listUsers(): Promise<AdminUser[]> {
-    const { data } = await apiClient.get<AdminUser[]>('/admin/users');
+    const { data } = await apiClient.get<AdminUser[]>('/admin/users', { suppressErrorToast: true });
     return data;
   },
 
   /** GET /admin/stats */
   async stats(): Promise<AdminStats> {
-    const { data } = await apiClient.get<AdminStats>('/admin/stats');
+    const { data } = await apiClient.get<AdminStats>('/admin/stats', { suppressErrorToast: true });
     return data;
   },
 
   /** POST /admin/users */
-  async createUser(payload: CreateUserPayload): Promise<AdminUser> {
-    const { data } = await apiClient.post<AdminUser>('/admin/users', payload);
+  async createUser(payload: CreateUserPayload): Promise<Omit<AdminUser, 'conversationCount'>> {
+    const { data } = await apiClient.post<Omit<AdminUser, 'conversationCount'>>('/admin/users', payload, { suppressErrorToast: true });
     return data;
   },
 
   /** PATCH /admin/users/:id/admin */
   async setAdmin(id: string, isAdmin: boolean): Promise<void> {
-    await apiClient.patch(`/admin/users/${id}/admin`, { isAdmin });
+    await apiClient.patch(`/admin/users/${id}/admin`, { isAdmin }, { suppressErrorToast: true });
   },
 
   /** PATCH /admin/users/:id/disabled */
   async setDisabled(id: string, disabled: boolean): Promise<void> {
-    await apiClient.patch(`/admin/users/${id}/disabled`, { disabled });
+    await apiClient.patch(`/admin/users/${id}/disabled`, { disabled }, { suppressErrorToast: true });
   },
 
   /** POST /admin/users/:id/password */
   async resetPassword(id: string, newPassword: string): Promise<void> {
-    await apiClient.post(`/admin/users/${id}/password`, { newPassword });
+    await apiClient.post(`/admin/users/${id}/password`, { newPassword }, { suppressErrorToast: true });
   },
 
   /** DELETE /admin/users/:id */
   async deleteUser(id: string): Promise<void> {
-    await apiClient.delete(`/admin/users/${id}`);
+    await apiClient.delete(`/admin/users/${id}`, { suppressErrorToast: true });
   },
 };
 
