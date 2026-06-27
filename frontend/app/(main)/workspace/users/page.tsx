@@ -78,6 +78,7 @@ export default function AdminUsersPage() {
 
   // ── Load ────────────────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
       const [u, s] = await Promise.all([AdminApi.listUsers(), AdminApi.stats()]);
       setUsers(u);
