@@ -49,12 +49,14 @@ One Drizzle migration:
 
 New `requireAdmin()` in `backend/src/auth/middleware.ts`:
 - Runs after `requireAuth`.
-- Loads the user (without password hash); returns **403** if `isAdmin` is false.
+- Loads the user (without password hash); returns **403** if `isAdmin` is false **or if `disabledAt` is set**.
 - All `/admin/*` routes sit behind it.
+
+> **Decision (post-implementation, from the final review):** the original design (3.3) scoped "disable" to login-time only. The final whole-branch review noted that a disabled admin would otherwise retain admin powers until their session expired. We chose to harden `requireAdmin` to also reject disabled users, so disabling neutralizes an admin's powers on their next request. Plain `/chat` access (gated only by `requireAuth`, which does no DB read) still ends at session expiry — accepted under the single-team trust model to avoid a DB query on every authenticated request.
 
 ### 3.3 Login change
 
-In `backend/src/auth/routes.ts` login handler: after verifying the password, reject users whose `disabledAt` is not null with **403** and a clear message ("This account has been disabled"). No session is created for disabled users.
+In `backend/src/auth/routes.ts` login handler: after verifying the password, reject users whose `disabledAt` is not null with **403** and a clear message ("This account has been disabled"). No session is created for disabled users. (Combined with the `requireAdmin` hardening above, a disabled admin is locked out of the admin surface immediately and cannot log back in.)
 
 ### 3.4 Admin API routes
 
