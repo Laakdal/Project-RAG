@@ -58,6 +58,7 @@ router.post("/login", loginLimiter, requireCsrf, async (req: Request, res: Respo
       name: users.name,
       isAdmin: users.isAdmin,
       passwordHash: users.passwordHash,
+      disabledAt: users.disabledAt,
     })
     .from(users)
     .where(eq(users.email, email.toLowerCase()))
@@ -71,6 +72,13 @@ router.post("/login", loginLimiter, requireCsrf, async (req: Request, res: Respo
 
   if (!user || !passwordOk) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  // Block disabled accounts only after the credentials check, so the disabled
+  // state is never revealed to someone who doesn't already know the password.
+  if (user.disabledAt) {
+    res.status(403).json({ error: "This account has been disabled" });
     return;
   }
 
