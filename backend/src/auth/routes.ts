@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { passwordSchema } from "./password-policy.js";
 import rateLimit from "express-rate-limit";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -138,6 +139,51 @@ router.get(
       return;
     }
     res.json(req.user);
+  },
+);
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
+});
+
+// Self-service password change. Requires the current password so a hijacked
+// session can't silently change it — this is the key difference from the admin
+// reset, which is gated on admin authority instead.
+router.post(
+  "/change-password",
+  requireAuth,
+  requireCsrf,
+  async (req: Request, res: Response) => {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+      return;
+    }
+
+    const userId = req.session.userId as string;
+    const rows = await db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const user = rows[0];
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const ok = await verifyPassword(user.passwordHash, parsed.data.currentPassword);
+    if (!ok) {
+      res.status(400).json({ error: "Current password is incorrect" });
+      return;
+    }
+
+    const newHash = await hashPassword(parsed.data.newPassword);
+    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, userId));
+    res.status(204).end();
   },
 );
 
