@@ -37,6 +37,7 @@ describe("GET /admin/users", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].conversationCount).toBe(3);
+    expect(res.body[0]).not.toHaveProperty("passwordHash");
   });
 });
 
