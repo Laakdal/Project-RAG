@@ -64,3 +64,41 @@ describe("login disabled-account check", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("POST /auth/change-password", () => {
+  it("changes the password when the current password is correct", async () => {
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+    dbMock.setResult([{ passwordHash: "stored" }]);
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .post("/auth/change-password")
+      .send({ currentPassword: "OldPass1!", newPassword: "NewPass1!" });
+    expect(res.status).toBe(204);
+    // The stored hash was updated to the freshly hashed new password.
+    expect(setSpy).toHaveBeenCalledWith({ passwordHash: "new-hash" });
+  });
+
+  it("rejects a wrong current password with 400", async () => {
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+    dbMock.setResult([{ passwordHash: "stored" }]);
+    const res = await request(app())
+      .post("/auth/change-password")
+      .send({ currentPassword: "WrongPass1!", newPassword: "NewPass1!" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a weak new password with 400", async () => {
+    dbMock.setResult([{ passwordHash: "stored" }]);
+    const res = await request(app())
+      .post("/auth/change-password")
+      .send({ currentPassword: "OldPass1!", newPassword: "weak" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app(false))
+      .post("/auth/change-password")
+      .send({ currentPassword: "OldPass1!", newPassword: "NewPass1!" });
+    expect(res.status).toBe(401);
+  });
+});
