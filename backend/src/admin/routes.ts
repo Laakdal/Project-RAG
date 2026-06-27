@@ -253,4 +253,36 @@ router.post(
   },
 );
 
+router.delete(
+  "/users/:id",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const targetId = req.params.id;
+    const currentUserId = req.session.userId as string;
+
+    try {
+      ensureNotSelf(currentUserId, targetId);
+      const target = await loadUserWithAdminContext(targetId);
+      if (!target) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      ensureNotLastAdmin(
+        target.activeAdminCount,
+        target.isAdmin && target.disabledAt === null,
+      );
+
+      // conversations → messages/attachments cascade via their FK onDelete.
+      await db.delete(users).where(eq(users.id, targetId));
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof GuardError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  },
+);
+
 export { router as adminRouter };

@@ -208,3 +208,36 @@ describe("POST /admin/users/:id/password", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("DELETE /admin/users/:id", () => {
+  it("deletes a user and returns 204", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: false, disabledAt: null, activeAdminCount: 2 },
+    ]);
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    const res = await request(app()).delete("/admin/users/u9");
+    expect(res.status).toBe(204);
+    expect(deleteSpy).toHaveBeenCalled();
+  });
+
+  it("blocks deleting your own account with 409", async () => {
+    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
+    const res = await request(app()).delete(`/admin/users/${TEST_USER_ID}`);
+    expect(res.status).toBe(409);
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks deleting the last active admin with 409", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: true, disabledAt: null, activeAdminCount: 1 },
+    ]);
+    const res = await request(app()).delete("/admin/users/u9");
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 404 when the target user is missing", async () => {
+    dbMock.setResult([]); // loadUserWithAdminContext finds nothing
+    const res = await request(app()).delete("/admin/users/ghost");
+    expect(res.status).toBe(404);
+  });
+});
