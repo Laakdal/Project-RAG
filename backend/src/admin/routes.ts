@@ -7,6 +7,7 @@ import { requireAuth, requireAdmin } from "../auth/middleware.js";
 import { hashPassword } from "../auth/password.js";
 import { passwordSchema } from "../auth/password-policy.js";
 import { requireCsrf } from "../auth/csrf.js";
+import { GuardError, ensureNotSelf, ensureNotLastAdmin } from "./guards.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -22,6 +23,25 @@ const userColumns = {
   createdAt: users.createdAt,
   lastLoginAt: users.lastLoginAt,
 };
+
+// Load a target user plus the current number of active admins in ONE query, so
+// the guard checks (self / last-admin) need a single round-trip. Returns null
+// when the user does not exist.
+async function loadUserWithAdminContext(targetId: string) {
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      isAdmin: users.isAdmin,
+      disabledAt: users.disabledAt,
+      activeAdminCount: sql<number>`(select count(*)::int from ${users} ua where ua.is_admin = true and ua.disabled_at is null)`,
+    })
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+  return rows[0] ?? null;
+}
 
 router.get("/users", async (_req: Request, res: Response) => {
   const rows = await db
@@ -109,5 +129,55 @@ router.post("/users", requireCsrf, async (req: Request, res: Response) => {
     throw err;
   }
 });
+
+const toggleAdminSchema = z.object({ isAdmin: z.boolean() });
+
+router.patch(
+  "/users/:id/admin",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const parsed = toggleAdminSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request body" });
+      return;
+    }
+    const targetId = req.params.id;
+    const currentUserId = req.session.userId as string;
+    const { isAdmin } = parsed.data;
+
+    try {
+      // Guards only matter when removing admin rights.
+      if (!isAdmin) {
+        ensureNotSelf(currentUserId, targetId);
+        const target = await loadUserWithAdminContext(targetId);
+        if (!target) {
+          res.status(404).json({ error: "Not found" });
+          return;
+        }
+        ensureNotLastAdmin(
+          target.activeAdminCount,
+          target.isAdmin && target.disabledAt === null,
+        );
+      }
+
+      const rows = await db
+        .update(users)
+        .set({ isAdmin })
+        .where(eq(users.id, targetId))
+        .returning({ id: users.id });
+      if (!rows[0]) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof GuardError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  },
+);
 
 export { router as adminRouter };
