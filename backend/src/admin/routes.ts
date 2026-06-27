@@ -196,14 +196,15 @@ router.patch(
     const { disabled } = parsed.data;
 
     try {
+      if (disabled) {
+        ensureNotSelf(currentUserId, targetId);   // no DB needed — fail fast
+      }
       const target = await loadUserWithAdminContext(targetId);
       if (!target) {
         res.status(404).json({ error: "Not found" });
         return;
       }
-      // Guards only matter when taking access away.
       if (disabled) {
-        ensureNotSelf(currentUserId, targetId);
         ensureNotLastAdmin(
           target.activeAdminCount,
           target.isAdmin && target.disabledAt === null,
