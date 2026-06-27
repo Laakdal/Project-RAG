@@ -35,6 +35,9 @@ const nextConfig = {
                 // there so it does NOT shadow the frontend /chat PAGE route (`:path*`
                 // would otherwise match `/chat` itself and 404 it through the backend).
                 { source: '/chat/conversations/:path*', destination: `${backendOrigin}/chat/conversations/:path*` },
+                // Admin user-management API — proxied so the admin page's /admin/*
+                // calls stay same-origin and keep the session + CSRF cookies first-party.
+                { source: '/admin/:path*', destination: `${backendOrigin}/admin/:path*` },
                 { source: '/health', destination: `${backendOrigin}/health` },
             ],
             afterFiles: [
