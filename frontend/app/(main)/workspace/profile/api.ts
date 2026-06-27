@@ -4,7 +4,6 @@ import { apiClient } from '@/lib/api';
 export { getUserIdFromToken, getUserEmailFromToken, getAccountTypeFromToken } from '@/lib/utils/jwt';
 
 const USERS_URL = '/api/v1/users';
-const AUTH_URL = '/api/v1/userAccount';
 
 // ========================================
 // Types
@@ -107,9 +106,9 @@ export const ProfileApi = {
   // Change Password — used by the profile change-password UI flow
   // ─────────────────────────────────────────────────────────────────────────
 
-  /** POST /api/v1/userAccount/password/reset */
+  /** POST /auth/change-password — verifies the current password server-side. */
   async changePassword(payload: ChangePasswordPayload): Promise<void> {
-    await apiClient.post(`${AUTH_URL}/password/reset`, payload);
+    await apiClient.post(`/auth/change-password`, payload);
   },
 
 

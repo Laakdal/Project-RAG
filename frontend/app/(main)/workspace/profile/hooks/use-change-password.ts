@@ -107,10 +107,12 @@ export function useChangePassword({ onOpenChange, onSuccess }: UseChangePassword
       onOpenChange(false);
       onSuccess();
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string }; message?: string } } };
+      type ApiErr = {
+        response?: { data?: { error?: string | { message?: string }; message?: string } };
+      };
       const data = (err as ApiErr)?.response?.data;
       const message =
-        data?.error?.message ??
+        (typeof data?.error === 'string' ? data.error : data?.error?.message) ??
         data?.message ??
         "Could not update your password. Please try again.";
       setApiErrorMessage(message);
