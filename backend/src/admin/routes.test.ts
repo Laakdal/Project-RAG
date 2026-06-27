@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
-import { buildTestApp, makeDbMock } from "../test/app-harness.js";
+import { buildTestApp, makeDbMock, TEST_USER_ID } from "../test/app-harness.js";
 
 const dbMock = makeDbMock();
 vi.mock("../db/index.js", () => ({ db: dbMock.db }));
@@ -99,5 +99,42 @@ describe("POST /admin/users", () => {
       .post("/admin/users")
       .send({ email: "dupe@example.com", password: "StrongPass1!" });
     expect(res.status).toBe(409);
+  });
+});
+
+describe("PATCH /admin/users/:id/admin", () => {
+  it("promotes a user to admin and returns 204", async () => {
+    dbMock.setResult([{ id: "u9" }]); // update .returning row
+    const res = await request(app())
+      .patch("/admin/users/u9/admin")
+      .send({ isAdmin: true });
+    expect(res.status).toBe(204);
+  });
+
+  it("blocks demoting your own account with 409", async () => {
+    const res = await request(app())
+      .patch(`/admin/users/${TEST_USER_ID}/admin`)
+      .send({ isAdmin: false });
+    expect(res.status).toBe(409);
+  });
+
+  it("blocks demoting the last active admin with 409", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: true, disabledAt: null, activeAdminCount: 1 },
+    ]);
+    const res = await request(app())
+      .patch("/admin/users/u9/admin")
+      .send({ isAdmin: false });
+    expect(res.status).toBe(409);
+  });
+
+  it("allows demoting when other active admins remain", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: true, disabledAt: null, activeAdminCount: 2 },
+    ]);
+    const res = await request(app())
+      .patch("/admin/users/u9/admin")
+      .send({ isAdmin: false });
+    expect(res.status).toBe(204);
   });
 });
