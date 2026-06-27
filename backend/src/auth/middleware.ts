@@ -42,11 +42,13 @@ export async function requireAdmin(
       return;
     }
     const rows = await db
-      .select({ isAdmin: users.isAdmin })
+      .select({ isAdmin: users.isAdmin, disabledAt: users.disabledAt })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    if (!rows[0]?.isAdmin) {
+    // Reject non-admins and admins who have been disabled, so a disable takes
+    // effect on the admin surface immediately rather than only at next login.
+    if (!rows[0]?.isAdmin || rows[0].disabledAt) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
