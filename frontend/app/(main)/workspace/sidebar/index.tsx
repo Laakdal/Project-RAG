@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 
 import { Flex } from '@radix-ui/themes';
+import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 import { SidebarBase } from '@/app/components/sidebar';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
@@ -23,6 +24,10 @@ const PERSONAL_ITEMS: NavItem[] = [
   { icon: 'person', label: "Profile", route: '/workspace/profile' },
 ];
 
+const ADMIN_ITEMS: NavItem[] = [
+  { icon: 'group', label: 'Users', route: '/workspace/users' },
+];
+
 // ========================================
 // Component
 // ========================================
@@ -35,6 +40,7 @@ const PERSONAL_ITEMS: NavItem[] = [
  */
 export default function WorkspaceSidebar() {
   const rawPathname = usePathname();
+  const isAdmin = useUserStore(selectIsAdmin) === true;
 
   // Normalize trailing slash (trailingSlash: true in next.config)
   const pathname = rawPathname.endsWith('/') && rawPathname !== '/'
@@ -67,6 +73,22 @@ export default function WorkspaceSidebar() {
             />
           ))}
         </Flex>
+
+        {/* ── Administration section (admins only) ── */}
+        {isAdmin && (
+          <Flex direction="column" gap="1">
+            <SectionHeader title={'Administration'} />
+            {ADMIN_ITEMS.map((item) => (
+              <WorkspaceSidebarItem
+                key={item.route}
+                icon={<MaterialIcon name={item.icon} size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
+                label={item.label}
+                href={`${item.route}/`}
+                isActive={isActive(item.route)}
+              />
+            ))}
+          </Flex>
+        )}
       </Flex>
     </SidebarBase>
   );
