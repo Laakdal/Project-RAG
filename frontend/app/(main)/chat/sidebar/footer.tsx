@@ -6,15 +6,28 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { UserAvatar } from '@/app/components/ui/user-avatar';
 import { HEADER_ELEMENT_SIZE, ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
 import { WorkspaceMenu } from '@/app/components/workspace-menu';
-
-const APP_NAME = 'Project RAG';
+import {
+  useUserStore,
+  selectFullName,
+  selectUserEmail,
+  selectAvatarUrl,
+} from '@/lib/store/user-store';
 
 /**
- * Sidebar footer — workspace button + popup menu (settings, appearance, logout).
+ * Sidebar footer — account button + popup menu (settings, appearance, logout).
  */
 export function ChatSidebarFooter() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  // Show the signed-in account rather than the app brand. UserAvatar derives
+  // initials from fullName → email; avatarUrl is null in this build (no avatar
+  // serving), so it renders initials. Fall back to email, then a neutral label
+  // while the profile is still hydrating.
+  const fullName = useUserStore(selectFullName);
+  const email = useUserStore(selectUserEmail);
+  const avatarUrl = useUserStore(selectAvatarUrl);
+  const displayName = fullName || email || 'Account';
 
   return (
     <Box style={{ padding: 'var(--space-2)', position: 'relative' }}>
@@ -40,8 +53,9 @@ export function ChatSidebarFooter() {
         }}
       >
         <UserAvatar
-          fullName={APP_NAME}
-          src={null}
+          fullName={fullName}
+          email={email}
+          src={avatarUrl}
           size={HEADER_ELEMENT_SIZE}
           radius="small"
         />
@@ -58,7 +72,7 @@ export function ChatSidebarFooter() {
             whiteSpace: 'nowrap',
           }}
         >
-          {APP_NAME}
+          {displayName}
         </Text>
 
         <MaterialIcon
