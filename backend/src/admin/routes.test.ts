@@ -138,3 +138,46 @@ describe("PATCH /admin/users/:id/admin", () => {
     expect(res.status).toBe(204);
   });
 });
+
+describe("PATCH /admin/users/:id/disabled", () => {
+  it("disables a user and stamps disabledAt", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: false, disabledAt: null, activeAdminCount: 2 },
+    ]);
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .patch("/admin/users/u9/disabled")
+      .send({ disabled: true });
+    expect(res.status).toBe(204);
+    expect(setSpy.mock.calls[0][0].disabledAt).toBeInstanceOf(Date);
+  });
+
+  it("enables a user by clearing disabledAt", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: false, disabledAt: "t", activeAdminCount: 2 },
+    ]);
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .patch("/admin/users/u9/disabled")
+      .send({ disabled: false });
+    expect(res.status).toBe(204);
+    expect(setSpy.mock.calls[0][0]).toEqual({ disabledAt: null });
+  });
+
+  it("blocks disabling your own account with 409", async () => {
+    const res = await request(app())
+      .patch(`/admin/users/${TEST_USER_ID}/disabled`)
+      .send({ disabled: true });
+    expect(res.status).toBe(409);
+  });
+
+  it("blocks disabling the last active admin with 409", async () => {
+    dbMock.setResult([
+      { id: "u9", email: "x", name: "X", isAdmin: true, disabledAt: null, activeAdminCount: 1 },
+    ]);
+    const res = await request(app())
+      .patch("/admin/users/u9/disabled")
+      .send({ disabled: true });
+    expect(res.status).toBe(409);
+  });
+});

@@ -180,4 +180,49 @@ router.patch(
   },
 );
 
+const setDisabledSchema = z.object({ disabled: z.boolean() });
+
+router.patch(
+  "/users/:id/disabled",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const parsed = setDisabledSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request body" });
+      return;
+    }
+    const targetId = req.params.id;
+    const currentUserId = req.session.userId as string;
+    const { disabled } = parsed.data;
+
+    try {
+      const target = await loadUserWithAdminContext(targetId);
+      if (!target) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      // Guards only matter when taking access away.
+      if (disabled) {
+        ensureNotSelf(currentUserId, targetId);
+        ensureNotLastAdmin(
+          target.activeAdminCount,
+          target.isAdmin && target.disabledAt === null,
+        );
+      }
+
+      await db
+        .update(users)
+        .set({ disabledAt: disabled ? new Date() : null })
+        .where(eq(users.id, targetId));
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof GuardError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  },
+);
+
 export { router as adminRouter };
