@@ -181,3 +181,30 @@ describe("PATCH /admin/users/:id/disabled", () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe("POST /admin/users/:id/password", () => {
+  it("resets the password and returns 204", async () => {
+    dbMock.setResult([{ id: "u9" }]); // update .returning row
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .post("/admin/users/u9/password")
+      .send({ newPassword: "StrongPass1!" });
+    expect(res.status).toBe(204);
+    expect(setSpy).toHaveBeenCalledWith({ passwordHash: "new-hash" });
+  });
+
+  it("rejects a weak password with 400", async () => {
+    const res = await request(app())
+      .post("/admin/users/u9/password")
+      .send({ newPassword: "weak" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 when the target user is missing", async () => {
+    dbMock.setResult([]); // update .returning empty
+    const res = await request(app())
+      .post("/admin/users/ghost/password")
+      .send({ newPassword: "StrongPass1!" });
+    expect(res.status).toBe(404);
+  });
+});

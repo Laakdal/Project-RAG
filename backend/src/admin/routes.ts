@@ -226,4 +226,31 @@ router.patch(
   },
 );
 
+const resetPasswordSchema = z.object({ newPassword: passwordSchema });
+
+router.post(
+  "/users/:id/password",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+      return;
+    }
+    const passwordHash = await hashPassword(parsed.data.newPassword);
+    const rows = await db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, req.params.id))
+      .returning({ id: users.id });
+    if (!rows[0]) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.status(204).end();
+  },
+);
+
 export { router as adminRouter };
