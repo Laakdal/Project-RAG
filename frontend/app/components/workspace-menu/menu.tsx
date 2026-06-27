@@ -8,6 +8,13 @@ import ProfilePage from '@/workspace/profile/page';
 import { POPUP_WIDTH } from './types';
 import { SettingsSection } from './settings-section';
 import { AppearancePanel } from './appearance-panel';
+import { UserAvatar } from '@/app/components/ui/user-avatar';
+import {
+  useUserStore,
+  selectFullName,
+  selectUserEmail,
+  selectAvatarUrl,
+} from '@/lib/store/user-store';
 
 // ============================================
 // Types
@@ -229,6 +236,11 @@ export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProp
   const [activePanel, setActivePanel] = useState<ActiveSubPanel>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Signed-in account, shown at the top of the popup.
+  const fullName = useUserStore(selectFullName);
+  const email = useUserStore(selectUserEmail);
+  const avatarUrl = useUserStore(selectAvatarUrl);
+
   // ── Close on click outside ──
   useEffect(() => {
     if (!isOpen) return;
@@ -303,6 +315,37 @@ export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProp
             fontFamily: 'Manrope, sans-serif',
           }}
         >
+          {/* ── Signed-in account ── */}
+          <Flex direction="column" gap="2">
+            <Flex align="center" gap="2" style={{ padding: '0 8px', minWidth: 0 }}>
+              <UserAvatar
+                fullName={fullName}
+                email={email}
+                src={avatarUrl}
+                size={32}
+                radius="small"
+              />
+              <Box style={{ minWidth: 0 }}>
+                <Text
+                  size="2"
+                  weight="medium"
+                  style={{ color: 'var(--slate-12)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {fullName || email || 'Account'}
+                </Text>
+                {fullName && email && (
+                  <Text
+                    size="1"
+                    style={{ color: 'var(--slate-11)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {email}
+                  </Text>
+                )}
+              </Box>
+            </Flex>
+            <Box style={{ height: 1, background: 'var(--olive-3)' }} />
+          </Flex>
+
           {/* ── Settings / Appearance / Logout ── */}
           <SettingsSection
             onWorkspaceSettings={openSettings}
