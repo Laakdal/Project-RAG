@@ -27,7 +27,7 @@ describe("readDocument", () => {
     expect(text).toBe("doc text");
     expect(fetch).toHaveBeenCalled(); // Gotenberg was hit
     // The bytes passed to gemini are the converted PDF, declared as application/pdf.
-    expect(geminiRead.mock.calls[0][1]).toBe("application/pdf");
+    expect((geminiRead.mock.calls[0] as unknown[])[1]).toBe("application/pdf");
     vi.unstubAllGlobals();
   });
 });

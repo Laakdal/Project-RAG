@@ -11,7 +11,8 @@ describe("getVectorStore", () => {
   it("binds to the langgraph collection", async () => {
     const { getVectorStore } = await import("./qdrant.js");
     await getVectorStore();
-    const [, opts] = fromExisting.mock.calls[0];
+    const args = fromExisting.mock.calls[0] as unknown as [unknown, { collectionName: string }];
+    const opts = args[1];
     expect(opts.collectionName).toBe("project_rag_chat_lg");
   });
 });
