@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-28
 **Status:** Design agreed in conversation; written spec pending user review
-**Scope:** Replace the n8n RAG layer with a LangChain/LangGraph (JS) implementation, in-process, behind a global provider switch, keeping the existing Postgres/auth/chat backend untouched.
+**Scope:** Replace the n8n RAG layer with a LangChain/LangGraph (JS) implementation, in-process, behind a global provider switch, keeping the existing Postgres/auth/chat backend untouched. v1 is vector-based corrective RAG; **Phase 2 (Section 12)** adds GraphRAG — hybrid vector + knowledge-graph retrieval via a Neo4j graph store.
 
 ---
 
@@ -16,7 +16,7 @@ Today the backend is a thin Express proxy: all RAG (ingest + query) is delegated
 2. Keeping **n8n live as the default** until the new path is proven, via a **global switch**.
 3. Cutting over to LangGraph with one config flip, then deleting the n8n path.
 
-**Explicit non-goal:** adopting pipeshub-ai's backend. Pipeshub's RAG is **Python** (FastAPI) bolted to MongoDB + ArangoDB + Kafka + etcd, with **no Postgres** — adopting it would mean a platform swap and discarding our auth/DB. Pipeshub is used here only as a **reference** for retrieval/grading/citation patterns, reimplemented in JS.
+**Explicit non-goal:** adopting pipeshub-ai's backend. Pipeshub's RAG is **Python** (FastAPI) bolted to MongoDB + ArangoDB + Kafka + etcd, with **no Postgres** — adopting it would mean a platform swap and discarding our auth/DB. Pipeshub is used here only as a **reference** for retrieval/grading/citation patterns, reimplemented in JS. Its signature feature — knowledge-graph retrieval — is planned as our **Phase 2** (Section 12), reimplemented small in JS rather than adopted wholesale.
 
 ---
 
@@ -27,7 +27,7 @@ Today the backend is a thin Express proxy: all RAG (ingest + query) is delegated
 - **In-process, single deploy.** New code lives in `backend/src-langchain/` (sibling source tree to `backend/src/`), same `package.json`, same process.
 - **Minimal blast radius.** The only change to existing `src/` is routing `chat-routes.ts` through a `RagProvider` interface instead of calling `n8n-client` directly.
 - **Same models that already work.** Gemini 2.5 Flash for reading (via OpenRouter HTTP), OpenAI `text-embedding-3-small` (1536-D, Cosine) for embeddings, `gpt-4o-mini` via the OpenAI Responses API (with the built-in `web_search` tool) for generation.
-- **YAGNI for v1.** No token streaming, no per-conversation provider override, no Drive library, no multi-hop retrieval.
+- **YAGNI for v1.** No token streaming, no per-conversation provider override, no Drive library. **GraphRAG is explicitly Phase 2** (Section 12) — it consciously relaxes the "Qdrant + Gotenberg only" infra rule by adding one graph-store service, so it is sequenced after v1 ships.
 
 ---
 
@@ -220,9 +220,61 @@ flowchart TD
 4. Flip `RAG_PROVIDER=langgraph` in production; monitor.
 5. Remove the n8n path: delete `n8nProvider`/`n8n-client.ts`, archive the n8n workflows, reclaim the container.
 
+Once the vector path is stable in production, begin **Phase 2 (GraphRAG, Section 12)** by enabling `GRAPHRAG_ENABLED`.
+
 ---
 
-## 12. Risks
+## 12. Phase 2 — GraphRAG (hybrid vector + knowledge-graph retrieval)
+
+Phase 2 augments the vector pipeline with a **knowledge graph**, so the system can answer "how are these connected / multi-hop across documents" questions that pure vector similarity misses. It lives in the same `backend/src-langchain/` module, behind the same `RagProvider`; **Postgres stays untouched**. It adds exactly one new piece of infrastructure: a **graph store**.
+
+### 12.1 Graph store
+
+- **Neo4j (recommended).** Strongest LangChain JS support (`Neo4jGraph`); the Neo4j Browser gives publishable graph visualizations — a real asset for the thesis writeup/demo. One container.
+- **FalkorDB** — lighter (Redis-module) with a dedicated `@falkordb/langchain-ts` package; pick this if operational weight matters more than tooling.
+- **Postgres + Apache AGE** — no new service, but little LangChain JS support means hand-written Cypher/traversal. Not recommended.
+- Vectors stay in **Qdrant**; the graph store holds only nodes/edges. (Neo4j can also store vectors, enabling later consolidation onto one store — out of scope here.)
+
+### 12.2 Ingest additions
+
+After Gemini reads the document text (existing step), a new branch runs alongside the chunk → embed → Qdrant path:
+
+1. **Extract** entities + relationships from the text via an LLM (`LLMGraphTransformer` — experimental in JS; validate quality/cost early).
+2. **Upsert** the resulting nodes/edges to the graph store, tagged with `conversationId` / `filename` so graph retrieval is scoped per conversation, mirroring the vector path's metadata filter.
+
+Both paths complete before the attachment is marked `ready`.
+
+### 12.3 Query additions
+
+The query graph gains a `graph_retrieve` node that runs **in parallel** with the existing vector `retrieve`; their results are merged before `grade_chunks` / `generate`. This is **hybrid retrieval** — vector (similarity) + graph (connections) — the right-sized version of pipeshub's approach.
+
+```mermaid
+flowchart TD
+    A[rewrite_query] --> V[vector retrieve · Qdrant]
+    A --> G[graph_retrieve · Neo4j]
+    V --> M[merge context]
+    G --> M
+    M --> D[grade_chunks]
+    D -->|good| GEN[generate]
+    D -->|weak / empty| W[web_search_fallback]
+    W --> GEN
+    GEN --> OUT[answer + sources]
+```
+
+### 12.4 Config & sequencing
+
+- New env: `GRAPH_STORE_URL` (+ credentials), `GRAPHRAG_ENABLED` (default **off**).
+- Phase 2 is gated behind `GRAPHRAG_ENABLED` so **Phase 1 ships and cuts over first**; the graph path is enabled only after vector RAG is stable in production.
+
+### 12.5 Phase 2 risks
+
+- **`LLMGraphTransformer` is experimental in JS** — prototype extraction quality early; if it disappoints, fall back to vector-only (the flag stays off) with no loss to Phase 1.
+- **Extraction cost/latency** — one extra LLM call per document at ingest.
+- **New stateful service** — the graph store must be run and backed up. This is the deliberate trade for the capability, and the reason it's a separate phase.
+
+---
+
+## 13. Risks
 
 - **LangChain JS churn / abstraction.** Mitigated by sticking to stable primitives (embeddings, splitter, `QdrantVectorStore`, `ChatOpenAI`) and keeping graph logic in our own nodes.
 - **Added latency/cost.** `rewrite_query` + `grade_chunks` add LLM calls per query; `gpt-4o-mini` is cheap, but watch latency. Keep grading lightweight.
@@ -231,9 +283,9 @@ flowchart TD
 
 ---
 
-## 13. Out of scope / future
+## 14. Out of scope / future
 
 - Token streaming to the frontend (LangGraph supports it; `socket.io-client` is already loaded — a natural follow-up).
 - Per-conversation provider override (canary testing without global flip).
 - `grounding_check` node (stretch).
-- Drive library / multi-collection retrieval (existing Phase 2 idea).
+- Drive library / multi-collection retrieval (separate future track).
