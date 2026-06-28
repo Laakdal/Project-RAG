@@ -24,9 +24,10 @@ export async function ingest(
         metadata: { conversationId, filename, chunkIndex },
       }),
   );
-  if (docs.length > 0) {
-    const store = await getVectorStore();
-    await store.addDocuments(docs);
+  if (docs.length === 0) {
+    return { status: "failed", chunkCount: 0 };
   }
+  const store = await getVectorStore();
+  await store.addDocuments(docs);
   return { status: "ok", chunkCount: docs.length };
 }
