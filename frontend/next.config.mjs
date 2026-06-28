@@ -38,6 +38,8 @@ const nextConfig = {
                 // Admin user-management API — proxied so the admin page's /admin/*
                 // calls stay same-origin and keep the session + CSRF cookies first-party.
                 { source: '/admin/:path*', destination: `${backendOrigin}/admin/:path*` },
+                // Drive library sync/status API — admin-only, kept same-origin like /admin.
+                { source: '/library/:path*', destination: `${backendOrigin}/library/:path*` },
                 { source: '/health', destination: `${backendOrigin}/health` },
             ],
             afterFiles: [
