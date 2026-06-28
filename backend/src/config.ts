@@ -39,6 +39,12 @@ const envSchema = z.object({
   GEMINI_READ_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
   EMBED_MODEL: z.string().min(1).default("text-embedding-3-small"),
   GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
+
+  // Phase 2 — Drive library. Optional because the library is disabled until
+  // configured; the sync path validates presence at use and errors clearly.
+  DRIVE_FOLDER_ID: z.string().min(1).optional(),
+  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+  QDRANT_COLLECTION_LIBRARY: z.string().min(1).default("project_rag_library"),
 });
 
 const parsed = envSchema.safeParse(process.env);

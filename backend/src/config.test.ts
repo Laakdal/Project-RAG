@@ -10,4 +10,8 @@ describe("config", () => {
   it("defaults RAG_PROVIDER to n8n", () => {
     expect(config.RAG_PROVIDER).toBe("n8n");
   });
+
+  it("defaults QDRANT_COLLECTION_LIBRARY to project_rag_library", () => {
+    expect(config.QDRANT_COLLECTION_LIBRARY).toBe("project_rag_library");
+  });
 });
