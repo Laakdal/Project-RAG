@@ -1,13 +1,15 @@
+import { ingest } from "./ingest/pipeline.js";
+import { runQuery } from "./query/graph.js";
+import { requireLanggraphEnv } from "./shared/models.js";
 import type { RagProvider } from "../src/rag/types.js";
 
-// Stub — replaced by the real implementation in a later milestone (Task 17).
-// Only reached when RAG_PROVIDER=langgraph, which is not the default, so these
-// throwers are never invoked in Milestone 1.
 export const langgraphProvider: RagProvider = {
-  async ingestFile() {
-    throw new Error("langgraph provider not implemented yet");
+  async ingestFile(conversationId, filename, file, mimeType) {
+    requireLanggraphEnv();
+    return ingest(conversationId, filename, file, mimeType);
   },
-  async queryRag() {
-    throw new Error("langgraph provider not implemented yet");
+  async queryRag(conversationId, question, history, generateTitle) {
+    requireLanggraphEnv();
+    return runQuery(conversationId, question, history, generateTitle);
   },
 };
