@@ -96,7 +96,7 @@ export function SettingsSection({
               color="var(--slate-11)"
             />
           }
-          label={"Users"}
+          label={"Admin panel"}
           onClick={onAdminUsers}
         />
       )}
