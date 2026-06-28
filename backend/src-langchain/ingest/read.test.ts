@@ -30,4 +30,18 @@ describe("readDocument", () => {
     expect((geminiRead.mock.calls[0] as unknown[])[1]).toBe("application/pdf");
     vi.unstubAllGlobals();
   });
+
+  it("converts XLSX via Gotenberg before reading", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    })));
+    const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const { readDocument } = await import("./read.js");
+    const text = await readDocument(Buffer.from("PK"), XLSX);
+    expect(text).toBe("doc text");
+    expect(fetch).toHaveBeenCalled();
+    expect((geminiRead.mock.calls[0] as unknown[])[1]).toBe("application/pdf");
+    vi.unstubAllGlobals();
+  });
 });
