@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // The n8n implementation is mocked; the langgraph module is mocked so the seam
 // can be tested without loading LangChain. Selection is driven by config, which
@@ -22,5 +22,38 @@ describe("rag provider seam", () => {
     const r = await provider.queryRag("c1", "q", [], false);
     expect(r.answer).toBe("n8n-answer");
     expect(lgQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("rag provider seam — langgraph dispatch", () => {
+  const originalProvider = process.env.RAG_PROVIDER;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    process.env.RAG_PROVIDER = "langgraph";
+  });
+
+  afterEach(() => {
+    if (originalProvider === undefined) {
+      delete process.env.RAG_PROVIDER;
+    } else {
+      process.env.RAG_PROVIDER = originalProvider;
+    }
+    vi.resetModules();
+  });
+
+  it("routes queryRag to the langgraph provider when RAG_PROVIDER=langgraph", async () => {
+    const provider = await import("./provider.js");
+    const r = await provider.queryRag("c1", "q", [], false);
+    expect(r.answer).toBe("lg-answer");
+    expect(lgQuery).toHaveBeenCalledWith("c1", "q", [], false);
+  });
+
+  it("routes ingestFile to the langgraph provider when RAG_PROVIDER=langgraph", async () => {
+    const provider = await import("./provider.js");
+    const r = await provider.ingestFile("c1", "file.pdf", Buffer.from("x"), "application/pdf");
+    expect(r.chunkCount).toBe(2);
+    expect(lgIngest).toHaveBeenCalledWith("c1", "file.pdf", expect.any(Buffer), "application/pdf");
   });
 });
