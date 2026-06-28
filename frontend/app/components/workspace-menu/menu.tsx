@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, Flex, Box, Text, IconButton, VisuallyHidden } from '@radix-ui/themes';
 import { signOut } from '@/lib/auth/session';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -14,6 +15,7 @@ import {
   selectFullName,
   selectUserEmail,
   selectAvatarUrl,
+  selectIsAdmin,
 } from '@/lib/store/user-store';
 
 // ============================================
@@ -240,6 +242,8 @@ export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProp
   const fullName = useUserStore(selectFullName);
   const email = useUserStore(selectUserEmail);
   const avatarUrl = useUserStore(selectAvatarUrl);
+  const isAdmin = useUserStore(selectIsAdmin) === true;
+  const router = useRouter();
 
   // ── Close on click outside ──
   useEffect(() => {
@@ -286,6 +290,12 @@ export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProp
   const openSettings = () => {
     onClose();
     setSettingsOpen(true);
+  };
+
+  // ── Admin-only: navigate to the admin user-management panel ──
+  const openAdminUsers = () => {
+    onClose();
+    router.push('/workspace/users');
   };
 
   return (
@@ -351,6 +361,8 @@ export function WorkspaceMenu({ isOpen, onClose, triggerRef }: WorkspaceMenuProp
             onWorkspaceSettings={openSettings}
             onAppearanceToggle={() => togglePanel('appearance')}
             isAppearanceActive={activePanel === 'appearance'}
+            isAdmin={isAdmin}
+            onAdminUsers={openAdminUsers}
             onLogout={() => {
               onClose();
               void signOut();

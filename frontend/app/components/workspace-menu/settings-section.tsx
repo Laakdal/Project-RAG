@@ -13,6 +13,9 @@ interface SettingsSectionProps {
   onAppearanceToggle: () => void;
   isAppearanceActive: boolean;
   onLogout: () => void;
+  /** Admin-only: when true, show the "Users" entry that opens the admin panel. */
+  isAdmin?: boolean;
+  onAdminUsers?: () => void;
 }
 
 /** Icon for appearance: shows current mode icon */
@@ -36,6 +39,8 @@ export function SettingsSection({
   onAppearanceToggle,
   isAppearanceActive,
   onLogout,
+  isAdmin,
+  onAdminUsers,
 }: SettingsSectionProps) {
   const isMobile = useIsMobile();
   const { appearance } = useThemeAppearance();
@@ -79,6 +84,20 @@ export function SettingsSection({
           }
           label={"Settings"}
           onClick={onWorkspaceSettings}
+        />
+      )}
+
+      {isAdmin && onAdminUsers && (
+        <MenuItem
+          icon={
+            <MaterialIcon
+              name="group"
+              size={ICON_SIZE_DEFAULT}
+              color="var(--slate-11)"
+            />
+          }
+          label={"Users"}
+          onClick={onAdminUsers}
         />
       )}
 
