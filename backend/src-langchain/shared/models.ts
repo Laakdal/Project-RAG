@@ -1,0 +1,59 @@
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { config } from "../../src/config.js";
+
+export function requireLanggraphEnv(): void {
+  const missing = [
+    !config.OPENAI_API_KEY && "OPENAI_API_KEY",
+    !config.OPENROUTER_API_KEY && "OPENROUTER_API_KEY",
+    !config.QDRANT_URL && "QDRANT_URL",
+  ].filter(Boolean);
+  if (missing.length) {
+    throw new Error(`RAG_PROVIDER=langgraph requires: ${missing.join(", ")}`);
+  }
+}
+
+export function makeEmbeddings(): OpenAIEmbeddings {
+  return new OpenAIEmbeddings({
+    model: config.EMBED_MODEL,
+    apiKey: config.OPENAI_API_KEY,
+  });
+}
+
+export function makeChatModel(opts: { webSearch?: boolean } = {}): ChatOpenAI {
+  const model = new ChatOpenAI({
+    model: config.GENERATE_MODEL,
+    apiKey: config.OPENAI_API_KEY,
+    useResponsesApi: true,
+  });
+  return opts.webSearch
+    ? (model.bindTools([{ type: "web_search_preview" }]) as ChatOpenAI)
+    : model;
+}
+
+// Read a document by handing the raw bytes to Gemini (vision/multimodal) over
+// OpenRouter's OpenAI-compatible chat completions endpoint. Returns plain text.
+export async function geminiRead(file: Buffer, mimeType: string): Promise<string> {
+  const dataUrl = `data:${mimeType};base64,${file.toString("base64")}`;
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: config.GEMINI_READ_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract all readable text from this document. Return only the text." },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`gemini read failed: ${res.status}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content ?? "";
+}
