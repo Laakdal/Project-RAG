@@ -1,4 +1,5 @@
 import { makeChatModel } from "../../shared/models.js";
+import { extractText } from "../../shared/content.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 export async function grade(state: {
@@ -16,7 +17,7 @@ export async function grade(state: {
       },
       { role: "user", content: `Question: ${state.question}\n\nChunks:\n${context}` },
     ]);
-    const text = (typeof res.content === "string" ? res.content : "").toLowerCase();
+    const text = extractText(res.content).toLowerCase();
     return { relevant: text.includes("yes") };
   } catch {
     return { relevant: false };

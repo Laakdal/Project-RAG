@@ -1,4 +1,5 @@
 import { makeChatModel } from "../../shared/models.js";
+import { extractText } from "../../shared/content.js";
 
 export async function title(state: {
   question: string;
@@ -10,7 +11,7 @@ export async function title(state: {
       { role: "system", content: "Summarize the user's question as a title of at most 6 words. Return only the title." },
       { role: "user", content: state.question },
     ]);
-    const text = (typeof res.content === "string" ? res.content : "").trim();
+    const text = extractText(res.content).trim();
     return text ? { title: text } : {};
   } catch {
     return {};

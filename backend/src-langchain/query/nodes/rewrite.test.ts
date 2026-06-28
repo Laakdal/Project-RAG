@@ -22,4 +22,14 @@ describe("rewrite node", () => {
     expect(out.rewritten).toContain("second budget item");
     expect(invoke).toHaveBeenCalled();
   });
+
+  it("falls back to the original question when the LLM errors", async () => {
+    invoke.mockRejectedValueOnce(new Error("llm down"));
+    const { rewrite } = await import("./rewrite.js");
+    const out = await rewrite({
+      question: "original question",
+      history: [{ role: "user", content: "some prior turn" }],
+    } as never);
+    expect(out.rewritten).toBe("original question");
+  });
 });
