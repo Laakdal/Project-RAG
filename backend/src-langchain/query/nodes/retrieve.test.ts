@@ -14,7 +14,7 @@ describe("retrieve node", () => {
     const { retrieve } = await import("./retrieve.js");
     const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
     expect(out.docs[0]).toEqual({ filename: "doc.pdf", chunkIndex: 2, text: "chunk text" });
-    const [, k, filter] = similaritySearch.mock.calls[0];
+    const [, k, filter] = similaritySearch.mock.calls[0] as unknown as [string, number, unknown];
     expect(k).toBe(5);
     expect(JSON.stringify(filter)).toContain("c1");
   });
