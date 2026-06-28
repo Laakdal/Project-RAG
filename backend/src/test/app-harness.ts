@@ -21,6 +21,7 @@ export function makeDbMock() {
     "update",
     "set",
     "delete",
+    "onConflictDoUpdate",
   ];
   for (const m of methods) {
     chain[m] = vi.fn(() => chain);
