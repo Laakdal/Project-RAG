@@ -43,6 +43,13 @@
       "when": 1782541450129,
       "tag": "0005_user_disabled_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782683080974,
+      "tag": "0006_past_sway",
+      "breakpoints": true
     }
   ]
 }
