@@ -1,4 +1,7 @@
 import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { Runnable } from "@langchain/core/runnables";
+import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import type { AIMessageChunk } from "@langchain/core/messages";
 import { config } from "../../src/config.js";
 
 export function requireLanggraphEnv(): void {
@@ -19,14 +22,16 @@ export function makeEmbeddings(): OpenAIEmbeddings {
   });
 }
 
-export function makeChatModel(opts: { webSearch?: boolean } = {}): ChatOpenAI {
+export function makeChatModel(
+  opts: { webSearch?: boolean } = {}
+): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   const model = new ChatOpenAI({
     model: config.GENERATE_MODEL,
     apiKey: config.OPENAI_API_KEY,
     useResponsesApi: true,
   });
   return opts.webSearch
-    ? (model.bindTools([{ type: "web_search_preview" }]) as ChatOpenAI)
+    ? model.bindTools([{ type: "web_search_preview" }])
     : model;
 }
 
