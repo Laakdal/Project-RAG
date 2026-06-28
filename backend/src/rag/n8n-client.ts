@@ -20,8 +20,13 @@ export type IngestResult = {
   chunkCount: number;
 };
 
+const QUERY_TIMEOUT_MS = 90_000;   // answer generation (+ optional web search)
+const READ_TIMEOUT_MS = 120_000;   // background Gemini read of a large/image-heavy doc
+const INGEST_TIMEOUT_MS = 120_000; // legacy ingest (read+chunk+embed); now unused but bounded for safety
+
 const QUERY_PATH = "/webhook/rag-query";
 const INGEST_PATH = "/webhook/rag-ingest";
+const READ_PATH = "/webhook/rag-read";
 
 function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
@@ -36,11 +41,15 @@ export async function queryRag(
   // True only for the first message of a conversation, asking the workflow to
   // also summarize a short title. Defaults false so non-first turns skip it.
   generateTitle = false,
+  // Inline document texts from per-chat uploads. The query workflow will
+  // inject these into the prompt context alongside retrieved chunks.
+  docs: { filename: string; text: string }[] = [],
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, docs }),
+    signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`n8n query failed: ${res.status}`);
@@ -52,6 +61,23 @@ export async function queryRag(
     // Only surface a non-empty string title; the workflow may omit it.
     title: typeof data.title === "string" ? data.title : undefined,
   };
+}
+
+export async function readFile(
+  filename: string,
+  file: Buffer,
+  mimeType: string,
+): Promise<{ text: string }> {
+  const form = new FormData();
+  form.append("filename", filename);
+  // Wrap the buffer as a Blob so multipart sends the binary with a filename.
+  form.append("file", new Blob([file], { type: mimeType }), filename);
+  const res = await fetch(url(READ_PATH), { method: "POST", body: form, signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
+  if (!res.ok) {
+    throw new Error(`n8n read failed: ${res.status}`);
+  }
+  const data = (await res.json()) as Partial<{ text: string }>;
+  return { text: typeof data.text === "string" ? data.text : "" };
 }
 
 export async function ingestFile(
@@ -66,7 +92,7 @@ export async function ingestFile(
   // Wrap the buffer as a Blob so multipart sends the binary with a filename.
   form.append("file", new Blob([file], { type: mimeType }), filename);
 
-  const res = await fetch(url(INGEST_PATH), { method: "POST", body: form });
+  const res = await fetch(url(INGEST_PATH), { method: "POST", body: form, signal: AbortSignal.timeout(INGEST_TIMEOUT_MS) });
   if (!res.ok) {
     throw new Error(`n8n ingest failed: ${res.status}`);
   }

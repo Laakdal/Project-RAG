@@ -6,8 +6,10 @@ export const TEST_USER_ID = "11111111-1111-1111-1111-111111111111";
 
 // A chainable Drizzle-like mock. Each query builder method returns `this`,
 // and awaiting resolves to `result`. Tests set `db.__result` per call.
+// Use `queueResult` to enqueue per-await results that are dequeued in order;
+// falls back to the value set by `setResult` once the queue is empty.
 export function makeDbMock() {
-  const state: { result: unknown } = { result: [] };
+  const state: { result: unknown; queue: unknown[] } = { result: [], queue: [] };
   const chain: Record<string, unknown> = {};
   const methods = [
     "select",
@@ -25,12 +27,24 @@ export function makeDbMock() {
   for (const m of methods) {
     chain[m] = vi.fn(() => chain);
   }
-  (chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) =>
-    Promise.resolve(state.result).then(resolve);
+  (chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) => {
+    const next = state.queue.length > 0 ? state.queue.shift() : state.result;
+    return Promise.resolve(next).then(resolve);
+  };
   return {
     db: chain,
     setResult(result: unknown) {
       state.result = result;
+    },
+    // Enqueue a result that will be used for the next awaited query, then
+    // dequeued. Falls back to setResult value when the queue is empty.
+    queueResult(result: unknown) {
+      state.queue.push(result);
+    },
+    // Clear both the queue and the fallback result (call in beforeEach when
+    // tests use queueResult to avoid cross-test leaks).
+    clearQueue() {
+      state.queue.length = 0;
     },
   };
 }

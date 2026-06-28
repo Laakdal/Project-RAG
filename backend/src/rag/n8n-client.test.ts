@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { queryRag, ingestFile } from "./n8n-client.js";
+import { queryRag, ingestFile, readFile } from "./n8n-client.js";
 
 describe("n8n-client", () => {
   beforeEach(() => {
@@ -24,12 +24,13 @@ describe("n8n-client", () => {
     expect(result.sources[0].filename).toBe("geo.pdf");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-query");
-    // generateTitle defaults to false when not requested.
+    // generateTitle defaults to false when not requested; docs defaults to [].
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
       history: [],
       generateTitle: false,
+      docs: [],
     });
   });
 
@@ -96,5 +97,51 @@ describe("n8n-client", () => {
     await expect(
       ingestFile("conv-1", "doc.pdf", Buffer.from("x"), "application/pdf"),
     ).rejects.toThrow();
+  });
+
+  it("readFile posts multipart to rag-read and returns text", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: "# hello" }),
+    });
+    const out = await readFile("a.pdf", Buffer.from("x"), "application/pdf");
+    expect(out).toEqual({ text: "# hello" });
+    const [calledUrl, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(String(calledUrl)).toMatch(/\/webhook\/rag-read$/);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get("filename")).toBe("a.pdf");
+  });
+
+  it("queryRag includes docs in the request body", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ answer: "ok", sources: [] }),
+    });
+    await queryRag("c1", "q", [], false, [{ filename: "a.pdf", text: "body" }]);
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.docs).toEqual([{ filename: "a.pdf", text: "body" }]);
+  });
+
+  it("readFile sends an abort timeout signal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ text: "x" }), { status: 200 }),
+    );
+    const { readFile } = await import("./n8n-client.js");
+    await readFile("a.pdf", Buffer.from("x"), "application/pdf");
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("queryRag sends an abort timeout signal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ answer: "ok", sources: [] }), { status: 200 }),
+    );
+    const { queryRag } = await import("./n8n-client.js");
+    await queryRag("c1", "q", [], false, []);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 });

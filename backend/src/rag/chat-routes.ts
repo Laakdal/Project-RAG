@@ -11,8 +11,10 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, ingestFile } from "./n8n-client.js";
+import { queryRag } from "./n8n-client.js";
+import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
+import { isAllowedUpload } from "./upload-allowlist.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -25,11 +27,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
 });
-
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
 
 // Types we are willing to render inline (Content-Disposition: inline) in the
 // browser. These are non-scripting in the document context — a PDF is shown by
@@ -305,11 +302,26 @@ router.post(
     // a title only on that first turn (no prior history yet).
     const isFirstMessage = history.length === 0;
 
+    // Gather any per-chat uploaded documents that are ready (or still
+    // processing). ensureExtractedText waits for background reads to finish
+    // before the prompt is assembled, so even a freshly-uploaded file will be
+    // included if it finishes in time.
+    const attRows = await db
+      .select({ id: attachments.id, filename: attachments.filename })
+      .from(attachments)
+      .where(and(eq(attachments.conversationId, req.params.id), sql`${attachments.status} <> 'failed'`));
+
+    const docs: { filename: string; text: string }[] = [];
+    for (const a of attRows) {
+      const text = await ensureExtractedText(a.id);
+      if (text) docs.push({ filename: a.filename, text });
+    }
+
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, docs);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -361,52 +373,29 @@ router.post(
       return;
     }
     const file = req.file;
-    if (!file || !ALLOWED_MIME.has(file.mimetype)) {
-      res.status(400).json({ error: "Only PDF and DOCX files are supported" });
+    if (!file || !isAllowedUpload(file.mimetype, file.originalname)) {
+      res.status(400).json({ error: "Unsupported file type" });
       return;
     }
 
-    // A failed ingest must leave no persisted attachment: if ingestFile throws
-    // (n8n unreachable / non-ok HTTP) or returns a non-ok status, we skip the
-    // insert entirely. The endpoint still answers 200 with status:"failed" so
-    // the frontend keeps its contract and drops the chip; attachmentId is unused
-    // by the client in that case.
-    let result;
-    try {
-      result = await ingestFile(
-        req.params.id,
-        file.originalname,
-        file.buffer,
-        file.mimetype,
-      );
-    } catch {
-      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
-      return;
-    }
-
-    if (result.status !== "ok") {
-      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
-      return;
-    }
-
+    // Insert immediately with status "processing" (DB default is "indexing",
+    // so we must set it explicitly). The file bytes are stored now so the
+    // background reader can fetch them without the request still being alive.
     const rows = await db
       .insert(attachments)
       .values({
         conversationId: req.params.id,
         filename: file.originalname,
-        status: "ready",
-        chunkCount: result.chunkCount,
-        // Keep the original so the file can be opened/previewed later.
+        status: "processing",
         mimeType: file.mimetype,
         data: file.buffer,
       })
       .returning({ id: attachments.id });
 
-    res.status(202).json({
-      attachmentId: rows[0].id,
-      status: "ready",
-      chunkCount: result.chunkCount,
-    });
+    // Fire-and-forget: the reader fetches the file, extracts text via Gemini,
+    // and flips status to "ready" (or "failed") in the background.
+    startBackgroundRead(rows[0].id);
+    res.status(202).json({ attachmentId: rows[0].id, status: "processing" });
   },
 );
 

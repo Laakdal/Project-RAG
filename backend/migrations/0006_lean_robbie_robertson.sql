@@ -1,0 +1,1 @@
+ALTER TABLE "attachments" ADD COLUMN "extracted_text" text;

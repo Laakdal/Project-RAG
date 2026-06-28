@@ -14,11 +14,16 @@ vi.mock("./n8n-client.js", () => ({
     answer: "42",
     sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
   })),
-  ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
+}));
+
+vi.mock("./attachment-reader.js", () => ({
+  startBackgroundRead: vi.fn(),
+  ensureExtractedText: vi.fn(async () => null),
 }));
 
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
-import { queryRag, ingestFile } from "./n8n-client.js";
+import { queryRag } from "./n8n-client.js";
+import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 
 // Imported after mocks are registered.
 const { chatRouter } = await import("./chat-routes.js");
@@ -51,6 +56,7 @@ function sqlLiterals(node: unknown, seen = new Set<unknown>()): string[] {
 // setResult state are preserved.
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.clearQueue();
 });
 
 describe("conversation routes", () => {
@@ -241,15 +247,17 @@ describe("message route", () => {
       text: "the answer is 42",
     });
 
-    // The query ran with (conversationId, question, history, generateTitle).
+    // The query ran with (conversationId, question, history, generateTitle, docs).
     // The shared db mock returns one truthy row for both the ownership lookup
     // and the history read, so history is non-empty here and generateTitle is
     // false; the first-message path is covered by its own test below.
+    // docs is empty because ensureExtractedText returns null by default.
     expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
       "c1",
       "What is the answer?",
       expect.any(Array),
       false,
+      expect.any(Array),
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -294,6 +302,7 @@ describe("message route", () => {
       "Apa isi dokumen ini? Tolong jelaskan.",
       expect.any(Array),
       true,
+      expect.any(Array),
     );
 
     // The conversation title was set from the heuristic (first sentence).
@@ -344,21 +353,60 @@ describe("message route", () => {
       .send({ question: "hi" });
     expect(res.status).toBe(404);
   });
+
+  it("asking a question passes the chat's read docs to the query", async () => {
+    // Queue results in order: ownership lookup, history query (limit 10 → []),
+    // then attachments-for-conv query returns one ready attachment.
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history (no prior messages → first turn)
+    dbMock.queueResult([{ id: "att1", filename: "a.pdf" }]); // attachments query
+    vi.mocked(ensureExtractedText).mockResolvedValueOnce("# the document body");
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    await request(app()).post("/chat/conversations/c1/messages").send({ question: "q" });
+
+    const docsArg = vi.mocked(queryRag).mock.calls[0][4];
+    expect(docsArg).toEqual([{ filename: "a.pdf", text: "# the document body" }]);
+  });
 });
 
 describe("attachment route", () => {
-  it("rejects a non-PDF/DOCX file with 400", async () => {
+  it("rejects a genuinely unsupported file with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("hello"), {
-        filename: "notes.txt",
-        contentType: "text/plain",
+      .attach("file", Buffer.from("PK fake zip"), {
+        filename: "archive.zip",
+        contentType: "application/zip",
       });
     expect(res.status).toBe(400);
   });
 
-  it("accepts a PDF and returns 202 with a chunk count", async () => {
+  it("accepts a newly-supported type (XLSX) and returns 202", async () => {
+    dbMock.setResult([{ id: "att1" }]); // owned lookup + insert .returning row
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("PK fake xlsx"), {
+        filename: "sheet.xlsx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+    expect(res.status).toBe(202);
+    expect(res.body).toMatchObject({ status: "processing" });
+  });
+
+  it("accepts a .md sent as octet-stream via extension fallback", async () => {
+    dbMock.setResult([{ id: "att2" }]);
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("# notes"), {
+        filename: "notes.md",
+        contentType: "application/octet-stream",
+      });
+    expect(res.status).toBe(202);
+  });
+
+  it("accepts a PDF and returns 202 processing immediately", async () => {
     dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
@@ -368,8 +416,17 @@ describe("attachment route", () => {
       });
     expect(res.status).toBe(202);
     expect(res.body.attachmentId).toBe("att1");
-    expect(res.body.status).toBe("ready");
-    expect(res.body.chunkCount).toBe(3);
+    expect(res.body.status).toBe("processing");
+  });
+
+  it("upload returns 202 processing and starts a background read", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership lookup + insert .returning
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("PK"), { filename: "a.pdf", contentType: "application/pdf" });
+    expect(res.status).toBe(202);
+    expect(res.body).toMatchObject({ status: "processing" });
+    expect(vi.mocked(startBackgroundRead)).toHaveBeenCalledWith("att1");
   });
 
   it("stores the file bytes and mime type on a successful upload", async () => {
@@ -385,37 +442,6 @@ describe("attachment route", () => {
     const inserted = valuesSpy.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.mimeType).toBe("application/pdf");
     expect(Buffer.isBuffer(inserted.data)).toBe(true);
-  });
-
-  it("does not persist an attachment when ingestion throws and returns 200 with status:failed", async () => {
-    dbMock.setResult([{ id: "att1" }]); // ownership lookup
-    vi.mocked(ingestFile).mockRejectedValueOnce(new Error("ingest down"));
-    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
-    const res = await request(app())
-      .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("%PDF-1.4 fake"), {
-        filename: "doc.pdf",
-        contentType: "application/pdf",
-      });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
-    // No attachment row was written for the failed ingest.
-    expect(insertSpy).not.toHaveBeenCalled();
-  });
-
-  it("does not persist an attachment when ingestion returns a non-ok status and returns 200 with status:failed", async () => {
-    dbMock.setResult([{ id: "att1" }]); // ownership lookup
-    vi.mocked(ingestFile).mockResolvedValueOnce({ status: "error", chunkCount: 0 });
-    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
-    const res = await request(app())
-      .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("%PDF-1.4 fake"), {
-        filename: "doc.pdf",
-        contentType: "application/pdf",
-      });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
-    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("returns 413 for an oversize upload", async () => {

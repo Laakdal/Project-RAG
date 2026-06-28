@@ -72,6 +72,7 @@ export const attachments = pgTable("attachments", {
   // failed ingests, which persist nothing) have none.
   mimeType: text("mime_type"),
   data: bytea("data"),
+  extractedText: text("extracted_text"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
