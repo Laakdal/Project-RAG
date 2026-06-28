@@ -1,9 +1,5 @@
 'use client';
 
-import useSWR from 'swr';
-
-import { apiClient } from '@/lib/api';
-
 interface SpeechCapabilitySummary {
   provider: string;
   /**
@@ -27,11 +23,6 @@ interface SpeechCapabilitySummary {
   friendlyName?: string | null;
 }
 
-interface SpeechCapabilitiesResponse {
-  tts: SpeechCapabilitySummary | null;
-  stt: SpeechCapabilitySummary | null;
-}
-
 export interface ChatSpeechConfig {
   /** True when an admin has configured a server-side STT provider. */
   hasStt: boolean;
@@ -45,48 +36,22 @@ export interface ChatSpeechConfig {
   error: unknown;
 }
 
-const CAPABILITIES_ENDPOINT = '/api/v1/chat/speech/capabilities';
-
-// Local fetcher so capability probes don't fire the global error toast on
-// transient backend failures — a missing capability simply means the UI
-// should fall back to the browser's Web Speech API.
-async function silentCapabilitiesFetcher(
-  url: string
-): Promise<SpeechCapabilitiesResponse> {
-  const { data } = await apiClient.get<SpeechCapabilitiesResponse>(url, {
-    suppressErrorToast: true,
-  });
-  return data;
-}
-
 /**
- * Fetches the server's configured TTS/STT providers so the chat UI can pick
- * between server-backed and browser speech APIs.
+ * Server speech (TTS/STT) capabilities for the chat UI.
  *
- * A failed fetch (network / auth / backend down) is treated as "unconfigured"
- * so the UX always falls back to the browser's Web Speech API rather than
- * breaking the mic / speaker button.
+ * The server endpoint (/api/v1/chat/speech/capabilities) does not exist on the
+ * RAG backend, so it 404s on chat load. Rather than fire a doomed request, this
+ * reports "unconfigured" — the chat UI then always falls back to the browser's
+ * Web Speech API (the same behavior the fetch previously degraded to on error).
+ * Restore the capabilities fetch when a server-side TTS/STT provider is wired.
  */
 export function useChatSpeechConfig(): ChatSpeechConfig {
-  const { data, error, isLoading } = useSWR<SpeechCapabilitiesResponse>(
-    CAPABILITIES_ENDPOINT,
-    silentCapabilitiesFetcher,
-    {
-      revalidateOnFocus: false,
-      shouldRetryOnError: false,
-      dedupingInterval: 60_000,
-    }
-  );
-
-  const tts = data?.tts ?? null;
-  const stt = data?.stt ?? null;
-
   return {
-    hasTts: Boolean(tts),
-    hasStt: Boolean(stt),
-    tts,
-    stt,
-    isLoading,
-    error,
+    hasTts: false,
+    hasStt: false,
+    tts: null,
+    stt: null,
+    isLoading: false,
+    error: null,
   };
 }
