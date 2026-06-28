@@ -67,9 +67,9 @@ function useDarkMode(): boolean {
 // ─── Mermaid initialisation (singleton) ─────────────────────────────────────
 
 /**
- * Always use mermaid's 'default' (light) theme so that node fills, borders,
- * and text colours render correctly. Arrow/line visibility in dark mode is
- * handled by giving the diagram container a fixed white background (below).
+ * Render with mermaid's 'base' theme plus Project RAG's jade themeVariables so
+ * diagrams are branded (node fills, borders, edges). This stays a light-base
+ * render; dark-mode legibility is handled separately by injectDarkEdgeStyles().
  */
 let mermaidInitPromise: Promise<void> | null = null;
 
@@ -79,9 +79,18 @@ function ensureInit(): Promise<void> {
   mermaidInitPromise = import('mermaid').then(({ default: mermaid }) => {
     mermaid.initialize({
       startOnLoad: false,
-      theme: 'default',
+      theme: 'base',
       securityLevel: 'antiscript',
       fontFamily: 'inherit',
+      // Project RAG jade accent (Radix jade / olive, light base).
+      themeVariables: {
+        primaryColor: '#e7f6ef',
+        primaryBorderColor: '#29a383',
+        primaryTextColor: '#1c2024',
+        lineColor: '#208368',
+        secondaryColor: '#f1f5f3',
+        tertiaryColor: '#fbfdfc',
+      },
     });
   });
 
@@ -369,7 +378,7 @@ function injectDarkEdgeStyles(svgString: string): string {
     `.edgeLabel .label rect { fill: transparent !important; }`,
   ].join(' ');
 
-  const styleBlock = `<style id="ph-dark-edges">${overrides}</style>`;
+  const styleBlock = `<style id="rag-diagram-dark">${overrides}</style>`;
 
   // Insert immediately after the opening <svg> tag
   return svgString.replace(/(<svg\b[^>]*>)/, `$1${styleBlock}`);
@@ -785,19 +794,25 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
       {/* ── Inline toolbar — only shown once the SVG is ready ──────── */}
       {inlineSvg && (
-        <Flex justify="end" align="center" gap="1" style={{ marginBottom: '4px' }}>
-          {copyImageBtn}
-          <ToolbarSep />
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="gray"
-            title="Expand diagram"
-            style={{ cursor: 'pointer', color: 'var(--slate-9)' }}
-            onClick={() => setOpen(true)}
-          >
-            <MaterialIcon name="open_in_full" size={ICON_SIZES.SECONDARY} />
-          </IconButton>
+        <Flex justify="between" align="center" gap="1" style={{ marginBottom: '4px' }}>
+          <Flex align="center" gap="1" style={{ color: 'var(--slate-9)' }}>
+            <MaterialIcon name="account_tree" size={ICON_SIZES.SECONDARY} />
+            <Text size="1" style={{ color: 'var(--slate-9)' }}>{"Diagram"}</Text>
+          </Flex>
+          <Flex align="center" gap="1">
+            {copyImageBtn}
+            <ToolbarSep />
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              title="Expand diagram"
+              style={{ cursor: 'pointer', color: 'var(--slate-9)' }}
+              onClick={() => setOpen(true)}
+            >
+              <MaterialIcon name="open_in_full" size={ICON_SIZES.SECONDARY} />
+            </IconButton>
+          </Flex>
         </Flex>
       )}
 
