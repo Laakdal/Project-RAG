@@ -11,7 +11,7 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, ingestFile } from "./n8n-client.js";
+import { queryRag, ingestFile } from "./provider.js";
 import { titleFromQuestion } from "./title-generator.js";
 
 const router = Router();
