@@ -24,6 +24,21 @@ const envSchema = z.object({
   // Base URL of the n8n instance the backend forwards RAG requests to.
   // Private Docker hostname in deployment (http://n8n:5678).
   N8N_BASE_URL: z.string().url().default("http://localhost:5678"),
+
+  // RAG backend selector. n8n (default) keeps the existing webhook path;
+  // langgraph routes to the in-process LangChain/LangGraph implementation.
+  RAG_PROVIDER: z.enum(["n8n", "langgraph"]).default("n8n"),
+
+  // Langgraph-path config. Optional because the default provider is n8n; the
+  // langgraph provider validates presence at use and throws a clear error.
+  QDRANT_URL: z.string().url().optional(),
+  QDRANT_COLLECTION_LG: z.string().min(1).default("project_rag_chat_lg"),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  GOTENBERG_URL: z.string().url().optional(),
+  GEMINI_READ_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
+  EMBED_MODEL: z.string().min(1).default("text-embedding-3-small"),
+  GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
 });
 
 const parsed = envSchema.safeParse(process.env);
