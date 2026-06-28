@@ -15,6 +15,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.1",
+    "@langchain/langgraph": "^1.4.7",
+    "@langchain/openai": "^1.5.3",
+    "@langchain/qdrant": "^1.0.3",
+    "@langchain/textsplitters": "^1.0.1",
     "@node-rs/argon2": "^2.0.2",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
