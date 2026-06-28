@@ -64,11 +64,16 @@ describe("geminiRead", () => {
       ok: true,
       json: async () => ({ choices: [{ message: { content: "extracted text" } }] }),
     });
+    vi.doMock("../../src/config.js", () => MOCK_CONFIG);
     const { geminiRead } = await import("./models.js");
     const text = await geminiRead(Buffer.from("%PDF-1.4"), "application/pdf");
     expect(text).toBe("extracted text");
-    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(String(url)).toContain("openrouter");
+    const body = JSON.parse(init.body as string) as { model: string };
+    expect(body.model).toBe(MOCK_CONFIG.config.GEMINI_READ_MODEL);
+    const headers = init.headers as Record<string, string>;
+    expect(headers["Authorization"]).toMatch(/^Bearer .+/);
   });
 
   it("throws on a non-ok response", async () => {
