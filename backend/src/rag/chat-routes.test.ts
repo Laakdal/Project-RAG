@@ -17,6 +17,13 @@ vi.mock("./n8n-client.js", () => ({
   ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
 }));
 
+vi.mock("../../src-langchain/library/query.js", () => ({
+  queryLibrary: vi.fn(async () => ({
+    answer: "from library",
+    sources: [{ filename: "lib.pdf", chunkIndex: 0, text: "t", webUrl: "https://drive/x" }],
+  })),
+}));
+
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag, ingestFile } from "./n8n-client.js";
 
@@ -226,6 +233,16 @@ describe("message route", () => {
       .post("/chat/conversations/c1/messages")
       .send({ question: "" });
     expect(res.status).toBe(400);
+  });
+
+  it("answers from the library when useLibrary is set", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + inserts
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "what is in the library?", useLibrary: true });
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toBe("from library");
+    expect(res.body.sources[0].webUrl).toBe("https://drive/x");
   });
 
   it("answers via n8n and persists both turns", async () => {
