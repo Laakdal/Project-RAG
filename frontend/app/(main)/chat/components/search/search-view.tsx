@@ -4,25 +4,19 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildChatHref } from '@/chat/build-chat-url';
-import { ChatApi } from '@/chat/api';
-import type { Conversation } from '@/chat/types';
+import { useChatStore } from '@/chat/store';
 import { Box, Flex, Text, TextField, Theme } from '@radix-ui/themes';
 import { useThemeAppearance } from '@/app/components/theme-provider';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useCommandStore } from '@/lib/store/command-store';
-import { useToastStore } from '@/lib/store/toast-store';
 import { groupConversationsByTime, getNonEmptyGroups } from '@/chat/sidebar/time-group';
 import type { TimeGroupKey } from '@/lib/utils/group-by-time';
-import { TimeGroupedSkeleton, SearchResultsSkeleton } from './skeleton';
+import { TimeGroupedSkeleton } from './skeleton';
 import { ChatRow } from './chat-row';
 import { SearchResultRow } from './search-result-row';
 import { CommandPalette } from './command-palette';
-import { useDebouncedSearch } from '@/knowledge-base/hooks/use-debounced-search';
 
 // ── Constants ──
-
-/** Page size for browse + search inside the ⌘+K overlay */
-const OVERLAY_CONVERSATIONS_LIMIT = 50;
 
 /** Labels for time-group headings */
 const TIME_GROUP_LABELS: Record<TimeGroupKey, string> = {
@@ -31,15 +25,6 @@ const TIME_GROUP_LABELS: Record<TimeGroupKey, string> = {
   'Previous 7 Days': 'Last 7 days',
   'Older': 'Older',
 };
-
-function isAbortOrCancelError(err: unknown): boolean {
-  const e = err as { name?: string; code?: string };
-  return (
-    e.name === 'AbortError' ||
-    e.name === 'CanceledError' ||
-    e.code === 'ERR_CANCELED'
-  );
-}
 
 // ── Main component ──
 
@@ -61,18 +46,18 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
   const agentId = searchParams.get('agentId');
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const addToast = useToastStore((s) => s.addToast);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [contentLeft, setContentLeft] = useState(0);
 
-  const [browseConversations, setBrowseConversations] = useState<Conversation[]>([]);
-  const [searchResults, setSearchResults] = useState<Conversation[]>([]);
-  const [conversationsLoading, setConversationsLoading] = useState(false);
+  // Conversations come from the chat store — the same list the sidebar renders
+  // (loaded from GET /chat/conversations). Browse shows all; search filters by
+  // title client-side. (The old ChatApi.fetchConversations endpoint isn't served
+  // by this backend, which is why this popup used to show "No chats yet".)
+  const allConversations = useChatStore((s) => s.conversations);
+  const conversationsLoading = useChatStore((s) => s.isConversationsLoading);
 
   const dispatch = useCommandStore((s) => s.dispatch);
-
-  const debouncedQuery = useDebouncedSearch(searchQuery.trim(), 350);
 
   // ── Measure main content area offset ──
   useEffect(() => {
@@ -95,58 +80,6 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
     if (!open) return;
     setSearchQuery('');
   }, [open]);
-
-  // Browse (no search) vs search: same API; param omitted when debounced query is empty
-  useEffect(() => {
-    if (!open) return;
-
-    const q = debouncedQuery;
-    const isSearch = q.length > 0;
-
-    const ac = new AbortController();
-    setConversationsLoading(true);
-
-    (async () => {
-      try {
-        const [shared, owned] = await Promise.all([
-          ChatApi.fetchConversations(1, OVERLAY_CONVERSATIONS_LIMIT, {
-            source: 'shared',
-            ...(isSearch ? { search: q } : {}),
-            signal: ac.signal,
-          }),
-          ChatApi.fetchConversations(1, OVERLAY_CONVERSATIONS_LIMIT, {
-            source: 'owned',
-            ...(isSearch ? { search: q } : {}),
-            signal: ac.signal,
-          }),
-        ]);
-        const merged = [...shared.conversations, ...owned.conversations];
-        if (isSearch) {
-          setSearchResults(merged);
-        } else {
-          setBrowseConversations(merged);
-          setSearchResults([]);
-        }
-      } catch (err: unknown) {
-        if (isAbortOrCancelError(err)) return;
-        addToast({
-          variant: 'error',
-          title: "An error occurred",
-          description:
-            err instanceof Error
-              ? err.message
-              : isSearch
-                ? 'Search failed'
-                : 'Could not load conversations',
-        });
-        if (isSearch) setSearchResults([]);
-      } finally {
-        setConversationsLoading(false);
-      }
-    })();
-
-    return () => ac.abort();
-  }, [open, debouncedQuery, addToast]);
 
   // ── Focus input on open ──
   useEffect(() => {
@@ -181,17 +114,23 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
     };
   }, [open]);
 
-  const timeGroups = useMemo(() => {
-    const grouped = groupConversationsByTime(browseConversations);
-    return getNonEmptyGroups(grouped);
-  }, [browseConversations]);
-
   const trimmedInput = searchQuery.trim();
   const inSearchMode = trimmedInput.length > 0;
-  /** True while debounce hasn’t caught up to the input, or a search request is in flight */
-  const searchPending =
-    inSearchMode &&
-    (debouncedQuery !== trimmedInput || conversationsLoading);
+
+  // Search filters the store's conversations by title (client-side, instant).
+  const searchResults = useMemo(() => {
+    if (!inSearchMode) return [];
+    const q = trimmedInput.toLowerCase();
+    return allConversations.filter((c) => (c.title ?? '').toLowerCase().includes(q));
+  }, [allConversations, inSearchMode, trimmedInput]);
+
+  const timeGroups = useMemo(
+    () =>
+      inSearchMode
+        ? []
+        : getNonEmptyGroups(groupConversationsByTime(allConversations)),
+    [allConversations, inSearchMode],
+  );
 
   // ── Handlers ──
   const handleNewChat = useCallback(() => {
@@ -293,9 +232,7 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
             }}
           >
             {inSearchMode ? (
-              searchPending ? (
-                <SearchResultsSkeleton />
-              ) : searchResults.length > 0 ? (
+              searchResults.length > 0 ? (
                 <Flex direction="column" gap="1">
                   {searchResults.map((conv) => (
                     <SearchResultRow

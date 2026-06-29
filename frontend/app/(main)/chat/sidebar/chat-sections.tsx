@@ -12,12 +12,6 @@ import { debugLog } from '@/chat/debug-logger';
 import { ChatSection } from './chat-section';
 import { groupConversationsByTime, getNonEmptyGroups } from './time-group';
 
-/**
- * Maximum number of chat items shown per section before
- * overflow triggers a "More" button. Chat-sidebar-specific.
- */
-const MAX_VISIBLE_CHATS = 10;
-
 /** Number of skeleton items shown while loading each section */
 const YOUR_CHATS_SKELETON_COUNT = 3;
 
@@ -68,16 +62,9 @@ export const ChatSections = React.memo(function ChatSections({
     if (isMobile) closeMobileSidebar();
   };
 
-  // Overflow detection — show "More" if there are more items than fit,
-  // OR if the server indicated there are additional pages to fetch.
-  const hasMoreYour =
-    conversations.length > MAX_VISIBLE_CHATS ||
-    (conversations.length > 0 && (pagination?.hasNextPage ?? false));
-
-  // Slice for overflow limit
-  const visibleYour = hasMoreYour
-    ? conversations.slice(0, MAX_VISIBLE_CHATS)
-    : conversations;
+  // "More" button removed — render every conversation in the scrollable Recents
+  // list (older chats are also reachable via the ⌘+K search popup).
+  const visibleYour = conversations;
 
   // Time-group "Your Chats"
   const yourTimeGroups = groupConversationsByTime(visibleYour);
@@ -136,7 +123,7 @@ export const ChatSections = React.memo(function ChatSections({
             onNewChat={handleNewChat}
             skeletonCount={YOUR_CHATS_SKELETON_COUNT}
             isScrollable
-            hasMore={hasMoreYour}
+            hasMore={false}
             onMore={() => onOpenMoreChats('your')}
             pendingConversations={activePendingConversations}
           />
