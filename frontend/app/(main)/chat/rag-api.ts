@@ -5,6 +5,8 @@ export interface Source {
   filename: string;
   chunkIndex: number;
   text: string;
+  /** Present for library results — links the citation to the Drive doc. */
+  webUrl?: string;
 }
 
 export interface ChatMessage {
@@ -109,10 +111,11 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 export async function askQuestion(
   conversationId: string,
   question: string,
+  useLibrary = false,
 ): Promise<{ answer: string; sources: Source[] }> {
   const { data } = await apiClient.post(
     `/chat/conversations/${conversationId}/messages`,
-    { question },
+    useLibrary ? { question, useLibrary: true } : { question },
   );
   return data;
 }
