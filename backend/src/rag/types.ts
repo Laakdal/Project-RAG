@@ -6,6 +6,8 @@ export type QuerySource = {
   filename: string;
   chunkIndex: number;
   text: string;
+  // Present for library results — links the citation to the source Drive doc.
+  webUrl?: string;
 };
 
 export type QueryResult = {
