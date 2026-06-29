@@ -12,4 +12,9 @@ describe("titleFromQuestion", () => {
   it("falls back to 'New chat' on empty input", () => {
     expect(titleFromQuestion("   ")).toBe("New chat");
   });
+  it("strips a leading list marker so numbered prompts aren't titled just '1'", () => {
+    expect(
+      titleFromQuestion("1. User membuka halaman login. 2. User memasukkan username."),
+    ).toBe("User membuka halaman login");
+  });
 });
