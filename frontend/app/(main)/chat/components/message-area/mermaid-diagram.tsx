@@ -408,8 +408,10 @@ function makeSvgResponsive(svgString: string, fillWidth = true): string {
       svg.style.width = '100%';
       svg.style.maxWidth = 'none';
     } else {
-      // Inline: render at natural size; only shrink if wider than container
+      // Inline: shrink to fit — cap width AND height so tall flowcharts stay
+      // compact in the message list (the expand button shows full detail).
       svg.style.maxWidth = '100%';
+      svg.style.maxHeight = '360px';
     }
     svg.style.height = 'auto';
     return new XMLSerializer().serializeToString(svg);
@@ -834,7 +836,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         }}
       >
         {inlineSvg ? (
-          <div dangerouslySetInnerHTML={{ __html: displayInlineSvg ?? '' }} style={{ width: '100%' }} />
+          <div dangerouslySetInnerHTML={{ __html: displayInlineSvg ?? '' }} style={{ width: '100%', display: 'flex', justifyContent: 'center' }} />
         ) : (
           <Flex align="center" gap="2">
             <Spinner size="2" />
