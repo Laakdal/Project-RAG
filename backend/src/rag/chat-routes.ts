@@ -4,14 +4,14 @@ import {
   type Response,
   type NextFunction,
 } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import multer from "multer";
 import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag } from "./n8n-client.js";
+import { queryRag, type QueryResult } from "./n8n-client.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
@@ -356,6 +356,85 @@ router.post(
           ),
         );
     }
+
+    res.json({ answer: result.answer, sources: result.sources });
+  },
+);
+
+// Regenerate the most recent assistant answer IN PLACE: re-run the query for the
+// last user question and overwrite the existing assistant message, so the answer
+// is replaced rather than a new turn appended. There is no streaming regenerate;
+// this mirrors the ask path (queryRag) and updates the row by id so the client
+// can refresh that one message.
+router.post(
+  "/conversations/:id/messages/regenerate",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    // The latest assistant message is the one to replace; the latest user
+    // message is the question to re-ask.
+    const [lastAssistant] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, req.params.id),
+          eq(messages.role, "assistant"),
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    const [lastUser] = await db
+      .select({ content: messages.content, createdAt: messages.createdAt })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, req.params.id),
+          eq(messages.role, "user"),
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    if (!lastAssistant || !lastUser) {
+      res.status(400).json({ error: "Nothing to regenerate" });
+      return;
+    }
+
+    // Prior turns (everything before the question being regenerated), oldest→
+    // newest and capped — same memory window as the ask route.
+    const priorRows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, req.params.id),
+          lt(messages.createdAt, lastUser.createdAt),
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(10);
+    const history = priorRows.reverse();
+
+    let result: QueryResult;
+    try {
+      result = await queryRag(req.params.id, lastUser.content, history, false);
+    } catch {
+      res.status(502).json({ error: "The assistant is unavailable right now" });
+      return;
+    }
+
+    // Overwrite the existing assistant message in place (id stable), so the
+    // client replaces that bubble instead of appending a new turn.
+    await db
+      .update(messages)
+      .set({ content: result.answer, sources: result.sources })
+      .where(eq(messages.id, lastAssistant.id));
 
     res.json({ answer: result.answer, sources: result.sources });
   },

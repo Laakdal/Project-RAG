@@ -370,6 +370,55 @@ describe("message route", () => {
   });
 });
 
+describe("regenerate route", () => {
+  it("re-runs the query and overwrites the last assistant answer in place", async () => {
+    // One row serves the ownership lookup, the last-assistant/last-user reads,
+    // and the history read (all reads share the mock's setResult).
+    dbMock.setResult([
+      { id: "m1", role: "user", content: "redo this", createdAt: "t" },
+    ]);
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toBe("42");
+
+    // The last user question is re-asked (generateTitle false).
+    expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
+      "c1",
+      "redo this",
+      expect.any(Array),
+      false,
+    );
+
+    // The answer is written via UPDATE .set (overwrite in place), not a new insert.
+    expect(setSpy).toHaveBeenCalledWith({
+      content: "42",
+      sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
+    });
+  });
+
+  it("returns 404 regenerating a conversation the user does not own", async () => {
+    dbMock.setResult([]); // ownership lookup empty
+    const res = await request(app())
+      .post("/chat/conversations/cX/messages/regenerate")
+      .send({});
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 502 when the assistant is unavailable", async () => {
+    dbMock.setResult([
+      { id: "m1", role: "user", content: "q", createdAt: "t" },
+    ]);
+    vi.mocked(queryRag).mockRejectedValueOnce(new Error("n8n down"));
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({});
+    expect(res.status).toBe(502);
+  });
+});
+
 describe("attachment route", () => {
   it("rejects a genuinely unsupported file with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned
