@@ -22,6 +22,19 @@ describe("generate node", () => {
     expect(out.answer).toBe("hello world");
   });
 
+  it("system prompt carries comparison-structure guidance and the grounding guardrail", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "which is better, A or B?", docs } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "system");
+    expect(system).toBeDefined();
+    expect(system!.content).toMatch(/only the provided context/i);
+    expect(system!.content).toMatch(/Recommendation:/);
+    expect(system!.content).toMatch(/table/i);
+    expect(system!.content).toMatch(/do not invent|never invent/i);
+  });
+
   it("returns FALLBACK_ANSWER and empty sources when the LLM errors", async () => {
     invoke.mockRejectedValueOnce(new Error("llm down"));
     const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "context" }];

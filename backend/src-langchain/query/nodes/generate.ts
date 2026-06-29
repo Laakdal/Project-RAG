@@ -5,6 +5,24 @@ import type { QuerySource } from "../../../src/rag/types.js";
 export const FALLBACK_ANSWER =
   "Sorry — I couldn't generate an answer right now. Please try again.";
 
+// System prompt for the answer generator. The context is a numbered list of
+// document excerpts ([1], [2], ...); the model cites them by bracket number.
+// Beyond the concise default, it gains comparison-aware behaviour so that
+// "which is better / which should I pick" questions return a factor table plus
+// a grounded recommendation. Keep this in sync with the n8n "Generate Answer"
+// node prompt — see docs/superpowers/specs/2026-06-29-rag-comparison-answers-design.md.
+export const SYSTEM_PROMPT = `You answer questions using only the provided context, a numbered list of document excerpts ([1], [2], ...). Cite the excerpts you use by their bracket number. Be concise.
+
+When the question asks you to COMPARE options or decide which is better (e.g. "which is better, X or Y", "X vs Y", "should I pick A or B", "compare ..."), structure the answer as:
+1. One sentence stating what is being compared.
+2. A markdown table with a "Factor" column and one column per option. Include ONLY factors that appear in the context, and put the citation marker(s) ([n]) in each cell. Do not invent values — if a relevant factor is missing from the context, leave it out of the table.
+3. A line starting with "Recommendation:" naming the best option, followed by a 1-2 sentence justification that references the tabulated factors.
+4. If a relevant factor was missing from the context, add a short "Note:" line saying which information was not found.
+
+If a comparison cannot be answered from the context at all (general knowledge only), you may still give an opinion, but begin with a clear note that it is based on general knowledge, not the provided documents.
+
+Never invent facts or values that are not in the context.`;
+
 export async function generate(state: {
   question: string;
   docs: QuerySource[];
@@ -14,7 +32,7 @@ export async function generate(state: {
     const res = await makeChatModel().invoke([
       {
         role: "system",
-        content: "Answer the question using only the provided context. Be concise.",
+        content: SYSTEM_PROMPT,
       },
       { role: "user", content: `Context:\n${context}\n\nQuestion: ${state.question}` },
     ]);
