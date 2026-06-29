@@ -6,7 +6,7 @@
 
 **Architecture:** The frontend already renders ` ```mermaid ` blocks via the existing `MermaidDiagram` component (streaming-safe, auto-repair, fullscreen). The feature is therefore two changes: (1) make the n8n RAG Query answer model *emit* a `mermaid` block on a hybrid trigger, and (2) a one-file branding tweak to the renderer. No backend/DB/sandbox/artifact work.
 
-**Tech Stack:** Next.js 15 (App Router), TypeScript, Radix Themes, `mermaid@^11.15.0`, `react-markdown`; n8n for RAG (workflow `RAG Query`, id `H4WL7om1JO3UmavC`); answer model `gpt-4o-mini`.
+**Tech Stack:** Next.js 15 (App Router), TypeScript, Radix Themes, `mermaid@^11.15.0`, `react-markdown`; n8n for RAG (workflow `RAG Query`, id `H4WL7om1JO3UmavC`); answer model `glm-4.6`.
 
 **Spec:** `docs/superpowers/specs/2026-06-28-mermaid-chat-diagrams-design.md`
 
@@ -45,7 +45,7 @@ Expected: you can point to one node and one prompt string.
 
 - [ ] **Step 3: Append the diagram guidance to that node's system prompt**
 
-Leave the existing prompt intact. Append the following section to the end of the system prompt verbatim (this is copied from the spec; the two few-shot examples are the key reliability lever for `gpt-4o-mini`):
+Leave the existing prompt intact. Insert the following section before the `Document context:` block (this is copied from the spec; the two few-shot examples anchor correct syntax for the answer model `glm-4.6`):
 
 ```
 Diagrams. When a process, algorithm, sequence of steps, state machine, or set of relationships would be clearer drawn — or whenever the user asks you to draw / diagram / visualize / flowchart something — include exactly one Mermaid diagram in a ```mermaid fenced code block, in addition to a short text explanation (never instead of it). Do not add a diagram for plain factual or conversational answers.
