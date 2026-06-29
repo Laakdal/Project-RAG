@@ -109,10 +109,10 @@ export default function SingleProvider({ hideTitle = false }: SingleProviderProp
             size="3"
             disabled={!password || !email.trim() || !isValidEmail(email.trim())}
             loading={auth.loading}
-            loadingLabel={"Signing in…"}
-            style={{ flex: 1, backgroundColor: 'var(--accent-9)', color: 'white', fontWeight: 500 }}
+            loadingLabel={"Logging in…"}
+            style={{ width: '100%', backgroundColor: 'var(--accent-9)', color: 'white', fontWeight: 500 }}
           >
-            {"Sign In"}
+            {"Log In"}
           </LoadingButton>
         </Flex>
       </form>
