@@ -930,6 +930,7 @@ function ChatContent() {
     if (prevConversationIdRef.current !== conversationId) {
       prevConversationIdRef.current = conversationId;
       clearPreview();
+      setFilesPanelMobileOpen(false);
     }
   }, [conversationId, clearPreview]);
 
@@ -1001,6 +1002,11 @@ function ChatContent() {
       /* ignore */
     }
   }, [filesPanelCollapsed]);
+
+  // Mobile: the files panel has no inline room, so it opens as a right-side
+  // slide-in overlay (toggled by a top-right button), mirroring the left
+  // sidebar's mobile drawer.
+  const [filesPanelMobileOpen, setFilesPanelMobileOpen] = useState(false);
 
   const filesPanelWidthRef = useRef(filesPanelWidthPx);
   useLayoutEffect(() => {
@@ -1375,36 +1381,15 @@ function ChatContent() {
           </>
         )}
 
-        {/* Files-in-this-chat side panel — collapsible + resizable. Only when a
-            conversation is open and the split-pane preview is NOT showing (one
-            right panel at a time). */}
+        {/* Files-in-this-chat side panel — collapsible + resizable, with a width
+            slide animation on collapse/expand (matches the left sidebar). Desktop
+            only, when a conversation is open and the split-pane preview is NOT
+            showing (one right panel at a time). On mobile it opens as an overlay
+            (below) instead. */}
         {conversationId && !showSplitPane && !isMobile && (
-          filesPanelCollapsed ? (
-            <Flex
-              direction="column"
-              align="center"
-              style={{
-                flex: '0 0 40px',
-                height: '100%',
-                borderLeft: '1px solid var(--slate-6)',
-                paddingTop: 'var(--space-3)',
-              }}
-            >
-              <Tooltip content="Show files in this chat" side="left">
-                <IconButton
-                  variant="ghost"
-                  size="1"
-                  color="gray"
-                  onClick={() => setFilesPanelCollapsed(false)}
-                  aria-label="Expand files panel"
-                >
-                  <MaterialIcon name="keyboard_tab" size={18} color="var(--slate-11)" style={{ transform: 'scaleX(-1)' }} />
-                </IconButton>
-              </Tooltip>
-            </Flex>
-          ) : (
-            <>
-              {/* Resize handle — drag left/right to set the panel width */}
+          <>
+            {/* Resize handle — only when expanded; drag left/right to set width */}
+            {!filesPanelCollapsed && (
               <Box
                 role="separator"
                 aria-orientation="vertical"
@@ -1425,22 +1410,105 @@ function ChatContent() {
                   ev.currentTarget.style.backgroundColor = 'var(--slate-3)';
                 }}
               />
-              <Box
-                style={{
-                  flex: `0 0 ${filesPanelWidthPx}px`,
-                  height: '100%',
-                  borderLeft: '1px solid var(--slate-6)',
-                }}
-              >
+            )}
+            {/* Single container whose width animates between the 40px rail and the
+                resizable panel width, so collapse/expand slides instead of snapping. */}
+            <Box
+              style={{
+                width: filesPanelCollapsed ? '40px' : `${filesPanelWidthPx}px`,
+                flexShrink: 0,
+                height: '100%',
+                borderLeft: '1px solid var(--slate-6)',
+                overflow: 'hidden',
+                transition: 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
+              {filesPanelCollapsed ? (
+                <Flex
+                  direction="column"
+                  align="center"
+                  style={{ height: '100%', paddingTop: 'var(--space-3)' }}
+                >
+                  <Tooltip content="Show files in this chat" side="left">
+                    <IconButton
+                      variant="ghost"
+                      size="1"
+                      color="gray"
+                      onClick={() => setFilesPanelCollapsed(false)}
+                      aria-label="Expand files panel"
+                    >
+                      <MaterialIcon name="keyboard_tab" size={18} color="var(--slate-11)" style={{ transform: 'scaleX(-1)' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Flex>
+              ) : (
                 <ConversationFilesPanel
                   conversationId={conversationId}
                   onCollapse={() => setFilesPanelCollapsed(true)}
                 />
-              </Box>
-            </>
-          )
+              )}
+            </Box>
+          </>
         )}
       </Flex>
+
+      {/* Mobile: top-right button to open the files panel (no inline room on a
+          phone). Mirrors the layout's top-left hamburger. Only in a conversation. */}
+      {isMobile && conversationId && (
+        <Box
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            paddingRight: 'var(--space-3)',
+            zIndex: 100,
+          }}
+        >
+          <IconButton
+            variant="ghost"
+            color="gray"
+            size="2"
+            onClick={() => setFilesPanelMobileOpen(true)}
+            style={{ margin: 0 }}
+            aria-label="Show files in this chat"
+          >
+            <MaterialIcon name="folder_open" size={22} color="var(--gray-11)" />
+          </IconButton>
+        </Box>
+      )}
+
+      {/* Mobile: files panel as a right-side slide-in drawer over a backdrop. */}
+      {isMobile && conversationId && filesPanelMobileOpen && (
+        <>
+          <Box
+            onClick={() => setFilesPanelMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 199, backgroundColor: 'var(--black-a6)' }}
+          />
+          <Box
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(360px, 85vw)',
+              zIndex: 200,
+              backgroundColor: 'var(--olive-1)',
+              borderLeft: '1px solid var(--slate-6)',
+              boxShadow: '0px 20px 48px 0px var(--black-a6)',
+              overflow: 'hidden',
+              animation: 'slideInFromRight 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <ConversationFilesPanel
+              conversationId={conversationId}
+              onCollapse={() => setFilesPanelMobileOpen(false)}
+            />
+          </Box>
+        </>
+      )}
 
       {/* File Preview - Fullscreen overlay.
           Shown in two cases:
