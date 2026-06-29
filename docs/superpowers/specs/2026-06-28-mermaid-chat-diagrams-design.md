@@ -42,7 +42,7 @@ change in n8n and (2) a small branding/theming tweak to the existing component.
 - **No** Express backend changes, **no** DB/schema changes, **no** new npm deps.
 - **No** CSV-table or inline-image prompt changes (the renderer supports both,
   but they are not requested here).
-- **No** model routing changes — the existing `gpt-4o-mini` answer model stays.
+- **No** model routing changes — the existing answer model (`glm-4.6`) stays.
 
 ## Decisions (locked with the user)
 
@@ -115,8 +115,9 @@ implementation; intent is fixed):
 >     Running --> [*]: exit
 > ```
 
-The two few-shot examples are the single biggest reliability lever for
-`gpt-4o-mini`, which can otherwise emit subtly invalid syntax.
+The two few-shot examples anchor correct syntax for the answer model
+(`glm-4.6`). It rarely emits invalid Mermaid, and the frontend error banner
+covers any misses — the examples are insurance.
 
 ### Change 2 — branded theming tweak (`mermaid-diagram.tsx`)
 
@@ -162,7 +163,7 @@ light slate, so this matches the component's existing assumption.
 
 ## Error & edge handling (already provided by the component)
 
-- **Invalid syntax** from the small model → `normalizeMermaid` + `sanitizeMermaid`
+- **Invalid syntax** from the model → `normalizeMermaid` + `sanitizeMermaid`
   attempt repair; on hard failure the amber "Could not render diagram" banner
   shows with a copyable source view. The answer text is never broken.
 - **Mid-stream partial** diagram → 400 ms debounce keeps a spinner until the
