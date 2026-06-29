@@ -7,7 +7,6 @@ import { Flex, Box, Text, IconButton, Tooltip, Popover } from '@radix-ui/themes'
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { ChatInputExpansionPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-expansion-panel';
 import { ChatInputOverlayPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-overlay-panel';
-import { QueryModePanel } from '@/chat/components/chat-panel/expansion-panels/query-mode-panel';
 import { ConnectorsCollectionsPanel } from '@/chat/components/chat-panel/expansion-panels/connectors-collections/connectors-collections-panel';
 import { AgentScopedResourcesPanel } from '@/chat/components/chat-panel/expansion-panels/agent-scoped-resources-panel';
 import { UniversalAgentResourcesPanel } from '@/chat/components/chat-panel/expansion-panels/universal-agent-resources-panel';
@@ -20,7 +19,6 @@ import {
   AgentStrategyModeSwitcher,
   AgentStrategyModePanel,
 } from '@/chat/components/chat-panel';
-import { MobileQueryModesSheet } from '@/chat/components/chat-panel/expansion-panels/mobile-query-modes-sheet';
 import { AgentStrategyDropdown } from '@/chat/components/agent-strategy-dropdown';
 import { getQueryModeConfig } from '@/chat/constants';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
@@ -184,7 +182,6 @@ export function ChatInput({
   // Read all chat settings directly from the shared store
   const settings = useChatStore((s) => s.settings);
   const setMode = useChatStore((s) => s.setMode);
-  const setQueryMode = useChatStore((s) => s.setQueryMode);
   const setAgentStrategy = useChatStore((s) => s.setAgentStrategy);
   const setFilters = useChatStore((s) => s.setFilters);
   const setSelectedModelForCtx = useChatStore((s) => s.setSelectedModelForCtx);
@@ -991,11 +988,8 @@ export function ChatInput({
             />
           ) : (
             <ModeSwitcher
-              activeQueryConfig={activeQueryConfig}
               modeColors={modeColors}
               isSearchMode={isSearchMode}
-              isModePanelOpen={false}
-              showFullUI={false}
               onLeftClick={handleExpand}
               onRightClick={handleExpand}
             />
@@ -1229,24 +1223,6 @@ export function ChatInput({
             }}
           />
         </ChatInputExpansionPanel>
-      ) : isModePanelOpen && !isAgentChat ? (
-        <ChatInputExpansionPanel
-          open={isModePanelOpen}
-          onClose={() => setIsModePanelOpen(false)}
-          minHeight='0'
-          height='fit-content'
-        >
-          <QueryModePanel
-            activeMode={settings.queryMode}
-            onSelect={(queryMode) => {
-              setQueryMode(queryMode);
-              if (isSearchMode) {
-                setMode('chat');
-              }
-              setIsModePanelOpen(false);
-            }}
-          />
-        </ChatInputExpansionPanel>
       ) : isModelPanelOpen ? (
         <ChatInputExpansionPanel
           open={isModelPanelOpen}
@@ -1392,26 +1368,15 @@ export function ChatInput({
             />
           ) : (
             <ModeSwitcher
-              activeQueryConfig={activeQueryConfig}
               modeColors={modeColors}
               isSearchMode={isSearchMode}
-              isModePanelOpen={isModePanelOpen}
-              showFullUI={showFullUI}
               onLeftClick={
                 isSearchMode
                   ? () => {
                       setMode('chat');
                       useChatStore.getState().clearSearchResults();
                     }
-                  : isMobile
-                    ? () => setIsMobileModesOpen(true)
-                    : () => {
-                        setIsModePanelOpen((prev) => !prev);
-                        setIsAgentStrategyPanelOpen(false);
-                        setIsCollectionsPanelOpen(false);
-                        setIsAgentResourcesPanelOpen(false);
-                        setShowUploadArea(false);
-                      }
+                  : () => {}
               }
               onRightClick={
                 isSearchMode
@@ -1419,7 +1384,6 @@ export function ChatInput({
                   : () => {
                       useCommandStore.getState().dispatch('newChat');
                       setMode('search');
-                      setIsModePanelOpen(false);
                     }
               }
             />
@@ -1621,13 +1585,6 @@ export function ChatInput({
       </Box>
     )}
     </Flex>
-
-    {/* Mobile query modes sheet — mode switcher → sheet flow */}
-    <MobileQueryModesSheet
-      open={isMobileModesOpen}
-      onOpenChange={setIsMobileModesOpen}
-      agentChat={isAgentChat}
-    />
 
     {/* Overlay panel — collections (assistant) or agent resources (overlay mode) */}
     <ChatInputOverlayPanel

@@ -12,7 +12,6 @@ import type { ModelInfo, AppliedFilters } from '@/chat/types';
 import type { CitationMaps } from './response-tabs/citations';
 import { useCommandStore } from '@/lib/store/command-store';
 import { toast } from '@/lib/store/toast-store';
-import { useChatSpeechSynthesis } from '@/lib/hooks/use-chat-speech-synthesis';
 import { ChatApi, type FeedbackPayload } from '../../api';
 import { useChatStore } from '../../store';
 
@@ -112,14 +111,12 @@ export function MessageActions({
   messageId,
   question,
   isLastMessage = false,
-  appliedFilters,
 }: MessageActionsProps) {
   const [feedbackGiven, setFeedbackGiven] = useState<FeedbackValue | null>(null);
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
   const [copiedTooltipOpen, setCopiedTooltipOpen] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState('');
   const copiedTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [readAloudHovered, setReadAloudHovered] = useState(false);
 
   // ── Like popover state ──
   const [likeOpen, setLikeOpen] = useState(false);
@@ -134,26 +131,6 @@ export function MessageActions({
   const [dislikeSubmitting, setDislikeSubmitting] = useState(false);
 
   const switchingRef = useRef(false);
-
-  const { isSpeaking, isSupported: isTtsSupported, speak, stop: stopSpeech } = useChatSpeechSynthesis({
-    lang: 'en',
-    onError: (error) => {
-      if (error === 'not-supported') {
-        toast.error("Text-to-speech is not supported in this browser");
-      } else {
-        toast.error("Failed to read aloud. Please try again.");
-      }
-    },
-  });
-
-  const handleReadAloud = useCallback(() => {
-    if (isSpeaking) {
-      stopSpeech();
-    } else {
-      const plainText = stripMarkdownAndCitations(content);
-      speak(plainText);
-    }
-  }, [isSpeaking, stopSpeech, content, speak]);
 
   // ── Thumbs up ──
   const handleLikeClick = useCallback(() => {
@@ -269,10 +246,12 @@ export function MessageActions({
     setDislikeOpen(false);
   }, []);
 
-  const handleRegenerate = useCallback(() => {
-    if (!messageId) return;
-    useCommandStore.getState().dispatch('showRegenBar', { messageId, text: question, appliedFilters });
-  }, [messageId, question, appliedFilters]);
+  // Retry: re-ask the same question through the normal send path (handled by
+  // ChatInputWrapper). The backend has no regenerate endpoint, so this asks
+  // again as a fresh turn rather than replacing the answer in place.
+  const handleRetry = useCallback(() => {
+    useCommandStore.getState().dispatch('retryAsk');
+  }, []);
 
   const copyToClipboard = useCallback(
     async (text: string, message: string) => {
@@ -687,50 +666,22 @@ export function MessageActions({
           </Box>
         </Tooltip>
 
-        {/* Regenerate - only show for the last message */}
-        {isLastMessage && messageId &&(
-          <Tooltip content="Regenerate" side="top">
+        {/* Retry — regenerate the latest answer in place (last message only) */}
+        {isLastMessage && question && question.trim() && (
+          <Tooltip content="Retry" side="top">
             <IconButton
               variant="ghost"
               color="gray"
               size="2"
-              disabled={!messageId}
-              onClick={handleRegenerate}
+              onClick={handleRetry}
               style={{
                 margin: 0,
-                cursor: messageId ? 'pointer' : 'default',
+                cursor: 'pointer',
                 color: 'var(--slate-9)',
                 borderRadius: 'var(--radius-1)',
               }}
             >
-              <MaterialIcon name="refresh" size={ICON_SIZES.PRIMARY} color="var(--slate-11)" />
-            </IconButton>
-          </Tooltip>
-        )}
-
-        {/* Read aloud */}
-        {isTtsSupported && (
-          <Tooltip content={isSpeaking ? "Stop reading" : "Read aloud"} side="top">
-            <IconButton
-              variant="ghost"
-              color="gray"
-              size="2"
-              onClick={handleReadAloud}
-              onMouseEnter={() => setReadAloudHovered(true)}
-              onMouseLeave={() => setReadAloudHovered(false)}
-              style={{
-                margin: 0,
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-1)',
-                backgroundColor: isSpeaking ? 'var(--accent-a4)' : readAloudHovered ? 'var(--slate-a3)' : 'transparent',
-                color: isSpeaking ? 'var(--accent-11)' : 'var(--slate-9)',
-              }}
-            >
-              <MaterialIcon
-                name={isSpeaking ? 'stop' : 'volume_up'}
-                size={ICON_SIZES.MINIMAL}
-                color={isSpeaking ? 'var(--accent-11)' : 'var(--slate-11)'}
-              />
+              <MaterialIcon name="refresh" size={ICON_SIZES.SECONDARY} color="var(--slate-11)" />
             </IconButton>
           </Tooltip>
         )}

@@ -1,16 +1,12 @@
 'use client';
 
-import Image from 'next/image';
 import { Flex, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import type { QueryModeConfig } from '@/chat/types';
 
 interface ModeSwitcherProps {
-  /** Current query mode configuration */
-  activeQueryConfig: QueryModeConfig;
   /** Mode colors (bg, fg, icon) */
   modeColors: {
     bg: string;
@@ -19,41 +15,23 @@ interface ModeSwitcherProps {
   };
   /** Whether in search mode (changes layout) */
   isSearchMode: boolean;
-  /** Whether the mode panel is open (changes caret direction) */
-  isModePanelOpen: boolean;
-  /** Whether in full UI mode (affects caret behavior) */
-  showFullUI: boolean;
-  /** Handler for primary button (mode button or return-to-chat) */
+  /** Handler for the left button — only used in search mode (return to chat). */
   onLeftClick: () => void;
-  /** Handler for secondary button (search toggle) */
+  /** Handler for the search toggle button. */
   onRightClick: () => void;
 }
 
 /**
- * Maps the toolbarLabel identifier stored in QueryModeConfig to a plain-English
- * display string (constants.ts still holds these identifier strings).
- */
-const TOOLBAR_LABEL_MAP: Record<string, string> = {
-  'chat.queryModes.agent.toolbarLabel': "Agent",
-  'chat.queryModes.chat.toolbarLabel': "Internal Search",
-  'chat.queryModes.web-search.toolbarLabel': "Web",
-  'chat.queryModes.image.toolbarLabel': "Image",
-};
-
-/**
- * Mode switcher pill with left/right buttons.
- * Used by both collapsed widget and full toolbar in ChatInput.
+ * Mode switcher pill.
  *
- * Layout adapts based on isSearchMode:
- * - Chat mode: [Mode + Dropdown] [Search Icon]
- * - Search mode: [Mode Icon] [Search + Text]
+ * The query-mode picker (Internal Search / Web Search) was removed — n8n's RAG
+ * Query handles doc + web retrieval in one call, so there is nothing to switch
+ * between. In the normal layout the pill is just a search toggle; in search mode
+ * it shows a back-to-chat icon plus the active "Search" button.
  */
 export function ModeSwitcher({
-  activeQueryConfig,
   modeColors,
   isSearchMode,
-  isModePanelOpen,
-  showFullUI,
   onLeftClick,
   onRightClick,
 }: ModeSwitcherProps) {
@@ -67,13 +45,12 @@ export function ModeSwitcher({
         borderRadius: 'var(--radius-1)',
         padding: 'var(--space-1)',
         gap: 0,
-        // width: '152px',
         flexShrink: 0,
       }}
     >
       {isSearchMode ? (
         <>
-          {/* Icon-only mode button (left) */}
+          {/* Back-to-chat icon (left) */}
           <Flex
             align="center"
             justify="center"
@@ -92,7 +69,7 @@ export function ModeSwitcher({
             />
           </Flex>
 
-          {/* Search button with text (right) */}
+          {/* Active search button with text (right) */}
           <Flex
             align="center"
             justify="center"
@@ -125,85 +102,25 @@ export function ModeSwitcher({
           </Flex>
         </>
       ) : (
-        <>
-          {/* Mode label + dropdown (left) */}
-          <Flex
-            align="center"
-            gap="2"
-            onClick={onLeftClick}
-            style={{
-              flex: 1,
-              height: 'var(--space-6)',
-              borderRadius: 'var(--radius-2)',
-              background: modeColors.bg,
-              cursor: 'pointer',
-              paddingLeft: 'var(--space-3)',
-              paddingRight: 'var(--space-3)',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            {activeQueryConfig.iconType === 'component' ? (
-              <ChatStarIcon
-                size={ICON_SIZES.MINIMAL}
-                color={modeColors.icon}
-              />
-            ) : activeQueryConfig.iconType === 'svg' ? (
-              <Image
-                src={activeQueryConfig.icon}
-                alt={activeQueryConfig.label}
-                width={ICON_SIZES.MINIMAL}
-                height={ICON_SIZES.MINIMAL}
-              />
-            ) : (
-              <MaterialIcon
-                name={activeQueryConfig.icon}
-                size={ICON_SIZES.MINIMAL}
-                color={modeColors.icon}
-              />
-            )}
-            {/* Hide mode label text on mobile — icon-only */}
-            {!isMobile && (
-              <Text
-                size="2"
-                weight="medium"
-                style={{
-                  color: modeColors.fg,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {TOOLBAR_LABEL_MAP[activeQueryConfig.toolbarLabel] ?? activeQueryConfig.label}
-              </Text>
-            )}
-            <MaterialIcon
-              name={isModePanelOpen && showFullUI ? 'expand_less' : 'expand_more'}
-              size={ICON_SIZES.SMALL}
-              color={modeColors.icon}
-              style={{ marginLeft: 'var(--space-1)' }}
-            />
-          </Flex>
-
-          {/* Search icon (right) */}
-          <Flex
-            align="center"
-            justify="center"
-            onClick={onRightClick}
-            style={{
-              width: 'var(--space-6)',
-              height: 'var(--space-6)',
-              borderRadius: 'var(--radius-1)',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            <MaterialIcon
-              name="search"
-              size={ICON_SIZES.SECONDARY}
-              color={modeColors.fg}
-            />
-          </Flex>
-        </>
+        /* Search toggle icon */
+        <Flex
+          align="center"
+          justify="center"
+          onClick={onRightClick}
+          style={{
+            width: 'var(--space-6)',
+            height: 'var(--space-6)',
+            borderRadius: 'var(--radius-1)',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <MaterialIcon
+            name="search"
+            size={ICON_SIZES.SECONDARY}
+            color={modeColors.fg}
+          />
+        </Flex>
       )}
     </Flex>
   );

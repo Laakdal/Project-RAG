@@ -4,7 +4,6 @@ export { ModeSwitcher } from './mode-switcher';
 export { AgentStrategyModeSwitcher } from './agent-strategy-mode-switcher';
 export {
   ChatInputExpansionPanel,
-  QueryModePanel,
   AgentStrategyModePanel,
   ConnectorsCollectionsPanel,
   CollectionsTab,

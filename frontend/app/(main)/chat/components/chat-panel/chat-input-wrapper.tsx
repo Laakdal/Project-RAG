@@ -4,11 +4,14 @@ import { useCallback, useEffect } from 'react';
 import { useThreadRuntime } from '@assistant-ui/react';
 import { ChatInput } from '../chat-input';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
+import { useCommandStore } from '@/lib/store/command-store';
+import { toast } from '@/lib/store/toast-store';
 import { useEffectiveAgentId } from '@/chat/hooks/use-effective-agent-id';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { ChatApi } from '@/chat/api';
 import {
   ensureSlotConversation,
+  regenerateAnswer,
   uploadAttachment,
 } from '@/chat/rag-api';
 import {
@@ -262,6 +265,67 @@ export function ChatInputWrapper() {
       startRun: true,
     });
   };
+
+  // Retry (message-actions "Retry" button) regenerates the latest answer IN
+  // PLACE: the backend re-runs the last question and overwrites that assistant
+  // message, and we swap the new answer into the existing bubble (no new turn).
+  // A plain content swap with a "Regenerating…" placeholder — robust for the RAG
+  // message shape (which keys on `id` + `metadata.custom.sources`, not the SSE
+  // streaming-overlay path).
+  useEffect(() => {
+    const { register, unregister } = useCommandStore.getState();
+    register('retryAsk', async () => {
+      const store = useChatStore.getState();
+      const slotId = store.activeSlotId;
+      if (!slotId) return;
+      const slot = store.slots[slotId];
+      if (!slot || !slot.convId || slot.isStreaming) return;
+
+      const original = slot.messages ?? [];
+      // The backend regenerates the LAST assistant message; find it here.
+      let targetId: string | null = null;
+      for (let i = original.length - 1; i >= 0; i--) {
+        if (original[i].role === 'assistant') {
+          targetId = (original[i].id as string) ?? null;
+          break;
+        }
+      }
+      if (!targetId) return;
+
+      // Optimistic placeholder so the user sees it working, then disable the
+      // composer for the duration via isStreaming.
+      const withPlaceholder = original.map((m) =>
+        m.id === targetId
+          ? { ...m, content: [{ type: 'text' as const, text: 'Regenerating…' }] }
+          : m,
+      );
+      store.updateSlot(slotId, { messages: withPlaceholder, isStreaming: true });
+
+      try {
+        const { answer, sources } = await regenerateAnswer(slot.convId);
+        const cur = useChatStore.getState().slots[slotId]?.messages ?? [];
+        const next = cur.map((m) =>
+          m.id === targetId
+            ? {
+                ...m,
+                content: [{ type: 'text' as const, text: answer }],
+                metadata: { custom: { sources: sources ?? [] } },
+              }
+            : m,
+        );
+        useChatStore.getState().updateSlot(slotId, { messages: next, isStreaming: false });
+      } catch {
+        // Restore the original answer on failure.
+        const cur = useChatStore.getState().slots[slotId]?.messages ?? [];
+        const restored = cur.map((m) =>
+          m.id === targetId ? original.find((o) => o.id === targetId) ?? m : m,
+        );
+        useChatStore.getState().updateSlot(slotId, { messages: restored, isStreaming: false });
+        toast.error("Couldn't regenerate the answer. Please try again.");
+      }
+    });
+    return () => unregister('retryAsk');
+  }, []);
 
   return (
     <ChatInput

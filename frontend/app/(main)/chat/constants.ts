@@ -75,21 +75,6 @@ export const QUERY_MODES: QueryModeConfig[] = [
     },
     enabled: true,
   },
-  {
-    id: 'web-search',
-    label: 'Web Search',
-    toolbarLabel: 'chat.queryModes.web-search.toolbarLabel',
-    description: 'Live web search',
-    icon: 'language',
-    iconType: 'material',
-    colors: {
-      bg: 'var(--mode-web-search-bg)',
-      fg: 'var(--mode-web-search-fg)',
-      icon: 'var(--mode-web-search-icon)',
-      toggle: 'var(--mode-web-search-toggle)',
-    },
-    enabled: true,
-  },
 ];
 
 /** Search mode colors (separate from query modes) */

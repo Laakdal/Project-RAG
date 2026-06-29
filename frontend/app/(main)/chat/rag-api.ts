@@ -121,6 +121,22 @@ export async function askQuestion(
 }
 
 /**
+ * Regenerate the latest assistant answer: the backend re-runs the query for the
+ * last user question and overwrites that assistant message in place, returning
+ * the new `{ answer, sources }`. The caller swaps the answer into the slot so the
+ * existing bubble is replaced (no new turn appended).
+ */
+export async function regenerateAnswer(
+  conversationId: string,
+): Promise<{ answer: string; sources: Source[] }> {
+  const { data } = await apiClient.post(
+    `/chat/conversations/${conversationId}/messages/regenerate`,
+    {},
+  );
+  return data;
+}
+
+/**
  * In-flight `createConversation` promises keyed by slot id. Dedupes concurrent
  * conversation creates for the same slot — e.g. a drop-file (upload) and an
  * immediate send both racing to create a conversation would otherwise spawn two.
