@@ -3,27 +3,23 @@
 import React from 'react';
 import { Flex } from '@radix-ui/themes';
 import { GuestGuard } from '@/app/components/ui/guest-guard';
-import { useAuthWideLayout } from '@/lib/hooks/use-breakpoint';
-import AuthHero from '../components/auth-hero';
-import FormPanel from '../components/form-panel';
 import { SingleProvider } from '../forms';
 
 export default function LoginPage() {
-  const splitLayout = useAuthWideLayout();
-
   return (
     <GuestGuard>
+      {/* Single centered form on a plain background — no side hero. */}
       <Flex
-        direction={splitLayout ? 'row' : 'column'}
+        align="center"
+        justify="center"
         style={{
           minHeight: '100dvh',
-          overflow: splitLayout ? 'hidden' : undefined,
+          width: '100%',
+          backgroundColor: 'var(--color-background)',
+          padding: '24px 20px',
         }}
       >
-        <AuthHero splitLayout={splitLayout} />
-        <FormPanel splitLayout={splitLayout}>
-          <SingleProvider />
-        </FormPanel>
+        <SingleProvider />
       </Flex>
     </GuestGuard>
   );

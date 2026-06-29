@@ -34,8 +34,8 @@ export default function AuthTitleSection({
       : "Your organization's knowledge, finally searchable and connected.";
   return (
     <Box style={{ marginBottom }}>
-      {/* ── Heading + subtitle ────────────────────────────────── */}
-      <Flex direction="column" gap="1">
+      {/* ── Heading + subtitle (centered) ─────────────────────── */}
+      <Flex direction="column" gap="1" align="center">
         <Text
           style={{
             color: 'var(--gray-12)',
@@ -43,6 +43,7 @@ export default function AuthTitleSection({
             fontWeight: 500,
             letterSpacing: '-0.1px',
             lineHeight: '30px',
+            textAlign: 'center',
           }}
         >
           {resolvedTitle}
@@ -54,6 +55,7 @@ export default function AuthTitleSection({
               fontSize: '14px',
               fontWeight: 400,
               lineHeight: '20px',
+              textAlign: 'center',
             }}
           >
             {resolvedSubtitle}
