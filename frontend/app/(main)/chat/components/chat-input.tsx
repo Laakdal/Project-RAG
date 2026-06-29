@@ -15,7 +15,6 @@ import { ModelSelectorPanel } from '@/chat/components/chat-panel/expansion-panel
 import { SelectedCollections } from '@/chat/components/selected-collections';
 import { resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
 import {
-  ModeSwitcher,
   AgentStrategyModeSwitcher,
   AgentStrategyModePanel,
 } from '@/chat/components/chat-panel';
@@ -181,7 +180,6 @@ export function ChatInput({
 
   // Read all chat settings directly from the shared store
   const settings = useChatStore((s) => s.settings);
-  const setMode = useChatStore((s) => s.setMode);
   const setAgentStrategy = useChatStore((s) => s.setAgentStrategy);
   const setFilters = useChatStore((s) => s.setFilters);
   const setSelectedModelForCtx = useChatStore((s) => s.setSelectedModelForCtx);
@@ -976,22 +974,15 @@ export function ChatInput({
           padding: 'var(--space-1)',
         }}
       >
-        {/* Single row: mode-switcher + input + send */}
+        {/* Single row: (agent strategy) + input + send */}
         <Flex align="center" justify="between" gap="3">
-          {isAgentChat ? (
+          {isAgentChat && (
             <AgentStrategyModeSwitcher
               activeStrategy={settings.agentStrategy}
               modeColors={agentStrategyToolbarColors}
               isPanelOpen={false}
               showFullUI={false}
               onClick={handleExpand}
-            />
-          ) : (
-            <ModeSwitcher
-              modeColors={modeColors}
-              isSearchMode={isSearchMode}
-              onLeftClick={handleExpand}
-              onRightClick={handleExpand}
             />
           )}
 
@@ -1346,9 +1337,10 @@ export function ChatInput({
 
       {/* Bottom controls */}
       <Flex align="center" justify="between">
-        {/* Left side — query ModeSwitcher disabled in regenerate (avoid mode churn); agent strategy stays active so regen can use quick/verify/deep. */}
+        {/* Left side — agent-strategy switcher (agent chats only); the assistant
+            chat has no mode switcher. Dimmed during regenerate to avoid churn. */}
         <Box style={isRegenerateMode && !isAgentChat ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-          {isAgentChat ? (
+          {isAgentChat && (
             <AgentStrategyModeSwitcher
               activeStrategy={settings.agentStrategy}
               modeColors={agentStrategyToolbarColors}
@@ -1365,27 +1357,6 @@ export function ChatInput({
                 setIsModelPanelOpen(false);
                 setShowUploadArea(false);
               }}
-            />
-          ) : (
-            <ModeSwitcher
-              modeColors={modeColors}
-              isSearchMode={isSearchMode}
-              onLeftClick={
-                isSearchMode
-                  ? () => {
-                      setMode('chat');
-                      useChatStore.getState().clearSearchResults();
-                    }
-                  : () => {}
-              }
-              onRightClick={
-                isSearchMode
-                  ? () => {}
-                  : () => {
-                      useCommandStore.getState().dispatch('newChat');
-                      setMode('search');
-                    }
-              }
             />
           )}
         </Box>
