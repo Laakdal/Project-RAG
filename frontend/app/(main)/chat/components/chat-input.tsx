@@ -68,15 +68,27 @@ interface ChatInputProps {
   agentId?: string | null;
 }
 
-// Only PDF and DOCX are supported by the RAG chat attachment upload endpoint.
-const SUPPORTED_FILE_TYPES = ['PDF', 'DOCX'];
-const ACCEPTED_MIME_TYPES = {
+// Attachment types the RAG pipeline can read (documents, Office files, images,
+// and text). Mirrors the backend upload allowlist (isAllowedUpload); keep both
+// in sync. Images and other files are read via the Gemini-based reader.
+const SUPPORTED_FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'PPTX', 'PNG', 'JPG', 'WEBP', 'TXT', 'MD', 'CSV', 'JSON'];
+const ACCEPTED_MIME_TYPES: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+  'image/png': 'PNG',
+  'image/jpeg': 'JPEG',
+  'image/webp': 'WEBP',
+  'text/plain': 'TXT',
+  'text/markdown': 'MD',
+  'text/csv': 'CSV',
+  'application/json': 'JSON',
 };
 // Extension fallback for files that arrive without a recognisable MIME type
-// (e.g. on some Windows setups the file.type may be empty).
-const ACCEPTED_EXTENSIONS = ['pdf', 'docx'];
+// (e.g. on some Windows setups the file.type may be empty, and .md/.csv/.json
+// are often blank or application/octet-stream).
+const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'pptx', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'md', 'csv', 'json'];
 
 /**
  * A transparent 1×1 image used as the drag image so the browser doesn't paint
@@ -665,7 +677,7 @@ export function ChatInput({
     }
     if (typeRejected.length > 0) {
       toast.error(
-        `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Only PDF and DOCX files are supported.`
+        `Unsupported file type: ${typeRejected.map((f) => f.name).join(', ')}. Supported: ${SUPPORTED_FILE_TYPES.join(', ')}.`
       );
     }
 
