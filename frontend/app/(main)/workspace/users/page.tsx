@@ -190,7 +190,6 @@ export default function AdminUsersPage() {
             <Table.ColumnHeaderCell>{'Name'}</Table.ColumnHeaderCell>
             <Table.ColumnHeaderCell>{'Role'}</Table.ColumnHeaderCell>
             <Table.ColumnHeaderCell>{'Status'}</Table.ColumnHeaderCell>
-            <Table.ColumnHeaderCell>{'Chats'}</Table.ColumnHeaderCell>
             <Table.ColumnHeaderCell />
           </Table.Row>
         </Table.Header>
@@ -208,7 +207,6 @@ export default function AdminUsersPage() {
                 <Table.Cell>
                   {disabled ? <Badge color="red">{'Disabled'}</Badge> : <Badge color="green">{'Active'}</Badge>}
                 </Table.Cell>
-                <Table.Cell>{u.conversationCount}</Table.Cell>
                 <Table.Cell>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
