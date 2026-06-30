@@ -14,6 +14,7 @@ import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, ingestFile } from "./provider.js";
 import type { QueryResult } from "./types.js";
 import { titleFromQuestion } from "./title-generator.js";
+import { isAllowedUpload } from "./upload-allowlist.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -27,10 +28,6 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
 
 // Types we are willing to render inline (Content-Disposition: inline) in the
 // browser. These are non-scripting in the document context — a PDF is shown by
@@ -448,8 +445,8 @@ router.post(
       return;
     }
     const file = req.file;
-    if (!file || !ALLOWED_MIME.has(file.mimetype)) {
-      res.status(400).json({ error: "Only PDF and DOCX files are supported" });
+    if (!file || !isAllowedUpload(file.mimetype, file.originalname)) {
+      res.status(400).json({ error: "Unsupported file type" });
       return;
     }
 

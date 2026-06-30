@@ -413,15 +413,27 @@ describe("regenerate route", () => {
 });
 
 describe("attachment route", () => {
-  it("rejects a non-PDF/DOCX file with 400", async () => {
+  it("rejects an unsupported file type with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("hello"), {
-        filename: "notes.txt",
-        contentType: "text/plain",
+      .attach("file", Buffer.from("PK"), {
+        filename: "archive.zip",
+        contentType: "application/zip",
       });
     expect(res.status).toBe(400);
+  });
+
+  it("accepts an image upload (read via the ingest pipeline)", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("PNG fake"), {
+        filename: "screenshot.png",
+        contentType: "image/png",
+      });
+    expect(res.status).toBe(202);
+    expect(res.body.attachmentId).toBe("att1");
   });
 
   it("accepts a PDF and returns 202 with a chunk count", async () => {
