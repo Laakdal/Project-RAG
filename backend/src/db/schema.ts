@@ -81,3 +81,22 @@ export const attachments = pgTable("attachments", {
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
+
+export const libraryDocuments = pgTable("library_documents", {
+  // The Google Drive file id is the natural key — stable across edits.
+  driveFileId: text("drive_file_id").primaryKey(),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  // Drive's RFC3339 modifiedTime, stored verbatim so "changed" is a string compare.
+  modifiedTime: text("modified_time").notNull(),
+  chunkCount: integer("chunk_count").notNull().default(0),
+  status: text("status").notNull(), // "indexed" | "failed"
+  webUrl: text("web_url"),
+  lastError: text("last_error"),
+  indexedAt: timestamp("indexed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type LibraryDocument = typeof libraryDocuments.$inferSelect;
+export type NewLibraryDocument = typeof libraryDocuments.$inferInsert;

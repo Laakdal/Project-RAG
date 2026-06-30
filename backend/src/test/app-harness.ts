@@ -20,6 +20,7 @@ export function makeDbMock() {
     "insert",
     "values",
     "returning",
+    "onConflictDoUpdate",
     "update",
     "set",
     "delete",

@@ -50,6 +50,13 @@
       "when": 1782664366668,
       "tag": "0006_lean_robbie_robertson",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782827922138,
+      "tag": "0007_bouncy_speed",
+      "breakpoints": true
     }
   ]
 }
