@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { Flex, Box } from '@radix-ui/themes';
 import { ChatResponse } from './chat-response';
@@ -17,6 +17,7 @@ import { useInlineCitationPopoverStore } from './response-tabs/citations/citatio
 import { InlineCitationPopoverHost } from './response-tabs/citations/inline-citation-popover-host';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
 import { loadOlderMessagesForSlot } from '../../streaming';
+import { listAttachments } from '../../rag-api';
 
 // Stable empty references to avoid re-renders from selector fallbacks.
 // `?? []` or `?? null` in a selector body creates a new ref every call,
@@ -164,6 +165,43 @@ export function MessageList() {
 
   // ── Active slot ID (needed for save/restore on conversation switch) ──
   const activeSlotId = useChatStore((s) => s.activeSlotId);
+
+  // ── Live attachment reconciliation ─────────────────────────────────
+  // The per-message attachment chips render a frozen snapshot captured at
+  // send time (user message metadata). When a file is later removed from the
+  // "Files in this chat" panel, that snapshot is stale, so old questions keep
+  // showing chips for deleted files. We fetch the conversation's live
+  // attachment list here — keyed on `attachmentsVersion`, which the composer/
+  // panel bump on every upload/delete — and filter the chips against it below.
+  const activeConvId = useChatStore((s) =>
+    s.activeSlotId ? s.slots[s.activeSlotId]?.convId ?? null : null
+  );
+  const attachmentsVersion = useChatStore((s) => s.attachmentsVersion);
+  // Set of attachment ids still attached to the conversation, or `null` when
+  // unknown (not yet loaded, or the endpoint is unavailable) — in which case we
+  // fall back to the snapshot rather than hiding every chip.
+  const [liveAttachmentIds, setLiveAttachmentIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!activeConvId) {
+      setLiveAttachmentIds(null);
+      return;
+    }
+    let cancelled = false;
+    listAttachments(activeConvId)
+      .then((list) => {
+        if (cancelled) return;
+        setLiveAttachmentIds(
+          new Set(list.filter((att) => att.status !== 'failed').map((att) => att.id)),
+        );
+      })
+      .catch(() => {
+        // Best-effort: keep the frozen snapshot if the list can't be fetched.
+        if (!cancelled) setLiveAttachmentIds(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConvId, attachmentsVersion]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
@@ -313,7 +351,13 @@ export function MessageList() {
         const userMessageCollections = userMsgCustom?.collections as Array<{ id: string; name: string }> | undefined;
         const userMessageAppliedFilters = userMsgCustom?.appliedFilters as AppliedFilters | undefined;
         const userCreatedAt = userMsgCustom?.createdAt;
-        const userMessageAttachments = userMsgCustom?.attachments as AttachmentRef[] | undefined;
+        const snapshotAttachments = userMsgCustom?.attachments as AttachmentRef[] | undefined;
+        // Hide chips for files removed via the files panel. `recordId` on the
+        // snapshot equals the live attachment id (see chat-input-wrapper). When
+        // the live set is unknown, show the snapshot unchanged.
+        const userMessageAttachments = snapshotAttachments && liveAttachmentIds
+          ? snapshotAttachments.filter((att) => liveAttachmentIds.has(att.recordId))
+          : snapshotAttachments;
 
 
         pairs.push({
@@ -341,7 +385,7 @@ export function MessageList() {
     }
 
     return pairs;
-  }, [thread.messages, isStreaming, streamingQuestion, pendingCollections, regenerateMessageId]);
+  }, [thread.messages, isStreaming, streamingQuestion, pendingCollections, regenerateMessageId, liveAttachmentIds]);
 
   // Ref-mirror of messagePairs — lets scroll effects read the latest pairs
   // without having the full array in their dependency list (which would cause
