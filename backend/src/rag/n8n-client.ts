@@ -20,8 +20,8 @@ export type IngestResult = {
   chunkCount: number;
 };
 
-const QUERY_PATH = "/webhook/rag-query";
-const INGEST_PATH = "/webhook/rag-ingest";
+const QUERY_PATH = "/webhook/rag-query"; // /webhook/rag-query
+const INGEST_PATH = "/webhook/rag-ingest"; // /webhook/rag-ingest
 
 function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
