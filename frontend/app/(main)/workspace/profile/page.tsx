@@ -5,9 +5,7 @@ import { Box, Flex, Text, Heading } from '@radix-ui/themes';
 import { ConfirmationDialog, SettingsSaveBar } from '../components';
 import {
   ChangePasswordDialog,
-  ChangeEmailDialog,
   GeneralSection,
-  RolesPermissionsSection,
   PasswordSecuritySection,
 } from "./components";
 import { LottieLoader } from "@/app/components/ui/lottie-loader";
@@ -20,18 +18,11 @@ import { useProfilePage } from "./hooks/use-profile-page";
 export default function ProfilePage() {
   const {
     avatarInputRef,
-    userId,
     changePasswordOpen,
     setChangePasswordOpen,
-    changeEmailOpen,
-    setChangeEmailOpen,
-    email,
-    emailLoading,
     avatarUrl,
     avatarUploading,
     avatarInitial,
-    groups,
-    role,
     form,
     errors,
     discardDialogOpen,
@@ -42,7 +33,6 @@ export default function ProfilePage() {
     isFormDirty,
     handleSave,
     handlePasswordChangeSuccess,
-    handleEmailVerificationSent,
     handleDiscard,
     handleDiscardConfirm,
     handleAvatarChange,
@@ -98,17 +88,7 @@ export default function ProfilePage() {
               setField("fullName", value);
               if (errors.fullName) setErrors({});
             }}
-            designation={form.designation}
-            onDesignationChange={(value) => setField("designation", value)}
-            email={email}
-            emailLoading={emailLoading}
-            onEditEmailClick={() => setChangeEmailOpen(true)}
           />
-        </Box>
-
-        {/* ── Roles & Permissions section ── */}
-        <Box style={{ marginBottom: 'var(--space-5)' }}>
-          <RolesPermissionsSection role={role} groups={groups} />
         </Box>
 
         {/* ── Password & Security section ── */}
@@ -125,14 +105,6 @@ export default function ProfilePage() {
         open={changePasswordOpen}
         onOpenChange={setChangePasswordOpen}
         onSuccess={handlePasswordChangeSuccess}
-      />
-
-      {/* ── Change Email Dialog ── */}
-      <ChangeEmailDialog
-        open={changeEmailOpen}
-        onOpenChange={setChangeEmailOpen}
-        userId={userId}
-        onSuccess={handleEmailVerificationSent}
       />
 
       {/* ── Discard Confirmation Dialog ── */}
