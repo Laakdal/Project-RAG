@@ -27,11 +27,11 @@ export default function AuthTitleSection({
   subtitle,
   marginBottom = '28px',
 }: AuthTitleSectionProps) {
-  const resolvedTitle = title ?? 'Welcome to Project RAG';
+  const resolvedTitle = title ?? 'Palmco GPT';
   const resolvedSubtitle =
     subtitle !== undefined
       ? subtitle
-      : "Your organization's knowledge, finally searchable and connected.";
+      : "Login Corporate Web.";
   return (
     <Box style={{ marginBottom }}>
       {/* ── Heading + subtitle (centered) ─────────────────────── */}
