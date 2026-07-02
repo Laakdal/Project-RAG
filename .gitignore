@@ -136,4 +136,12 @@ venv.bak/
 
 # Project-specific ignores
 pipeshub-ai-main/
+docs/
+
+# Temporary analysis / test artifacts
+.claude/PROJECT.md
+.playwright-mcp/
+test-results/
+codebase-analysis-prompt.md
+hallucination-test-prompt.md
 
