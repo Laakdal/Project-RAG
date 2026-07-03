@@ -287,7 +287,7 @@ router.post(
       res.status(400).json({ error: "A non-empty question is required" });
       return;
     }
-    const { question, useLibrary } = parsed.data;
+    const { question } = parsed.data;
 
     // Recent turns for multi-turn memory, oldest→newest. The current question
     // isn't persisted yet, so this is purely the PRIOR conversation. Capped so
@@ -305,16 +305,10 @@ router.post(
     const isFirstMessage = history.length === 0;
 
     // Query first; persist the turn only after a successful answer so a
-    // failure leaves no orphaned message. Library mode answers from the shared
-    // Drive index (lazy import so the default path never loads LangChain).
+    // failure leaves no orphaned message.
     let result: QueryResult;
     try {
-      if (useLibrary) {
-        const { queryLibrary } = await import("../../src-langchain/library/query.js");
-        result = await queryLibrary(question, history);
-      } else {
-        result = await queryRag(req.params.id, question, history, isFirstMessage);
-      }
+      result = await queryRag(req.params.id, question, history, isFirstMessage);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
