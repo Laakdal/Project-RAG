@@ -11,7 +11,8 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, type QueryResult } from "./n8n-client.js";
+import { queryRag, type QueryResult, type QuerySource } from "./n8n-client.js";
+import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
@@ -317,11 +318,18 @@ router.post(
       if (text) docs.push({ filename: a.filename, text });
     }
 
+    let libraryDocs: QuerySource[] = [];
+    try {
+      if (await shouldSearchLibrary(question)) libraryDocs = await searchLibrary(question);
+    } catch {
+      libraryDocs = [];
+    }
+
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage, docs);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, docs, libraryDocs);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -421,9 +429,16 @@ router.post(
       .limit(10);
     const history = priorRows.reverse();
 
+    let libraryDocs: QuerySource[] = [];
+    try {
+      if (await shouldSearchLibrary(lastUser.content)) libraryDocs = await searchLibrary(lastUser.content);
+    } catch {
+      libraryDocs = [];
+    }
+
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false);
+      result = await queryRag(req.params.id, lastUser.content, history, false, [], libraryDocs);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;

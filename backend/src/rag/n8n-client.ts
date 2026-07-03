@@ -44,11 +44,13 @@ export async function queryRag(
   // Inline document texts from per-chat uploads. The query workflow will
   // inject these into the prompt context alongside retrieved chunks.
   docs: { filename: string; text: string }[] = [],
+  // Docs retrieved from the shared vector library (intent-gated).
+  libraryDocs: QuerySource[] = [],
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle, docs }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, docs, libraryDocs }),
     signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
   });
   if (!res.ok) {

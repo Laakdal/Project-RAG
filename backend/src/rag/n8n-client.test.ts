@@ -24,13 +24,14 @@ describe("n8n-client", () => {
     expect(result.sources[0].filename).toBe("geo.pdf");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-query");
-    // generateTitle defaults to false when not requested; docs defaults to [].
+    // generateTitle defaults to false when not requested; docs and libraryDocs default to [].
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
       history: [],
       generateTitle: false,
       docs: [],
+      libraryDocs: [],
     });
   });
 
@@ -123,6 +124,18 @@ describe("n8n-client", () => {
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.docs).toEqual([{ filename: "a.pdf", text: "body" }]);
+  });
+
+  it("queryRag includes libraryDocs in the request body when passed as the 6th arg", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ answer: "ok", sources: [] }),
+    });
+    const libDocs = [{ filename: "lib.pdf", chunkIndex: 0, text: "library chunk" }];
+    await queryRag("c1", "q", [], false, [], libDocs);
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.libraryDocs).toEqual(libDocs);
   });
 
   it("readFile sends an abort timeout signal", async () => {
