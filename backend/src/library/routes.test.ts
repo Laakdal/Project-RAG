@@ -29,7 +29,7 @@ describe("library routes", () => {
     const res = await request(app())
       .post("/library/documents")
       .attach("file", Buffer.from("hello"), { filename: "a.pdf", contentType: "application/pdf" });
-    expect(res.status).toBe(202);
+    expect(res.status).toBe(200);
     expect(res.body).toEqual({ id: "doc-1", status: "indexed", chunkCount: 3 });
     expect(indexUpload).toHaveBeenCalled();
   });

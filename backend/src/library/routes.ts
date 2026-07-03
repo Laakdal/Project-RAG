@@ -38,7 +38,7 @@ router.post("/documents", requireCsrf, uploadSingle, async (req: Request, res: R
     return;
   }
   const result = await indexUpload(file.originalname, file.mimetype, file.buffer);
-  res.status(202).json(result);
+  res.status(200).json(result);
 });
 
 // List indexed library documents (admin UI).
