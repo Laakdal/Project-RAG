@@ -1,24 +1,5 @@
 import { config } from "../config.js";
-
-export type QuerySource = {
-  filename: string;
-  chunkIndex: number;
-  text: string;
-};
-
-export type QueryResult = {
-  answer: string;
-  sources: QuerySource[];
-  // Present only when the workflow was asked to summarize a title (first
-  // message of a conversation). Optional because the query workflow doesn't
-  // emit it yet; the backend falls back to a heuristic when it's absent.
-  title?: string;
-};
-
-export type IngestResult = {
-  status: string;
-  chunkCount: number;
-};
+import type { QuerySource, QueryResult, IngestResult, ChatTurn } from "./types.js";
 
 const QUERY_PATH = "/webhook/rag-query"; // /webhook/rag-query
 const INGEST_PATH = "/webhook/rag-ingest"; // /webhook/rag-ingest
@@ -26,8 +7,6 @@ const INGEST_PATH = "/webhook/rag-ingest"; // /webhook/rag-ingest
 function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
 }
-
-export type ChatTurn = { role: string; content: string };
 
 export async function queryRag(
   conversationId: string,
