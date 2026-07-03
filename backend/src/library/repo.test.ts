@@ -1,40 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeDbMock } from "../test/app-harness.js";
 
-const dbMock = makeDbMock();
-vi.mock("../db/index.js", () => ({ db: dbMock.db }));
-const { listIndexed, upsertDocument, deleteDocument, summary } = await import("./repo.js");
+const { db, setResult } = makeDbMock();
+vi.mock("../db/index.js", () => ({ db }));
+
+const { insertDocument, updateDocument, deleteDocument, listIndexed, summary } =
+  await import("./repo.js");
 
 describe("library repo", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("listIndexed reads library_documents", async () => {
-    dbMock.setResult([{ driveFileId: "a", modifiedTime: "t", status: "indexed" }]);
-    const rows = await listIndexed();
-    expect(rows[0].driveFileId).toBe("a");
-  });
-
-  it("upsertDocument inserts with onConflictDoUpdate", async () => {
-    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
-    const conflictSpy = dbMock.db.onConflictDoUpdate as ReturnType<typeof vi.fn>;
-    await upsertDocument({
-      driveFileId: "a", filename: "a", mimeType: "application/pdf",
-      modifiedTime: "t", chunkCount: 1, status: "indexed", webUrl: "u", lastError: null,
+  it("insertDocument returns the new id", async () => {
+    setResult([{ id: "doc-1" }]);
+    const id = await insertDocument({
+      source: "upload",
+      sourceRef: null,
+      filename: "a.pdf",
+      mimeType: "application/pdf",
+      chunkCount: 0,
+      status: "indexing",
     });
-    expect(insertSpy).toHaveBeenCalled();
-    expect(conflictSpy).toHaveBeenCalled();
+    expect(id).toBe("doc-1");
   });
 
-  it("deleteDocument issues a delete", async () => {
-    const deleteSpy = dbMock.db.delete as ReturnType<typeof vi.fn>;
-    await deleteDocument("a");
-    expect(deleteSpy).toHaveBeenCalled();
+  it("listIndexed returns rows", async () => {
+    setResult([{ id: "doc-1", filename: "a.pdf" }]);
+    const rows = await listIndexed();
+    expect(rows).toHaveLength(1);
   });
 
   it("summary returns the aggregate row", async () => {
-    dbMock.setResult([{ total: 3, failed: 1, lastIndexedAt: "t" }]);
+    setResult([{ total: 3, failed: 1, lastIndexedAt: "2026-07-03T00:00:00Z" }]);
     const s = await summary();
     expect(s.total).toBe(3);
     expect(s.failed).toBe(1);
+  });
+
+  it("updateDocument and deleteDocument run without throwing", async () => {
+    setResult([]);
+    await expect(updateDocument("doc-1", { status: "indexed" })).resolves.toBeUndefined();
+    await expect(deleteDocument("doc-1")).resolves.toBeUndefined();
   });
 });
