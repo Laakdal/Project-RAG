@@ -25,13 +25,17 @@ describe("indexUpload", () => {
     expect(deleteBySource).toHaveBeenCalledWith("doc-1");
     expect(upsertChunks).toHaveBeenCalledWith("doc-1", "a.pdf", "upload", ["c1", "c2"]);
     expect(updateDocument).toHaveBeenCalledWith("doc-1", { status: "indexed", chunkCount: 2, lastError: null });
+    expect(deleteBySource.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertChunks.mock.invocationCallOrder[0],
+    );
   });
 
   it("marks the row failed and stores no vectors when no text is extracted", async () => {
     chunkText.mockResolvedValueOnce([]);
     const r = await indexUpload("a.pdf", "application/pdf", Buffer.from("x"));
-    expect(r.status).toBe("failed");
+    expect(r).toEqual({ id: "doc-1", status: "failed", chunkCount: 0 });
     expect(upsertChunks).not.toHaveBeenCalled();
+    expect(deleteBySource).not.toHaveBeenCalled();
     expect(updateDocument).toHaveBeenCalledWith("doc-1", { status: "failed", chunkCount: 0, lastError: "no text extracted" });
   });
 });
