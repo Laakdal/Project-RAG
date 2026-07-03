@@ -82,16 +82,18 @@ export type Message = typeof messages.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 
 export const libraryDocuments = pgTable("library_documents", {
-  // The Google Drive file id is the natural key — stable across edits.
-  driveFileId: text("drive_file_id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Where the doc came from and its source-native id (Drive file id in P2).
+  source: text("source").notNull(), // 'upload' | 'drive'
+  sourceRef: text("source_ref"), // drive file id for P2; null for uploads
   filename: text("filename").notNull(),
   mimeType: text("mime_type").notNull(),
-  // Drive's RFC3339 modifiedTime, stored verbatim so "changed" is a string compare.
-  modifiedTime: text("modified_time").notNull(),
   chunkCount: integer("chunk_count").notNull().default(0),
-  status: text("status").notNull(), // "indexed" | "failed"
-  webUrl: text("web_url"),
+  status: text("status").notNull(), // 'indexing' | 'indexed' | 'failed'
   lastError: text("last_error"),
+  // P2 (Drive change detection); null for uploads.
+  modifiedTime: text("modified_time"),
+  webUrl: text("web_url"),
   indexedAt: timestamp("indexed_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
