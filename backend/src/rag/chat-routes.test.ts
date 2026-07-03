@@ -241,7 +241,7 @@ describe("message route", () => {
       text: "the answer is 42",
     });
 
-    // The query ran with (conversationId, question, history, generateTitle).
+    // The query ran with (conversationId, question, history, generateTitle, libraryDocs).
     // The shared db mock returns one truthy row for both the ownership lookup
     // and the history read, so history is non-empty here and generateTitle is
     // false; the first-message path is covered by its own test below.
@@ -250,6 +250,7 @@ describe("message route", () => {
       "What is the answer?",
       expect.any(Array),
       false,
+      [], // libraryDocs — empty until library search populates it
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -294,6 +295,7 @@ describe("message route", () => {
       "Apa isi dokumen ini? Tolong jelaskan.",
       expect.any(Array),
       true,
+      [], // libraryDocs — empty until library search populates it
     );
 
     // The conversation title was set from the heuristic (first sentence).
@@ -366,6 +368,7 @@ describe("regenerate route", () => {
       "redo this",
       expect.any(Array),
       false,
+      [], // libraryDocs — empty until library search populates it
     );
 
     // The answer is written via UPDATE .set (overwrite in place), not a new insert.
