@@ -22,7 +22,7 @@ export type IngestResult = {
   chunkCount: number;
 };
 
-const QUERY_TIMEOUT_MS = 90_000;   // answer generation (+ optional web search)
+const QUERY_TIMEOUT_MS = 150_000;  // answer generation incl. slow first-time on-demand Drive reads (+ optional web search)
 const READ_TIMEOUT_MS = 120_000;   // background Gemini read of a large/image-heavy doc
 const INGEST_TIMEOUT_MS = 120_000; // legacy ingest (read+chunk+embed); now unused but bounded for safety
 
