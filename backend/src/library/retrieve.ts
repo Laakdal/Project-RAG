@@ -31,5 +31,5 @@ export async function shouldSearchLibrary(question: string): Promise<boolean> {
     { role: "system", content: INTENT_SYSTEM },
     { role: "user", content: question },
   ]);
-  return String(res.content).toLowerCase().includes("yes");
+  return /^\s*yes\b/i.test(String(res.content));
 }

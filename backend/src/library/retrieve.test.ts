@@ -55,6 +55,16 @@ describe("shouldSearchLibrary", () => {
     expect(await shouldSearchLibrary("write me a poem")).toBe(false);
   });
 
+  it("returns false for 'yesterday' (avoids substring false-positive)", async () => {
+    invoke.mockResolvedValue({ content: "yesterday" });
+    expect(await shouldSearchLibrary("what happened yesterday?")).toBe(false);
+  });
+
+  it("returns true for 'Yes, this is about a document.'", async () => {
+    invoke.mockResolvedValue({ content: "Yes, this is about a document." });
+    expect(await shouldSearchLibrary("tell me about the report")).toBe(true);
+  });
+
   it("returns false early when OPENAI_API_KEY is missing", async () => {
     vi.resetModules();
     const invokeNoKey = vi.fn();
