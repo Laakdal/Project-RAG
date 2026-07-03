@@ -50,6 +50,13 @@
       "when": 1782683080974,
       "tag": "0006_past_sway",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1751500000000,
+      "tag": "0007_generalize_library_documents",
+      "breakpoints": true
     }
   ]
 }
