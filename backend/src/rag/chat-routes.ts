@@ -420,9 +420,21 @@ router.post(
       .limit(10);
     const history = priorRows.reverse();
 
+    // Same gated library retrieval as the ask path (regenerate has no explicit
+    // useLibrary flag, so it always uses the intent gate). Failure degrades to
+    // no library results so a regenerate never breaks on a library outage.
+    let libraryDocs: QuerySource[] = [];
+    try {
+      if (await shouldSearchLibrary(lastUser.content)) {
+        libraryDocs = await searchLibrary(lastUser.content);
+      }
+    } catch {
+      libraryDocs = [];
+    }
+
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false);
+      result = await queryRag(req.params.id, lastUser.content, history, false, libraryDocs);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;

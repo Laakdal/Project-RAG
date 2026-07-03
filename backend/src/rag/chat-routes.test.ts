@@ -423,6 +423,21 @@ describe("regenerate route", () => {
       .send({});
     expect(res.status).toBe(502);
   });
+
+  it("passes gated library docs to queryRag on regenerate when intent matches", async () => {
+    dbMock.setResult([
+      { id: "m1", role: "user", content: "what does the SOP say?", createdAt: "t" },
+    ]);
+    shouldSearchLibrary.mockResolvedValueOnce(true);
+    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({});
+    expect(res.status).toBe(200);
+    const call = vi.mocked(queryRag).mock.calls.at(-1);
+    expect(call?.[4]).toEqual([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+  });
 });
 
 describe("attachment route", () => {
