@@ -12,7 +12,8 @@ import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, ingestFile } from "./provider.js";
-import type { QueryResult } from "./types.js";
+import type { QueryResult, QuerySource } from "./types.js";
+import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 
@@ -287,7 +288,7 @@ router.post(
       res.status(400).json({ error: "A non-empty question is required" });
       return;
     }
-    const { question } = parsed.data;
+    const { question, useLibrary } = parsed.data;
 
     // Recent turns for multi-turn memory, oldest→newest. The current question
     // isn't persisted yet, so this is purely the PRIOR conversation. Capped so
@@ -304,11 +305,22 @@ router.post(
     // a title only on that first turn (no prior history yet).
     const isFirstMessage = history.length === 0;
 
+    // Gate: an explicit useLibrary flag wins; otherwise a cheap intent check
+    // decides. Library retrieval must never break a normal answer, so any
+    // failure degrades to no library results.
+    let libraryDocs: QuerySource[] = [];
+    try {
+      const doSearch = useLibrary ?? (await shouldSearchLibrary(question));
+      if (doSearch) libraryDocs = await searchLibrary(question);
+    } catch {
+      libraryDocs = [];
+    }
+
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, libraryDocs);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;

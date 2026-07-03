@@ -17,6 +17,10 @@ vi.mock("./n8n-client.js", () => ({
   ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
 }));
 
+const searchLibrary = vi.fn(async () => [] as { filename: string; chunkIndex: number; text: string }[]);
+const shouldSearchLibrary = vi.fn(async () => false);
+vi.mock("../library/retrieve.js", () => ({ searchLibrary, shouldSearchLibrary }));
+
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag, ingestFile } from "./n8n-client.js";
 
@@ -345,6 +349,29 @@ describe("message route", () => {
       .post("/chat/conversations/cX/messages")
       .send({ question: "hi" });
     expect(res.status).toBe(404);
+  });
+
+  it("passes gated library docs to queryRag on a document-ish question", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + history
+    shouldSearchLibrary.mockResolvedValueOnce(true);
+    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
+    await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "what does the SOP say?" });
+    const call = vi.mocked(queryRag).mock.calls.at(-1);
+    expect(call?.[4]).toEqual([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+  });
+
+  it("skips the library when useLibrary is false", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + history
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
+    await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "hi", useLibrary: false });
+    expect(shouldSearchLibrary).not.toHaveBeenCalled();
+    const call = vi.mocked(queryRag).mock.calls.at(-1);
+    expect(call?.[4]).toEqual([]);
   });
 });
 
