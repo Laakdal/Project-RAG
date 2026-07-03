@@ -5,7 +5,7 @@ vi.mock("../config.js", () => ({
 }));
 vi.mock("./embeddings.js", () => ({ makeEmbeddings: () => ({}) }));
 
-const addDocuments = vi.fn(async () => {});
+const addDocuments = vi.fn(async (_docs: Array<{ metadata: Record<string, unknown> }>) => {});
 const ensureCollection = vi.fn(async () => {});
 const similaritySearchWithScore = vi.fn(async () => [
   [{ pageContent: "chunk a", metadata: { filename: "a.pdf", chunkIndex: 0 } }, 0.9],
