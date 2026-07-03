@@ -26,6 +26,15 @@ export async function deleteDocument(id: string): Promise<void> {
   await db.delete(libraryDocuments).where(eq(libraryDocuments.id, id));
 }
 
+export async function existsBySourceRef(sourceRef: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: libraryDocuments.id })
+    .from(libraryDocuments)
+    .where(eq(libraryDocuments.sourceRef, sourceRef))
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function summary(): Promise<{
   total: number;
   failed: number;

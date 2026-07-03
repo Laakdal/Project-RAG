@@ -4,6 +4,8 @@ export type QuerySource = {
   filename: string;
   chunkIndex: number;
   text: string;
+  origin?: string;
+  driveFileId?: string;
 };
 
 export type QueryResult = {

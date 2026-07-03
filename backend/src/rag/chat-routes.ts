@@ -16,6 +16,7 @@ import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
+import { indexDriveSourcesInBackground } from "../library/drive-index.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -335,6 +336,8 @@ router.post(
       return;
     }
 
+    indexDriveSourcesInBackground(result.sources);
+
     // Persist the user's message, then the assistant answer with its sources.
     await db.insert(messages).values({
       conversationId: req.params.id,
@@ -443,6 +446,8 @@ router.post(
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
     }
+
+    indexDriveSourcesInBackground(result.sources);
 
     // Overwrite the existing assistant message in place (id stable), so the
     // client replaces that bubble instead of appending a new turn.

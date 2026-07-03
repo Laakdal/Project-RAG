@@ -26,6 +26,10 @@ vi.mock("../library/retrieve.js", () => ({
   shouldSearchLibrary: vi.fn(async () => false),
 }));
 
+vi.mock("../library/drive-index.js", () => ({
+  indexDriveSourcesInBackground: vi.fn(),
+}));
+
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag } from "./n8n-client.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
