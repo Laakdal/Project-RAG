@@ -36,11 +36,12 @@ export async function queryRag(
   // True only for the first message of a conversation, asking the workflow to
   // also summarize a short title. Defaults false so non-first turns skip it.
   generateTitle = false,
+  libraryDocs: QuerySource[] = [],
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, libraryDocs }),
   });
   if (!res.ok) {
     throw new Error(`n8n query failed: ${res.status}`);

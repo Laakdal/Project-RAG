@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import * as n8n from "./n8n-client.js";
-import type { ChatTurn, QueryResult, IngestResult } from "./types.js";
+import type { ChatTurn, QueryResult, IngestResult, QuerySource } from "./types.js";
 
 // Dispatch on the global RAG_PROVIDER switch. The langgraph module is imported
 // lazily so its heavy LangChain deps load only when actually selected (the n8n
@@ -15,11 +15,14 @@ export async function queryRag(
   question: string,
   history: ChatTurn[] = [],
   generateTitle = false,
+  libraryDocs: QuerySource[] = [],
 ): Promise<QueryResult> {
   if (config.RAG_PROVIDER === "langgraph") {
+    // langgraph path does not consume libraryDocs; the backend-driven library
+    // enriches the n8n path only.
     return (await langgraph()).queryRag(conversationId, question, history, generateTitle);
   }
-  return n8n.queryRag(conversationId, question, history, generateTitle);
+  return n8n.queryRag(conversationId, question, history, generateTitle, libraryDocs);
 }
 
 export async function ingestFile(
