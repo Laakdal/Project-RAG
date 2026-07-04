@@ -20,6 +20,8 @@ import type {
 } from './response-tabs/citations';
 import { TableFullscreenWrapper } from './table-fullscreen-wrapper';
 import { MermaidDiagram } from './mermaid-diagram';
+import { IdssOptions } from './idss-options';
+import { parseIdssOptions } from '../../utils/parse-idss-options';
 import { parseCsvContent, parseCsvCellContent } from './csv-utils';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useThemeAppearance } from '@/app/components/theme-provider';
@@ -860,6 +862,17 @@ export function AnswerContent({
           if (chartText) {
             return <MermaidDiagram chart={chartText} />;
           }
+        }
+
+        // ```idss-options — render as interactive brainstorming option cards
+        if (lang.includes('language-idss-options')) {
+          const raw =
+            typeof codeEl.props?.children === 'string'
+              ? codeEl.props.children
+              : extractNodeText(codeEl.props?.children);
+          const data = parseIdssOptions(raw);
+          // Malformed or still-streaming (partial JSON) → render nothing.
+          return data ? <IdssOptions data={data} /> : null;
         }
 
         // ```csv — render as a proper table
