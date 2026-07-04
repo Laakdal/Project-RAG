@@ -35,6 +35,18 @@ describe("generate node", () => {
     expect(system!.content).toMatch(/do not invent|never invent/i);
   });
 
+  it("system prompt carries brainstorming / idss-options guidance", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "brainstorm some ideas", docs } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "system");
+    expect(system).toBeDefined();
+    expect(system!.content).toMatch(/brainstorm/i);
+    expect(system!.content).toMatch(/idss-options/);
+    expect(system!.content).toMatch(/multiSelect/);
+  });
+
   it("returns FALLBACK_ANSWER and empty sources when the LLM errors", async () => {
     invoke.mockRejectedValueOnce(new Error("llm down"));
     const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "context" }];
