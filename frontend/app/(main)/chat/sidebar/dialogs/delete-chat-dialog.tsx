@@ -76,7 +76,7 @@ export function DeleteChatDialog({
               <Text size="2" weight="bold" style={{ color: 'var(--slate-12)' }}>
                 &apos;{chatTitle}&apos;
               </Text>{' '}
-              {"will be permanently removed from Project RAG. All users with shared access will lose their access."}
+              {"will be permanently removed from Palmco GPT. All users with shared access will lose their access."}
             </Text>
           </Flex>
 
