@@ -13,7 +13,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   useEffect(() => {
-    document.title = 'Project RAG';
+    document.title = 'Palmco GPT';
   }, []);
 
   return (
