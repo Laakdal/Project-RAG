@@ -23,7 +23,7 @@ export function RolesPermissionsSection({ role, groups }: RolesPermissionsSectio
     <SettingsSection title={"Roles & Permissions"}>
 
       {/* Role */}
-      <SettingsRow label={"Role"} description={"Your role on Project RAG app"}>
+      <SettingsRow label={"Role"} description={"Your role on Palmco GPT app"}>
         <TextField.Root
           value={role}
           readOnly
