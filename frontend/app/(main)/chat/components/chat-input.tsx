@@ -1549,11 +1549,11 @@ export function ChatInput({
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'column',
-          gap: 'var(--space-2)',
+          gap: 'var(--space-1)',
           pointerEvents: 'none',
         }}
       >
-        <MaterialIcon name="file_upload" size={36} color="var(--accent-9)" />
+        <MaterialIcon name="file_upload" size={28} color="var(--accent-9)" />
         <Text size="3" weight="medium" style={{ color: 'var(--accent-11)' }}>
           {"Drop files here"}
         </Text>
