@@ -6,7 +6,7 @@ import { Box, Flex, Text } from '@radix-ui/themes';
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AuthTitleSectionProps {
-  /** Main heading. Defaults to "Welcome to Project RAG". */
+  /** Main heading. Defaults to "Palmco GPT". */
   title?: string;
   /** Subtitle below the heading. Defaults to the tagline. */
   subtitle?: string;
