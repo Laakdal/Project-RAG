@@ -73,7 +73,7 @@ export function DeleteAgentDialog({
               <Text size="2" weight="bold" style={{ color: 'var(--slate-12)' }}>
                 &apos;{agentName}&apos;
               </Text>{' '}
-              {"will be permanently removed from Project RAG. Chats that use it may no longer work as expected."}
+              {"will be permanently removed from Palmco GPT. Chats that use it may no longer work as expected."}
             </Text>
           </Flex>
 
