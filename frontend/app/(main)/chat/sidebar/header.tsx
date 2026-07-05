@@ -37,7 +37,7 @@ export function ChatSidebarHeader() {
             textOverflow: 'ellipsis',
           }}
         >
-          {"Project RAG"}
+          {"Palmco GPT"}
         </Text>
       </Flex>
       <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
