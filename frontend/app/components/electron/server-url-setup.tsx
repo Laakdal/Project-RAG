@@ -125,12 +125,12 @@ function ServerUrlSetupScreen({ onComplete }: { onComplete: () => void }) {
             height={56}
           />
           <Heading size="5" align="center">
-            {"Connect to Project RAG Server"}
+            {"Connect to Palmco GPT Server"}
           </Heading>
           <Text size="2" color="gray" align="center">
             {existing
-              ? "Confirm or update your Project RAG server URL."
-              : "Enter the URL of your Project RAG server to get started."}
+              ? "Confirm or update your Palmco GPT server URL."
+              : "Enter the URL of your Palmco GPT server to get started."}
           </Text>
         </Flex>
 
