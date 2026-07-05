@@ -36,7 +36,7 @@ export default function RootLayout({
   sidebar: React.ReactNode
 }) {
   useEffect(() => {
-    document.title = "Project RAG"
+    document.title = "Palmco GPT"
   }, [])
 
   // Auth enforcement: the <AuthGuard> component below handles the initial
