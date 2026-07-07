@@ -24,6 +24,10 @@ const envSchema = z.object({
   // Base URL of the n8n instance the backend forwards RAG requests to.
   // Private Docker hostname in deployment (http://n8n:5678).
   N8N_BASE_URL: z.string().url().default("http://localhost:5678"),
+  // Optional per-endpoint override for the rag-read (Read Document) webhook.
+  // Falls back to N8N_BASE_URL when unset — lets the read workflow live on a
+  // different n8n instance (e.g. a staged migration) without moving the rest.
+  N8N_READ_URL: z.string().url().optional(),
 
   // RAG backend selector. n8n (default) keeps the existing webhook path;
   // langgraph routes to the in-process LangChain/LangGraph implementation.
