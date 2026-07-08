@@ -233,7 +233,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
             fontWeight: 500,
             lineHeight: 'var(--line-height-2)',
             color: 'var(--slate-12)',
-            font: 'inherit',
+            fontFamily: 'inherit',
           }}
         />
         {isSavingRename && <Spinner size={12} color="var(--slate-10)" />}
