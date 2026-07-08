@@ -12,8 +12,18 @@ export interface IdssOption {
   followup?: string;
 }
 
+/**
+ * The action a multi-select block's button performs. Chosen by the LLM from the
+ * question's intent so the button label + the follow-up turn it sends match what
+ * the user actually asked (prioritise vs. rank vs. compare), instead of always
+ * being "Compare selected". Unknown/absent → 'compare' (backwards compatible).
+ */
+export const IDSS_ACTIONS = ['compare', 'prioritize', 'rank'] as const;
+export type IdssAction = (typeof IDSS_ACTIONS)[number];
+
 export interface IdssOptionsData {
   multiSelect: boolean;
+  action: IdssAction;
   prompt?: string;
   options: IdssOption[];
 }
@@ -45,6 +55,10 @@ export function parseIdssOptions(raw: string): IdssOptionsData | null {
 
   return {
     multiSelect: obj.multiSelect === true,
+    action:
+      typeof obj.action === 'string' && (IDSS_ACTIONS as readonly string[]).includes(obj.action)
+        ? (obj.action as IdssAction)
+        : 'compare',
     prompt: typeof obj.prompt === 'string' ? obj.prompt : undefined,
     options,
   };
