@@ -24,6 +24,25 @@ describe('parseIdssOptions', () => {
     expect(parseIdssOptions(raw)!.multiSelect).toBe(false);
   });
 
+  it('parses a valid action and defaults it to "compare" when absent or invalid', () => {
+    expect(
+      parseIdssOptions(JSON.stringify({ action: 'prioritize', options: [{ label: 'A' }] }))!.action,
+    ).toBe('prioritize');
+    expect(
+      parseIdssOptions(JSON.stringify({ action: 'rank', options: [{ label: 'A' }] }))!.action,
+    ).toBe('rank');
+    // Missing → default
+    expect(parseIdssOptions(JSON.stringify({ options: [{ label: 'A' }] }))!.action).toBe('compare');
+    // Unknown / wrong type → default
+    expect(
+      parseIdssOptions(JSON.stringify({ action: 'delete-everything', options: [{ label: 'A' }] }))!
+        .action,
+    ).toBe('compare');
+    expect(
+      parseIdssOptions(JSON.stringify({ action: 42, options: [{ label: 'A' }] }))!.action,
+    ).toBe('compare');
+  });
+
   it('returns null for malformed JSON (e.g. mid-stream partial)', () => {
     expect(parseIdssOptions('{ "multiSelect": false, "options": [ { "lab')).toBeNull();
   });
