@@ -11,8 +11,9 @@ import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import type { AppliedFilters, AttachmentRef, ChatArtifact, ChatSource } from '../../types';
 import type { ConfidenceLevel, ModelInfo } from '../../types';
 import type { Source as RagSource } from '../../rag-api';
-import type { CitationMaps } from './response-tabs/citations';
+import type { CitationMaps, CitationData } from './response-tabs/citations';
 import { emptyCitationMaps, useCitationActions, isCitationPopoverKeyStillValid } from './response-tabs/citations';
+import { safeHttpUrl, isWebSource, fileExtensionOf } from '../../utils/source-helpers';
 import { useInlineCitationPopoverStore } from './response-tabs/citations/citation-popover-store';
 import { InlineCitationPopoverHost } from './response-tabs/citations/inline-citation-popover-host';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
@@ -70,6 +71,7 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
     const filename = typeof s.filename === 'string' ? s.filename : 'Source';
     const text = typeof s.text === 'string' ? s.text : undefined;
     const chunkIndex = typeof s.chunkIndex === 'number' ? s.chunkIndex : idx;
+    const webUrl = typeof s.webUrl === 'string' ? s.webUrl : undefined;
     out.push({
       // Same (filename, chunkIndex) can legitimately repeat within one answer,
       // so keep `idx` to guarantee a unique key per card.
@@ -77,10 +79,74 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
       title: filename,
       type: 'document',
       summary: text,
+      // Library / web results carry a link; document uploads don't. Passing it
+      // through lets MessageSources flag web-search results and link out.
+      url: webUrl,
       citationLabel: String(idx + 1),
     });
   });
   return out.length > 0 ? out : undefined;
+}
+
+/**
+ * Build a `CitationMaps` from the RAG `{filename, chunkIndex, text, webUrl}`
+ * sources so the inline `[N]` markers in the answer resolve to real citation
+ * pills (source name + icon + link) instead of inert grey numbers.
+ *
+ * The `[N]` markers are 1-based and index into the sources array in the order
+ * the backend returned it, so `chunkIndex = idx + 1`. That keeps the inline
+ * numbers aligned with the numbered Sources footer, which reads the same
+ * `citationLabel` (also `idx + 1`).
+ */
+function buildCitationMapsFromRagSources(raw: unknown): CitationMaps | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const citations: Record<string, CitationData> = {};
+  const sources: Record<string, string> = {};
+  const sourcesOrder: string[] = [];
+  const citationsOrder: Record<number, string> = {};
+
+  raw.forEach((item, idx) => {
+    if (!item || typeof item !== 'object') return;
+    const s = item as Partial<RagSource>;
+    const filename = typeof s.filename === 'string' ? s.filename : 'Source';
+    const text = typeof s.text === 'string' ? s.text : '';
+    const webUrl = safeHttpUrl(typeof s.webUrl === 'string' ? s.webUrl : undefined);
+    const web = isWebSource(filename, webUrl);
+    const chunkIndex = idx + 1; // matches the [N] markers (1-based)
+    const citationId = `rag-${idx}`;
+    // recordId groups consecutive [N] markers pointing at the same file into a
+    // single citation group; the filename is a stable per-answer key.
+    const recordId = filename;
+
+    citations[citationId] = {
+      citationId,
+      content: text,
+      chunkIndex,
+      recordId,
+      recordName: filename,
+      // 'WEB' yields the globe icon + an "open link" affordance; document
+      // sources have no openable record here, so leave the connector blank.
+      connector: web ? 'WEB' : '',
+      // Empty recordType hides the popover's Preview button — RAG sources have
+      // no server-side recordId to stream for preview.
+      recordType: '',
+      webUrl,
+      mimeType: '',
+      extension: web ? '' : fileExtensionOf(filename),
+      previewRenderable: false,
+      hideWeburl: false,
+      citationType: 'rag',
+    };
+    citationsOrder[chunkIndex] = citationId;
+    if (!sources[recordId]) {
+      sources[recordId] = citationId;
+      sourcesOrder.push(recordId);
+    }
+  });
+
+  return Object.keys(citations).length > 0
+    ? { citations, sources, sourcesOrder, citationsOrder }
+    : undefined;
 }
 
 
@@ -365,9 +431,14 @@ export function MessageList() {
           messageId: metadata?.messageId,
           question,
           answer: isBeingRegenerated ? '' : content,
+          // Legacy pipeshub streams carry `metadata.citationMaps`; the RAG flow
+          // instead returns a `sources` array, which we turn into a citation map
+          // here so the inline `[N]` badges become interactive source pills.
           citationMaps: (isCurrentlyStreaming || isBeingRegenerated)
             ? EMPTY_CITATION_MAPS
-            : (metadata?.citationMaps || EMPTY_CITATION_MAPS),
+            : (metadata?.citationMaps
+                || buildCitationMapsFromRagSources(metadata?.sources)
+                || EMPTY_CITATION_MAPS),
           confidence: metadata?.confidence,
           isStreaming: isCurrentlyStreaming || isBeingRegenerated,
           modelInfo: metadata?.modelInfo,
