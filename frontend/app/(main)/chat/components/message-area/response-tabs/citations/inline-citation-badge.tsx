@@ -73,6 +73,30 @@ export function InlineCitationBadge({
     );
   }
 
+  // ── RAG citations → bare numbered circle ──
+  // No connector icon or filename inline: the numbered Sources footer already
+  // names each source, and its number matches this circle. Keeps the answer
+  // text clean. Legacy connector citations still get the full pill below.
+  if (citation.citationType === 'rag') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          verticalAlign: 'middle',
+          marginLeft: 'var(--space-1)',
+          marginRight: '2px',
+        }}
+      >
+        <CitationNumberCircle
+          chunkIndex={chunkIndex}
+          occurrenceKey={occurrenceKey}
+          citation={citation}
+          callbacks={callbacks}
+        />
+      </span>
+    );
+  }
+
   // ── Full pill: connector icon + filename + numbered circle (matches group style) ──
   return (
     <Flex
