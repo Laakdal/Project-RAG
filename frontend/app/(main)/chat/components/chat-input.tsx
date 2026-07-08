@@ -34,6 +34,7 @@ import type {
   AttachmentRef,
 } from '@/chat/types';
 import { CHAT_ATTACHMENT_MAX_BYTES, CHAT_ATTACHMENT_MAX_FILES } from '@/chat/types';
+import { spreadsheetToCsvFile } from '@/chat/utils/spreadsheet-to-text';
 
 type ChatInputVariant = 'full' | 'widget';
 
@@ -636,7 +637,11 @@ export function ChatInput({
       prev.map((f) => (f.id === file.id ? { ...f, status: 'uploading' } : f)),
     );
 
-    onUploadFile(file.file, controller.signal)
+    // Flatten spreadsheets to CSV text in the browser first so a huge workbook
+    // uploads near-instantly (and reads fast) instead of shipping the binary.
+    // Non-spreadsheets pass through untouched.
+    spreadsheetToCsvFile(file.file)
+      .then((toUpload) => onUploadFile(toUpload, controller.signal))
       .then((ref) => {
         if (controller.signal.aborted) return;
         setUploadedFiles((prev) =>
