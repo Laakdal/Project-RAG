@@ -14,7 +14,7 @@ import type { ExternalStoreAdapter } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import { useChatStore } from './store';
 import { cancelStreamForSlot } from './streaming';
-import { askQuestion, ensureSlotConversation } from './rag-api';
+import { askQuestion, ensureSlotConversation, AttachmentReadingError } from './rag-api';
 import {
   type AttachmentRef,
   type ChatCollectionAttachment,
@@ -256,7 +256,38 @@ export function buildExternalStoreConfig(
             .resolveSlotConvId(targetSlotId, convId, { keepTemp: false });
         }
 
-        const { answer, sources } = await askQuestion(convId, apiQuery);
+        // A freshly-attached file may still be reading server-side (HTTP 202
+        // "reading"). Poll with a short delay, showing a progress hint, until it
+        // finishes — instead of hard-failing on a slow read.
+        const READING_RETRY_DELAY_MS = 3000;
+        const READING_MAX_ATTEMPTS = 40; // ~2 min before giving up gracefully
+        let result!: Awaited<ReturnType<typeof askQuestion>>;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            result = await askQuestion(convId, apiQuery);
+            break;
+          } catch (err) {
+            if (!(err instanceof AttachmentReadingError)) throw err;
+            if (attempt >= READING_MAX_ATTEMPTS) {
+              result = {
+                answer:
+                  'File masih diproses dan memakan waktu lebih lama dari biasanya. Silakan coba tanyakan lagi sebentar lagi.',
+                sources: [],
+              };
+              break;
+            }
+            useChatStore.getState().updateSlot(targetSlotId, {
+              currentStatusMessage: {
+                id: 'reading-file',
+                status: 'reading',
+                message: 'Membaca file yang dilampirkan…',
+                timestamp: '',
+              },
+            });
+            await new Promise((r) => setTimeout(r, READING_RETRY_DELAY_MS));
+          }
+        }
+        const { answer, sources } = result;
 
         const latest = useChatStore.getState().slots[targetSlotId];
         const baseMessages = latest ? latest.messages : currentSlot.messages;

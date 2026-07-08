@@ -115,6 +115,18 @@ export async function renameConversation(
   await apiClient.patch(`/chat/conversations/${conversationId}`, { title });
 }
 
+/**
+ * Thrown when the backend answers a message send with HTTP 202 `{status:"reading"}`
+ * — an attached file is still being read (extracted). The caller retries after a
+ * short delay until the read finishes (or gives up), showing a progress hint.
+ */
+export class AttachmentReadingError extends Error {
+  constructor() {
+    super('attachment still reading');
+    this.name = 'AttachmentReadingError';
+  }
+}
+
 export async function askQuestion(
   conversationId: string,
   question: string,
@@ -124,6 +136,12 @@ export async function askQuestion(
     `/chat/conversations/${conversationId}/messages`,
     useLibrary ? { question, useLibrary: true } : { question },
   );
+  // 202 "reading": the attachment read is still in progress. Signal the caller
+  // to retry rather than treating the empty body as a (missing) answer.
+  const pending = data as { status?: string; answer?: unknown };
+  if (pending && pending.status === 'reading' && pending.answer === undefined) {
+    throw new AttachmentReadingError();
+  }
   return data;
 }
 
