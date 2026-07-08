@@ -2,8 +2,10 @@
 
 import React from 'react';
 import { Flex, Card, Text } from '@radix-ui/themes';
+import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { ChatSource } from '../../types';
 import { cleanFilename } from '../../utils/clean-filename';
+import { safeHttpUrl, isWebSource } from '../../utils/source-helpers';
 
 interface MessageSourcesProps {
   sources: ChatSource[];
@@ -34,29 +36,44 @@ function SourceNumberCircle({ label }: { label: string }) {
   );
 }
 
+interface SourceGroup {
+  title: string;
+  url?: string;
+  isWeb: boolean;
+  /** The `[N]` number this source carries, so the footer aligns with the
+   *  inline citation badges in the answer text. */
+  label: string;
+}
+
 /**
  * Per-answer retrieval sources, rendered as a numbered, full-width vertical list
- * in a footer beneath the answer. RAG sources only carry `{filename, chunkIndex,
- * text}`, so there is no connector icon / external URL / topics to show.
+ * in a footer beneath the answer. Each source shows only its name (matched
+ * excerpts are intentionally not displayed). Web-search results are marked with
+ * a globe icon and link out; document results show a file icon.
  */
 export function MessageSources({ sources }: MessageSourcesProps) {
   if (!sources || sources.length === 0) return null;
 
   // The same document usually matches several chunks, which would otherwise
-  // repeat the filename once per chunk. Group by document so each file is a
-  // single source, with its matched excerpts listed underneath.
-  const groups: { title: string; excerpts: string[] }[] = [];
-  const byName = new Map<string, { title: string; excerpts: string[] }>();
-  for (const source of sources) {
+  // repeat the filename once per chunk. Group by name so each source is a
+  // single card.
+  const groups: SourceGroup[] = [];
+  const byName = new Map<string, SourceGroup>();
+  sources.forEach((source, idx) => {
     const key = cleanFilename(source.title);
-    let group = byName.get(key);
-    if (!group) {
-      group = { title: source.title, excerpts: [] };
-      byName.set(key, group);
-      groups.push(group);
-    }
-    if (source.summary) group.excerpts.push(source.summary);
-  }
+    if (byName.has(key)) return;
+    const url = safeHttpUrl(source.url);
+    const group: SourceGroup = {
+      title: source.title,
+      url,
+      isWeb: isWebSource(source.title, url),
+      // Prefer the source's own `[N]` label so the footer number matches the
+      // inline citation badge; fall back to position if it's missing.
+      label: source.citationLabel ?? String(idx + 1),
+    };
+    byName.set(key, group);
+    groups.push(group);
+  });
 
   return (
     <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-4)', width: '100%' }}>
@@ -64,66 +81,61 @@ export function MessageSources({ sources }: MessageSourcesProps) {
         Sources ({groups.length})
       </Text>
       <Flex direction="column" gap="2">
-        {groups.map((group, idx) => (
-          <Card
-            key={`${cleanFilename(group.title)}-${idx}`}
-            style={{
-              backgroundColor: 'var(--slate-2)',
-              borderRadius: 'var(--radius-2)',
-              padding: 'var(--space-2)',
-              border: '1px solid var(--slate-6)',
-            }}
-          >
-            <Flex gap="2" align="start">
-              <SourceNumberCircle label={String(idx + 1)} />
-              <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
-                {/* Filename once, with an excerpt count when several chunks matched. */}
-                <Flex align="baseline" gap="2" style={{ minWidth: 0 }}>
-                  <Text
-                    size="2"
-                    weight="medium"
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      color: 'var(--slate-12)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {cleanFilename(group.title)}
-                  </Text>
-                  {group.excerpts.length > 1 && (
-                    <Text size="1" style={{ color: 'var(--slate-10)', flexShrink: 0 }}>
-                      {group.excerpts.length} excerpts
-                    </Text>
-                  )}
-                </Flex>
+        {groups.map((group, idx) => {
+          const displayName = cleanFilename(group.title);
+          const nameNode = (
+            <Text
+              size="2"
+              weight="medium"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                color: group.isWeb && group.url ? 'var(--accent-11)' : 'var(--slate-12)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                ...(group.isWeb && group.url ? { cursor: 'pointer' } : null),
+              }}
+            >
+              {displayName}
+            </Text>
+          );
 
-                {/* Each matched chunk, clamped to two lines and separated by a faint rule. */}
-                {group.excerpts.map((excerpt, i) => (
-                  <Text
-                    key={`${idx}-${i}`}
-                    size="1"
-                    style={{
-                      color: 'var(--slate-11)',
-                      lineHeight: '1.4',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      ...(i > 0
-                        ? { borderTop: '1px solid var(--slate-4)', paddingTop: 4, marginTop: 2 }
-                        : null),
-                    }}
+          return (
+            <Card
+              key={`${displayName}-${idx}`}
+              style={{
+                backgroundColor: 'var(--slate-2)',
+                borderRadius: 'var(--radius-2)',
+                padding: 'var(--space-2)',
+                border: '1px solid var(--slate-6)',
+              }}
+            >
+              <Flex gap="2" align="center">
+                <SourceNumberCircle label={group.label} />
+                {/* Type marker: globe for web-search results, file for documents. */}
+                <MaterialIcon
+                  name={group.isWeb ? 'public' : 'description'}
+                  size={16}
+                  color={group.isWeb ? 'var(--accent-11)' : 'var(--slate-10)'}
+                  style={{ flexShrink: 0 }}
+                />
+                {group.isWeb && group.url ? (
+                  <a
+                    href={group.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ minWidth: 0, flex: 1, textDecoration: 'none' }}
                   >
-                    {excerpt}
-                  </Text>
-                ))}
+                    {nameNode}
+                  </a>
+                ) : (
+                  nameNode
+                )}
               </Flex>
-            </Flex>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </Flex>
     </Flex>
   );
