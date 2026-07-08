@@ -4,7 +4,34 @@ import React, { useState } from 'react';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { useThreadRuntime } from '@assistant-ui/react';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import type { IdssOptionsData } from '../../utils/parse-idss-options';
+import type { IdssAction, IdssOptionsData } from '../../utils/parse-idss-options';
+
+/**
+ * Per-action presets for the multi-select button. The LLM picks `data.action`
+ * from the question's intent, so the label, icon, and the follow-up turn we send
+ * all match what the user asked — instead of always being a comparison.
+ */
+const ACTION_PRESETS: Record<
+  IdssAction,
+  { label: string; icon: string; prompt: (labels: string) => string }
+> = {
+  compare: {
+    label: 'Compare selected',
+    icon: 'balance',
+    prompt: (labels) => `Compare these options: ${labels} — which is better?`,
+  },
+  prioritize: {
+    label: 'Prioritize selected',
+    icon: 'low_priority',
+    prompt: (labels) =>
+      `Prioritize these options: ${labels}. Rank them from highest to lowest priority and justify each.`,
+  },
+  rank: {
+    label: 'Rank selected',
+    icon: 'sort',
+    prompt: (labels) => `Rank these options: ${labels} from best to worst and explain the ordering.`,
+  },
+};
 
 /** Send a user turn and start a run — same primitive as Ask More. */
 function useSendFollowup() {
@@ -37,10 +64,12 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
     send(opt.followup && opt.followup.trim() ? opt.followup : `Tell me more about: ${opt.label}`);
   };
 
-  const handleCompare = () => {
+  const preset = ACTION_PRESETS[data.action] ?? ACTION_PRESETS.compare;
+
+  const handleAction = () => {
     const labels = [...selected].sort((a, b) => a - b).map((i) => data.options[i].label);
     if (labels.length < 2) return;
-    send(`Compare these options: ${labels.join(', ')} — which is better?`);
+    send(preset.prompt(labels.join(', ')));
   };
 
   return (
@@ -136,7 +165,7 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
         <Flex align="center" gap="3" style={{ marginTop: 'var(--space-3)' }}>
           <button
             type="button"
-            onClick={handleCompare}
+            onClick={handleAction}
             disabled={selected.size < 2}
             style={{
               display: 'inline-flex',
@@ -153,8 +182,8 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
               transition: 'background-color 0.12s ease',
             }}
           >
-            <MaterialIcon name="balance" size={14} color={selected.size < 2 ? 'var(--slate-9)' : 'white'} />
-            Compare selected
+            <MaterialIcon name={preset.icon} size={14} color={selected.size < 2 ? 'var(--slate-9)' : 'white'} />
+            {preset.label}
           </button>
           <Text size="1" style={{ color: 'var(--slate-9)' }}>
             {selected.size < 2 ? 'Select at least two options' : `${selected.size} selected`}
