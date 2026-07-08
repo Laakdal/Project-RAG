@@ -3,7 +3,7 @@
 import React, { memo } from 'react';
 import Link from 'next/link';
 import { Flex, Box, Text, Badge, Button } from '@radix-ui/themes';
-import { ConnectorIcon } from '@/app/components/ui/ConnectorIcon';
+import { ConnectorIcon, resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
 import { isLocalFsConnectorType } from '@/lib/connectors/local-fs-helpers';
 import { openRecordSource } from '@/chat/utils/open-record-source';
 import { getConnectorConfig } from './utils';
@@ -25,6 +25,10 @@ function CitationPopoverContentInner({
   onOpenInCollection,
 }: CitationPopoverContentProps) {
   const config = getConnectorConfig(citation.connector);
+  // Hide the generic "database" placeholder icon (shown for RAG document
+  // sources with no real connector). Web results (globe) and real connectors
+  // still show their icon.
+  const showConnectorIcon = resolveConnectorType(citation.connector) !== 'generic';
 
   // Determine if this is a collection (UPLOAD) or external connector source
   const isCollectionSource = citation.origin === 'UPLOAD';
@@ -57,7 +61,7 @@ function CitationPopoverContentInner({
       {/* ── Header: source + action buttons ── */}
       <Flex align="center" justify="between">
         <Flex align="center" gap="2">
-          <ConnectorIcon type={citation.connector} size={20} />
+          {showConnectorIcon && <ConnectorIcon type={citation.connector} size={20} />}
           <Text
             size="1"
             style={{
