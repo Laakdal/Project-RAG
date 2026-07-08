@@ -9,11 +9,11 @@ import { Conversation } from '@/chat/types';
 import { useChatStore, isConversationStreamingInScope } from '@/chat/store';
 import { ChatApi } from '@/chat/api';
 import { AgentsApi } from '@/app/(main)/agents/api';
-import { deleteConversation } from '@/chat/rag-api';
+import { deleteConversation, renameConversation as renameConversationApi } from '@/chat/rag-api';
 import { ICON_SIZE_DEFAULT, CHAT_ITEM_HEIGHT } from '@/app/components/sidebar';
 import { SidebarItem } from './sidebar-item';
 import { ChatItemMenu } from './chat-item-menu';
-import { DeleteChatDialog, ArchiveChatDialog } from './dialogs';
+import { DeleteChatDialog } from './dialogs';
 import { Spinner } from '@/app/components/ui/spinner';
 
 /** Duration must match `typing-reveal` animation duration in globals.css */
@@ -67,9 +67,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
   const [renameValue, setRenameValue] = useState(conversation.title);
   const [isSavingRename, setIsSavingRename] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
   const [isTypingTitle, setIsTypingTitle] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -133,7 +131,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
       if (agentId) {
         await AgentsApi.renameAgentConversation(agentId, conversation.id, trimmed);
       } else {
-        await ChatApi.renameConversation(conversation.id, trimmed);
+        await renameConversationApi(conversation.id, trimmed);
       }
       renameConversation(conversation.id, trimmed);
       bumpConversationsVersion();
@@ -205,37 +203,6 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
     }
   };
 
-  const handleConfirmArchive = async () => {
-    if (convStreamingBlocksSidebarMutation()) return;
-    setIsArchiving(true);
-    try {
-      if (agentId) {
-        await AgentsApi.archiveAgentConversation(agentId, conversation.id);
-      } else {
-        await ChatApi.archiveConversation(conversation.id);
-      }
-      removeConversation(conversation.id);
-      bumpConversationsVersion();
-      setArchiveDialogOpen(false);
-      if (urlConversationId === conversation.id) {
-        const store = useChatStore.getState();
-        const found = agentId
-          ? store.getSlotByConvId(conversation.id, { forAgentId: agentId })
-          : store.getSlotByConvId(conversation.id, { forAgentId: null });
-        if (found) {
-          store.evictSlot(found.slotId);
-        } else {
-          store.clearActiveSlot();
-        }
-        router.replace(agentId ? buildChatHref({ agentId }) : '/chat/');
-      }
-    } catch {
-      // keep dialog open on error
-    } finally {
-      setIsArchiving(false);
-    }
-  };
-
   // Inline rename mode — render a plain input instead of SidebarItem
   if (isRenaming) {
     return (
@@ -301,10 +268,8 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
               isParentHovered={isHovered}
               onOpenChange={setMenuOpen}
               onRename={handleStartRename}
-              onArchive={() => setArchiveDialogOpen(true)}
               onDelete={agentId ? () => setDeleteDialogOpen(true) : handleInstantDelete}
               showRename={true}
-              showArchive={true}
             />
           ) : undefined
         }
@@ -323,14 +288,6 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
           isDeleting={isDeleting}
         />
       )}
-
-      <ArchiveChatDialog
-        open={archiveDialogOpen}
-        onOpenChange={setArchiveDialogOpen}
-        onConfirm={handleConfirmArchive}
-        chatTitle={conversation.title}
-        isArchiving={isArchiving}
-      />
     </>
   );
 }

@@ -10,25 +10,21 @@ interface ChatItemMenuProps {
   /** Called when the dropdown open state changes (keep parent highlighted) */
   onOpenChange?: (open: boolean) => void;
   onRename: () => void;
-  onArchive: () => void;
   onDelete?: () => void;
   showRename?: boolean;
-  showArchive?: boolean;
 }
 
 /**
  * Meatball (three-dot) dropdown menu for a chat sidebar item.
  *
- * Shows on hover of the parent row. Options: Rename, Archive, Delete.
+ * Shows on hover of the parent row. Options: Rename, Delete.
  */
 export function ChatItemMenu({
   isParentHovered,
   onOpenChange: onOpenChangeProp,
   onRename,
-  onArchive,
   onDelete,
   showRename = true,
-  showArchive = true,
 }: ChatItemMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMeatballHovered, setIsMeatballHovered] = useState(false);
@@ -83,19 +79,6 @@ export function ChatItemMenu({
             <Flex align="center" gap="1">
               <MaterialIcon name="drive_file_rename_outline" size={16} color="var(--slate-11)" />
               <Text size="2" style={{ color: 'var(--slate-11)' }}>{"Rename"}</Text>
-            </Flex>
-          </DropdownMenu.Item>
-        )}
-        {showArchive && (
-          <DropdownMenu.Item
-            onClick={(e) => {
-              e.stopPropagation();
-              onArchive();
-            }}
-          >
-            <Flex align="center" gap="1">
-              <MaterialIcon name="archive" size={16} color="var(--slate-11)" />
-              <Text size="2" style={{ color: 'var(--slate-11)' }}>{"Archive"}</Text>
             </Flex>
           </DropdownMenu.Item>
         )}
