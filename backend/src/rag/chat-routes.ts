@@ -252,6 +252,33 @@ router.delete(
   },
 );
 
+const renameSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+});
+
+router.patch(
+  "/conversations/:id",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = renameSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "A non-empty title is required" });
+      return;
+    }
+    await db
+      .update(conversations)
+      .set({ title: parsed.data.title })
+      .where(eq(conversations.id, req.params.id));
+    res.status(204).end();
+  },
+);
+
 router.delete(
   "/conversations/:id",
   requireCsrf,
