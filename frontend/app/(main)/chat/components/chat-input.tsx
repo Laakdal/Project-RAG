@@ -864,15 +864,14 @@ export function ChatInput({
     }
   }, [processFiles, isRegenerateMode, isSearchMode, settings.queryMode]);
 
-  // Abort any still-pending uploads on unmount so we don't write back into
-  // a destroyed component's state when the network finally responds.
-  useEffect(() => {
-    const controllers = uploadControllersRef.current;
-    return () => {
-      for (const ctrl of controllers.values()) ctrl.abort();
-      controllers.clear();
-    };
-  }, []);
+  // Intentionally DO NOT abort in-flight uploads on unmount. Navigating away
+  // (e.g. opening the Admin panel) must not cancel an upload in progress —
+  // aborting it here dropped the file entirely. The request now finishes in the
+  // background and the file persists server-side (bumpAttachmentsVersion in the
+  // upload handler refreshes the "Files in this chat" panel), so it reappears in
+  // the conversation on return. Writes back into the unmounted component's state
+  // are guarded by the `controller.signal.aborted` checks in startUpload and are
+  // no-ops under React 18. Explicit chip removal still aborts its own upload.
 
   const toggleUploadArea = () => {
     const next = !showUploadArea;
