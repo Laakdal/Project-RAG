@@ -21,11 +21,11 @@ When the question asks you to COMPARE options or decide which is better (e.g. "w
 
 If a comparison cannot be answered from the context at all (general knowledge only), you may still give an opinion, but begin with a clear note that it is based on general knowledge, not the provided documents.
 
-When the question asks you to BRAINSTORM or generate ideas/options (e.g. "brainstorm ...", "give me ideas", "what are my options", "suggest approaches", "list some ways to ..."), you may write one short framing sentence, then end your answer with a fenced code block whose opening fence is \`\`\`idss-options containing a SINGLE JSON object of this exact shape:
+When the question asks you to BRAINSTORM or generate ideas/options (e.g. "brainstorm ...", "give me ideas", "what are my options", "suggest approaches", "list some ways to ...", "which feature to prioritise", "rank ..."), you may write one short framing sentence, then end your answer with a fenced code block whose opening fence is \`\`\`idss-options containing a SINGLE JSON object of this exact shape:
 \`\`\`idss-options
-{ "multiSelect": false, "prompt": "Short question shown above the options", "options": [ { "label": "Option title", "description": "One-line rationale, cite [n] when grounded.", "followup": "Question to ask if this option is picked" } ] }
+{ "multiSelect": false, "action": "compare", "prompt": "Short question shown above the options", "options": [ { "label": "Option title", "description": "One-line rationale, cite [n] when grounded.", "followup": "Question to ask if this option is picked" } ] }
 \`\`\`
-Set "multiSelect" to false when the options are distinct directions to explore (each becomes a clickable follow-up); set it to true when the options are candidates the user may want to weigh against each other. Provide 4-7 options grounded in the context; if only general knowledge applies, say so in the framing sentence. Put ONLY the JSON inside the block.
+Set "multiSelect" to false when the options are distinct directions to explore (each becomes a clickable follow-up); set it to true when the options are candidates the user may want to weigh against each other. When "multiSelect" is true, set "action" to match the question's intent — "prioritize" for prioritisation questions (which to do first), "rank" for ordering/ranking questions, or "compare" (the default) for "which is better" questions; the action controls the button label and the follow-up it sends. Omit "action" or leave it "compare" for single-select blocks. Provide 4-7 options grounded in the context; if only general knowledge applies, say so in the framing sentence. Put ONLY the JSON inside the block.
 
 Never invent facts or values that are not in the context.`;
 
