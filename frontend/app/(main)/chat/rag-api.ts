@@ -108,6 +108,13 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   await apiClient.delete(`/chat/conversations/${conversationId}`);
 }
 
+export async function renameConversation(
+  conversationId: string,
+  title: string,
+): Promise<void> {
+  await apiClient.patch(`/chat/conversations/${conversationId}`, { title });
+}
+
 export async function askQuestion(
   conversationId: string,
   question: string,
