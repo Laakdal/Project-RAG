@@ -33,6 +33,35 @@ export function InlineCitationGroup({ items, callbacks }: InlineCitationGroupPro
   const first = items[0]?.citation;
   if (!first) return null;
 
+  // ── RAG citations → just the numbered circles (no connector icon / filename) ──
+  // Matches the single-badge treatment; the Sources footer names each source.
+  if (first.citationType === 'rag') {
+    return (
+      <Flex
+        as="span"
+        align="center"
+        wrap="wrap"
+        style={{
+          display: 'inline-flex',
+          gap: '3px',
+          verticalAlign: 'middle',
+          marginLeft: 'var(--space-1)',
+          marginRight: '2px',
+        }}
+      >
+        {items.map((item, idx) => (
+          <CitationNumberCircle
+            key={item.occurrenceKey ?? `cite-circle-${item.chunkIndex}-${idx}`}
+            chunkIndex={item.chunkIndex}
+            occurrenceKey={item.occurrenceKey}
+            citation={item.citation}
+            callbacks={callbacks}
+          />
+        ))}
+      </Flex>
+    );
+  }
+
   const connector = first.connector || '';
   const fileNameWithoutExt = first.recordName
     ? first.recordName.replace(/\.[^/.]+$/, '')
