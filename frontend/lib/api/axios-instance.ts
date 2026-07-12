@@ -77,13 +77,42 @@ apiClient.interceptors.response.use(
       }
     }
 
-    const originalRequest = error.config as InternalAxiosRequestConfig | undefined;
+    const originalRequest = error.config as
+      | (InternalAxiosRequestConfig & { _csrfRetried?: boolean })
+      | undefined;
 
     if (error.response?.status === 401) {
       if (!originalRequest?.skipAuthRedirect) {
         logoutAndRedirect();
       }
       return Promise.reject(processError(error));
+    }
+
+    // A 403 "Invalid CSRF token" means our `csrf_token` cookie was missing or
+    // stale (it expires before the session, and is only seeded at login/mount).
+    // Re-seed it via GET /auth/csrf, then retry the original request ONCE. This
+    // heals silently — no toast, no lost message — for the common expired-cookie
+    // case. Capture the token from the response body too so it works even
+    // cross-origin, where JS can't read the API origin's cookie.
+    const csrfFailed =
+      error.response?.status === 403 &&
+      (error.response?.data as { error?: string } | undefined)?.error ===
+        'Invalid CSRF token';
+    if (csrfFailed && originalRequest && !originalRequest._csrfRetried) {
+      originalRequest._csrfRetried = true;
+      try {
+        const { data } = await apiClient.get<{ csrfToken: string }>('/auth/csrf', {
+          skipAuthRedirect: true,
+          suppressErrorToast: true,
+        });
+        if (data?.csrfToken && originalRequest.headers) {
+          originalRequest.headers.set(CSRF_HEADER_NAME, data.csrfToken);
+        }
+      } catch {
+        // Re-seed failed; fall through to retry anyway (the request interceptor
+        // will still attach the cookie value if one is now present).
+      }
+      return apiClient(originalRequest);
     }
 
     // The legacy `/api/v1/*` surface (model list, speech, old conversation
