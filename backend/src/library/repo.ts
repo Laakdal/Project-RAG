@@ -35,6 +35,16 @@ export async function existsBySourceRef(sourceRef: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+// All Drive file ids already indexed. The bulk backfill fetches these once so
+// it can skip re-reading (OCR) documents that are already in the library.
+export async function listIndexedDriveRefs(): Promise<string[]> {
+  const rows = await db
+    .select({ sourceRef: libraryDocuments.sourceRef })
+    .from(libraryDocuments)
+    .where(eq(libraryDocuments.source, "drive"));
+  return rows.map((r) => r.sourceRef).filter((r): r is string => !!r);
+}
+
 export async function summary(): Promise<{
   total: number;
   failed: number;
