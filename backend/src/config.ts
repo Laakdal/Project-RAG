@@ -45,6 +45,11 @@ const envSchema = z.object({
   DRIVE_FOLDER_ID: z.string().min(1).optional(),
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   QDRANT_COLLECTION_LIBRARY: z.string().min(1).default("project_rag_library"),
+
+  // Shared secret for the internal Drive-backfill endpoints (n8n -> backend).
+  // The bulk indexer authenticates with this token via the x-index-token header
+  // instead of an admin session. Endpoints refuse to run when it is unset.
+  LIBRARY_INDEX_TOKEN: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
