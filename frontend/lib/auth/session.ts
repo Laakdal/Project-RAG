@@ -54,6 +54,17 @@ export async function hydrateSession(): Promise<void> {
   const user = await AuthApi.getMe();
   if (user) {
     applyAuthUser(user);
+    // Seed/refresh the CSRF cookie on every authenticated mount, not just at
+    // login. The cookie has a shorter lifetime than the session, so on a reload
+    // after it expired the session is still valid but mutating calls (e.g.
+    // sending a chat) would 403 with "Invalid CSRF token". Best-effort — never
+    // block hydration on it; the 403 auto-retry in the axios interceptor is the
+    // backstop if this fails.
+    try {
+      await AuthApi.getCsrf();
+    } catch {
+      // Non-fatal.
+    }
   } else {
     clearSession();
   }
