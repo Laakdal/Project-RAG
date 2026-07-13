@@ -94,6 +94,28 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
 }
 
 /**
+ * Keep only the sources the answer actually cited, so context documents that
+ * were provided but not used (e.g. an unrelated file uploaded earlier in the
+ * chat) don't clutter the Sources footer. A source is "cited" when its number
+ * appears as an `[N]` marker in the answer. Original numbers are preserved so
+ * the footer still lines up with the inline citation badges. If the answer cites
+ * nothing (no `[N]` markers), all sources are kept as a fallback.
+ */
+function filterCitedSources(
+  content: string,
+  sources: ChatSource[] | undefined,
+): ChatSource[] | undefined {
+  if (!sources || sources.length === 0) return sources;
+  const cited = new Set<string>();
+  const re = /\[(\d+)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) cited.add(m[1]);
+  if (cited.size === 0) return sources;
+  const kept = sources.filter((s) => s.citationLabel != null && cited.has(s.citationLabel));
+  return kept.length > 0 ? kept : sources;
+}
+
+/**
  * Build a `CitationMaps` from the RAG `{filename, chunkIndex, text, webUrl}`
  * sources so the inline `[N]` markers in the answer resolve to real citation
  * pills (source name + icon + link) instead of inert grey numbers.
@@ -455,7 +477,7 @@ export function MessageList() {
           appliedFilters: userMessageAppliedFilters,
           createdAt: userCreatedAt,
           attachments: userMessageAttachments,
-          sources: mapRagSourcesToChatSources(metadata?.sources),
+          sources: filterCitedSources(content, mapRagSourcesToChatSources(metadata?.sources)),
         });
       }
     }
