@@ -1,5 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { titleFromQuestion } from "./title-generator.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("../config.js", () => ({
+  config: { OPENAI_API_KEY: "sk-test", GENERATE_MODEL: "gpt-4o-mini" },
+}));
+
+const invoke = vi.fn();
+vi.mock("@langchain/openai", () => ({
+  ChatOpenAI: class {
+    invoke = invoke;
+  },
+}));
+
+import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
 
 describe("titleFromQuestion", () => {
   it("takes the first sentence", () => {
@@ -16,5 +28,26 @@ describe("titleFromQuestion", () => {
     expect(
       titleFromQuestion("1. User membuka halaman login. 2. User memasukkan username."),
     ).toBe("User membuka halaman login");
+  });
+});
+
+describe("summarizeTitle", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns the model's title, stripped of surrounding quotes and trailing punctuation", async () => {
+    invoke.mockResolvedValue({ content: '"EPrT Certificate Summary."' });
+    expect(await summarizeTitle("isi pdf ini apa", "It is an EPrT certificate")).toBe(
+      "EPrT Certificate Summary",
+    );
+  });
+
+  it("returns null on model error so the caller falls back to the heuristic", async () => {
+    invoke.mockRejectedValue(new Error("boom"));
+    expect(await summarizeTitle("q")).toBeNull();
+  });
+
+  it("returns null when the model gives an empty title", async () => {
+    invoke.mockResolvedValue({ content: "  " });
+    expect(await summarizeTitle("q")).toBeNull();
   });
 });

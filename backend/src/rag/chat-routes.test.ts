@@ -35,10 +35,19 @@ vi.mock("../library/drive-index.js", () => ({
   indexDriveSourcesInBackground: vi.fn(),
 }));
 
+// Keep the real deterministic titleFromQuestion; stub the LLM summarizer to
+// return null by default so title tests exercise the heuristic path unless a
+// test overrides it.
+vi.mock("./title-generator.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./title-generator.js")>()),
+  summarizeTitle: vi.fn(async () => null),
+}));
+
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag, downloadDriveFile } from "./n8n-client.js";
 import { startBackgroundRead } from "./attachment-reader.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
+import { summarizeTitle } from "./title-generator.js";
 
 // Imported after mocks are registered.
 const { chatRouter } = await import("./chat-routes.js");
@@ -360,6 +369,30 @@ describe("message route", () => {
 
     const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
     expect(setSpy).toHaveBeenCalledWith({ title: "Document overview" });
+
+    limitSpy.mockImplementation(() => dbMock.db);
+  });
+
+  it("summarizes the first-message title with the LLM when n8n returns none", async () => {
+    dbMock.setResult([{ id: "c1" }]);
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
+    const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
+    limitSpy.mockImplementation((n: number) =>
+      n === 10
+        ? { then: (r: (v: unknown) => unknown) => Promise.resolve([]).then(r) }
+        : dbMock.db,
+    );
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "It is an EPrT certificate.", sources: [] });
+    vi.mocked(summarizeTitle).mockResolvedValueOnce("EPrT Certificate Summary");
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "isi pdf ini apa" });
+    expect(res.status).toBe(200);
+
+    const setSpy = dbMock.db.set as ReturnType<typeof vi.fn>;
+    expect(setSpy).toHaveBeenCalledWith({ title: "EPrT Certificate Summary" });
 
     limitSpy.mockImplementation(() => dbMock.db);
   });
