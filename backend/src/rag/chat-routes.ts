@@ -11,8 +11,9 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, type QueryResult, type QuerySource } from "./n8n-client.js";
+import { queryRag, downloadDriveFile, type QueryResult, type QuerySource } from "./n8n-client.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
+import { findIndexedDriveByFilename } from "../library/repo.js";
 import { startBackgroundRead } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
@@ -224,6 +225,43 @@ router.get(
     res.send(row.data);
   },
 );
+
+// Preview a shared-library document (a Google Drive file) inline. The backend
+// has no Drive access, so it resolves the filename to the indexed Drive id and
+// proxies the bytes from the n8n drive-download webhook. Scoped to files that
+// are actually in the library, so this can never fetch an arbitrary Drive file.
+// Only PDFs are served inline (script-safe); anything else is a neutral download.
+router.get("/library-file", async (req: Request, res: Response) => {
+  const name = typeof req.query.name === "string" ? req.query.name : "";
+  if (!name) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  const doc = await findIndexedDriveByFilename(name);
+  if (!doc) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  let file: { buffer: Buffer; contentType: string };
+  try {
+    file = await downloadDriveFile(doc.driveFileId);
+  } catch {
+    res.status(502).json({ error: "Could not fetch the file" });
+    return;
+  }
+  const isPdf =
+    file.contentType.includes("application/pdf") || name.toLowerCase().endsWith(".pdf");
+  const safeName = name.replace(/["\\\r\n]/g, "_");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Security-Policy", "sandbox");
+  res.setHeader("Content-Type", isPdf ? "application/pdf" : "application/octet-stream");
+  res.setHeader(
+    "Content-Disposition",
+    `${isPdf ? "inline" : "attachment"}; filename="${safeName}"`,
+  );
+  res.setHeader("Content-Length", String(file.buffer.length));
+  res.send(file.buffer);
+});
 
 router.delete(
   "/conversations/:id/attachments/:attachmentId",
