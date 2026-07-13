@@ -33,7 +33,7 @@ vi.mock("../library/drive-index.js", () => ({
 
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag } from "./n8n-client.js";
-import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
+import { startBackgroundRead } from "./attachment-reader.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 
 // Imported after mocks are registered.
@@ -246,7 +246,10 @@ describe("message route", () => {
   });
 
   it("answers via n8n and persists both turns", async () => {
-    dbMock.setResult([{ id: "c1" }]); // ownership + inserts resolve to this
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([{ id: "c1" }]); // history (non-empty → generateTitle false)
+    dbMock.queueResult([]);             // attachments (none → no read grace loop)
+    dbMock.setResult([{ id: "c1" }]);   // inserts resolve to this
     const res = await request(app())
       .post("/chat/conversations/c1/messages")
       .send({ question: "What is the answer?" });
@@ -262,7 +265,7 @@ describe("message route", () => {
     // The shared db mock returns one truthy row for both the ownership lookup
     // and the history read, so history is non-empty here and generateTitle is
     // false; the first-message path is covered by its own test below.
-    // docs is empty because ensureExtractedText returns null by default.
+    // docs is empty because the attachments query returns none.
     // libraryDocs is empty because shouldSearchLibrary defaults to false.
     expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
       "c1",
@@ -293,6 +296,8 @@ describe("message route", () => {
 
   it("titles the first message via heuristic when n8n returns no title", async () => {
     dbMock.setResult([{ id: "c1" }]); // ownership + inserts + update
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
     // The first turn has no prior history. The shared mock returns one row for
     // every read, so steer the history query (it ends with .limit(10)) to an
     // empty result while the ownership lookup (.limit(1)) still finds the row.
@@ -330,6 +335,8 @@ describe("message route", () => {
 
   it("prefers the LLM-summarized title from n8n on the first message", async () => {
     dbMock.setResult([{ id: "c1" }]);
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
     const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
     limitSpy.mockImplementation((n: number) =>
       n === 10
@@ -354,7 +361,10 @@ describe("message route", () => {
   });
 
   it("returns 502 when n8n is unavailable", async () => {
-    dbMock.setResult([{ id: "c1" }]); // owned
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([{ id: "c1" }]); // history
+    dbMock.queueResult([]);             // attachments (none)
+    dbMock.setResult([{ id: "c1" }]);   // owned
     vi.mocked(queryRag).mockRejectedValueOnce(new Error("n8n down"));
     const res = await request(app())
       .post("/chat/conversations/c1/messages")
@@ -403,11 +413,13 @@ describe("message route", () => {
 
   it("asking a question passes the chat's read docs to the query", async () => {
     // Queue results in order: ownership lookup, history query (limit 10 → []),
-    // then attachments-for-conv query returns one ready attachment.
+    // then the attachments query returns one already-read ("ready") attachment
+    // whose extracted text is forwarded to the query as a doc.
     dbMock.queueResult([{ id: "c1" }]); // ownedConversation
     dbMock.queueResult([]);              // history (no prior messages → first turn)
-    dbMock.queueResult([{ id: "att1", filename: "a.pdf" }]); // attachments query
-    vi.mocked(ensureExtractedText).mockResolvedValueOnce("# the document body");
+    dbMock.queueResult([
+      { id: "att1", filename: "a.pdf", status: "ready", extractedText: "# the document body" },
+    ]);
     vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
 
     await request(app()).post("/chat/conversations/c1/messages").send({ question: "q" });
