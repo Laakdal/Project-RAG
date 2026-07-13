@@ -1008,6 +1008,20 @@ function ChatContent() {
   // sidebar's mobile drawer.
   const [filesPanelMobileOpen, setFilesPanelMobileOpen] = useState(false);
 
+  // When a file is added to the composer (drag-and-drop or the attach button),
+  // auto-open the "Files in this chat" panel so the upload is immediately
+  // visible. Track the previous count so it fires only on a new addition — not
+  // on removals, or when the composer clears after sending.
+  const composerUploads = useChatStore((s) => s.composerUploads);
+  const prevUploadsCountRef = useRef(composerUploads.length);
+  useEffect(() => {
+    if (composerUploads.length > prevUploadsCountRef.current) {
+      setFilesPanelCollapsed(false);
+      setFilesPanelMobileOpen(true);
+    }
+    prevUploadsCountRef.current = composerUploads.length;
+  }, [composerUploads.length]);
+
   const filesPanelWidthRef = useRef(filesPanelWidthPx);
   useLayoutEffect(() => {
     filesPanelWidthRef.current = filesPanelWidthPx;
