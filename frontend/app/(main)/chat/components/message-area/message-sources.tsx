@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Flex, Card, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { ChatSource } from '../../types';
 import { cleanFilename } from '../../utils/clean-filename';
 import { safeHttpUrl, isWebSource } from '../../utils/source-helpers';
+import { PdfPreviewDialog } from '../pdf-preview-dialog';
 
 interface MessageSourcesProps {
   sources: ChatSource[];
@@ -52,6 +53,7 @@ interface SourceGroup {
  * a globe icon and link out; document results show a file icon.
  */
 export function MessageSources({ sources }: MessageSourcesProps) {
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   if (!sources || sources.length === 0) return null;
 
   // The same document usually matches several chunks, which would otherwise
@@ -83,6 +85,23 @@ export function MessageSources({ sources }: MessageSourcesProps) {
       <Flex direction="column" gap="2">
         {groups.map((group, idx) => {
           const displayName = cleanFilename(group.title);
+          // Document sources (not web) are Google Drive / library files. Serve
+          // them inline through the same-origin proxy so the session cookie
+          // rides along; PDFs open in the preview modal, other types download.
+          const isPdf = /\.pdf$/i.test(group.title);
+          const serveUrl = !group.isWeb
+            ? `/chat/library-file?name=${encodeURIComponent(group.title)}`
+            : null;
+          const openFile = serveUrl
+            ? () => {
+                if (isPdf) {
+                  setPreview({ url: serveUrl, name: group.title });
+                } else {
+                  window.open(serveUrl, '_blank', 'noopener');
+                }
+              }
+            : undefined;
+          const clickable = group.isWeb ? !!group.url : true;
           const nameNode = (
             <Text
               size="2"
@@ -90,11 +109,11 @@ export function MessageSources({ sources }: MessageSourcesProps) {
               style={{
                 flex: 1,
                 minWidth: 0,
-                color: group.isWeb && group.url ? 'var(--accent-11)' : 'var(--slate-12)',
+                color: clickable ? 'var(--accent-11)' : 'var(--slate-12)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                ...(group.isWeb && group.url ? { cursor: 'pointer' } : null),
+                ...(clickable ? { cursor: 'pointer' } : null),
               }}
             >
               {displayName}
@@ -104,11 +123,14 @@ export function MessageSources({ sources }: MessageSourcesProps) {
           return (
             <Card
               key={`${displayName}-${idx}`}
+              onClick={openFile}
+              title={openFile ? `Open ${displayName}` : displayName}
               style={{
                 backgroundColor: 'var(--slate-2)',
                 borderRadius: 'var(--radius-2)',
                 padding: 'var(--space-2)',
                 border: '1px solid var(--slate-6)',
+                ...(openFile ? { cursor: 'pointer' } : null),
               }}
             >
               <Flex gap="2" align="center">
@@ -137,6 +159,12 @@ export function MessageSources({ sources }: MessageSourcesProps) {
           );
         })}
       </Flex>
+
+      <PdfPreviewDialog
+        url={preview?.url ?? null}
+        filename={preview?.name ?? ''}
+        onClose={() => setPreview(null)}
+      />
     </Flex>
   );
 }
