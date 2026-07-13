@@ -36,6 +36,9 @@ export interface ChatSource {
   category?: string;
   topics?: string[];
   citationLabel?: string; // e.g., "1" — numbered position in the per-answer sources list
+  /** Where the source came from: "This chat" (an uploaded file), "Drive"/"Library"
+   *  (a Google Drive doc), or a web result. Drives whether it can be previewed. */
+  origin?: string;
 }
 
 export interface ModelInfo {
