@@ -48,11 +48,14 @@ export async function queryRag(
   docs: { filename: string; text: string }[] = [],
   // Docs retrieved from the shared vector library (intent-gated).
   libraryDocs: QuerySource[] = [],
+  // When true, the library already answers the question, so the workflow may
+  // skip the slow on-demand live Drive read. Defaults false (do the live read).
+  skipDrive = false,
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle, docs, libraryDocs }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, docs, libraryDocs, skipDrive }),
     signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
   });
   if (!res.ok) {
