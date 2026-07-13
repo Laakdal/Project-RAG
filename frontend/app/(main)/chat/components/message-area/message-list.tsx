@@ -72,6 +72,10 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
     const text = typeof s.text === 'string' ? s.text : undefined;
     const chunkIndex = typeof s.chunkIndex === 'number' ? s.chunkIndex : idx;
     const webUrl = typeof s.webUrl === 'string' ? s.webUrl : undefined;
+    // "This chat" (uploaded file), "Drive"/"Library" (Google Drive doc), etc.
+    // Present on the raw source even though the RagSource type doesn't declare it.
+    const rawOrigin = (item as { origin?: unknown }).origin;
+    const origin = typeof rawOrigin === 'string' ? rawOrigin : undefined;
     out.push({
       // Same (filename, chunkIndex) can legitimately repeat within one answer,
       // so keep `idx` to guarantee a unique key per card.
@@ -83,6 +87,7 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
       // through lets MessageSources flag web-search results and link out.
       url: webUrl,
       citationLabel: String(idx + 1),
+      origin,
     });
   });
   return out.length > 0 ? out : undefined;
