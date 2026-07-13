@@ -18,7 +18,10 @@ declare module 'axios' {
 // Default to '' (same origin). A single sentinel avoids `"undefined"` leaking
 // into template-built URLs when `NEXT_PUBLIC_API_BASE_URL` is unset.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
-const API_TIMEOUT = 90_000;
+// Must exceed the backend's n8n query timeout (150s) so a slow first-time
+// on-demand Drive read completes instead of the client aborting early and
+// discarding an answer the backend already has in flight.
+const API_TIMEOUT = 160_000;
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
