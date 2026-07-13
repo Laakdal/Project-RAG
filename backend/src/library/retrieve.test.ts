@@ -14,7 +14,7 @@ vi.mock("@langchain/openai", () => ({
   },
 }));
 
-const { searchLibrary, shouldSearchLibrary } = await import("./retrieve.js");
+const { searchLibrary, shouldSearchLibrary, librarySufficient } = await import("./retrieve.js");
 
 describe("searchLibrary", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -39,6 +39,26 @@ describe("searchLibrary", () => {
       { filename: "a.pdf", chunkIndex: 0, text: "strong" },
       { filename: "c.pdf", chunkIndex: 2, text: "boundary" },
     ]);
+  });
+});
+
+describe("librarySufficient", () => {
+  const docs = [{ filename: "a.pdf", chunkIndex: 0, text: "the answer is here" }];
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns true when the judge says the context answers the question", async () => {
+    invoke.mockResolvedValue({ content: "yes" });
+    expect(await librarySufficient("q", docs)).toBe(true);
+  });
+
+  it("returns false when the judge says the context is a wrong/different document", async () => {
+    invoke.mockResolvedValue({ content: "no" });
+    expect(await librarySufficient("q", docs)).toBe(false);
+  });
+
+  it("returns false without calling the model when there are no docs", async () => {
+    expect(await librarySufficient("q", [])).toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
   });
 });
 

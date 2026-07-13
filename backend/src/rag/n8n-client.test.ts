@@ -24,7 +24,8 @@ describe("n8n-client", () => {
     expect(result.sources[0].filename).toBe("geo.pdf");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-query");
-    // generateTitle defaults to false when not requested; docs and libraryDocs default to [].
+    // generateTitle defaults to false when not requested; docs and libraryDocs
+    // default to []; skipDrive defaults to false (do the live Drive read).
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
@@ -32,6 +33,7 @@ describe("n8n-client", () => {
       generateTitle: false,
       docs: [],
       libraryDocs: [],
+      skipDrive: false,
     });
   });
 

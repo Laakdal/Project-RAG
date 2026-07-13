@@ -24,6 +24,7 @@ vi.mock("./attachment-reader.js", () => ({
 vi.mock("../library/retrieve.js", () => ({
   searchLibrary: vi.fn(async () => []),
   shouldSearchLibrary: vi.fn(async () => false),
+  librarySufficient: vi.fn(async () => false),
 }));
 
 vi.mock("../library/drive-index.js", () => ({
@@ -33,7 +34,7 @@ vi.mock("../library/drive-index.js", () => ({
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag } from "./n8n-client.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
-import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
+import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 
 // Imported after mocks are registered.
 const { chatRouter } = await import("./chat-routes.js");
@@ -270,6 +271,7 @@ describe("message route", () => {
       false,
       expect.any(Array),
       expect.any(Array),
+      false,
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -316,6 +318,7 @@ describe("message route", () => {
       true,
       expect.any(Array),
       expect.any(Array),
+      false,
     );
 
     // The conversation title was set from the heuristic (first sentence).
@@ -382,6 +385,22 @@ describe("message route", () => {
     expect(libraryDocsArg).toEqual([libDoc]);
   });
 
+  it("passes skipDrive=true only when the library is sufficient", async () => {
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history
+    dbMock.queueResult([]);              // attachments
+    vi.mocked(shouldSearchLibrary).mockResolvedValueOnce(true);
+    vi.mocked(searchLibrary).mockResolvedValueOnce([
+      { filename: "lib.pdf", chunkIndex: 0, text: "the answer" },
+    ]);
+    vi.mocked(librarySufficient).mockResolvedValueOnce(true);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    await request(app()).post("/chat/conversations/c1/messages").send({ question: "What is in the SOP?" });
+
+    expect(vi.mocked(queryRag).mock.calls[0][6]).toBe(true);
+  });
+
   it("asking a question passes the chat's read docs to the query", async () => {
     // Queue results in order: ownership lookup, history query (limit 10 → []),
     // then attachments-for-conv query returns one ready attachment.
@@ -420,6 +439,7 @@ describe("regenerate route", () => {
       false,
       [],
       expect.any(Array),
+      expect.any(Boolean),
     );
 
     // The answer is written via UPDATE .set (overwrite in place), not a new insert.
