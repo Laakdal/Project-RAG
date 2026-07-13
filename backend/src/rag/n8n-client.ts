@@ -23,7 +23,7 @@ export type IngestResult = {
 };
 
 const QUERY_TIMEOUT_MS = 150_000;  // answer generation incl. slow first-time on-demand Drive reads (+ optional web search)
-const READ_TIMEOUT_MS = 120_000;   // background Gemini read of a large/image-heavy doc
+const READ_TIMEOUT_MS = 240_000;   // background Gemini read of a large/image-heavy doc (slow over the SG egress tunnel)
 const INGEST_TIMEOUT_MS = 120_000; // legacy ingest (read+chunk+embed); now unused but bounded for safety
 
 const QUERY_PATH = "/webhook/rag-query";
