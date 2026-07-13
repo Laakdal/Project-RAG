@@ -878,21 +878,12 @@ export function ChatInput({
   // are guarded by the `controller.signal.aborted` checks in startUpload and are
   // no-ops under React 18. Explicit chip removal still aborts its own upload.
 
-  const toggleUploadArea = () => {
-    const next = !showUploadArea;
-    if (next) {
-      // Close all other panels before opening the upload area
-      setIsModePanelOpen(false);
-      setIsAgentStrategyPanelOpen(false);
-      setIsCollectionsPanelOpen(false);
-      setIsAgentResourcesPanelOpen(false);
-      setIsModelPanelOpen(false);
-      setExpansionViewMode('inline');
-      // Clear any stale drag overlay state so the panel overlay doesn't bleed
-      // into the upload area UI when files were dragged prior to opening it.
-      setIsPanelDragging(false);
-    }
-    setShowUploadArea(next);
+  // Open the OS file picker directly from the attach button. Selecting a file
+  // runs handleFileSelect -> processFiles (upload). Drag-and-drop still works via
+  // the panel-level drop overlay, so we don't need the in-app upload box here.
+  const openFilePicker = () => {
+    if (isRegenerateMode) return;
+    fileInputRef.current?.click();
   };
 
   const hasContent = message.trim() || uploadedFiles.length > 0 || isListening;
@@ -1389,7 +1380,7 @@ export function ChatInput({
                     color="gray"
                     size="2"
                     disabled={isRegenerateMode}
-                    onClick={toggleUploadArea}
+                    onClick={openFilePicker}
                     style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
                   >
                     <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
@@ -1442,7 +1433,7 @@ export function ChatInput({
                       onClick={() => {
                         if (isRegenerateMode) return;
                         setIsCompactMenuOpen(false);
-                        toggleUploadArea();
+                        openFilePicker();
                       }}
                       style={{
                         padding: 'var(--space-2) var(--space-2)',
@@ -1483,7 +1474,7 @@ export function ChatInput({
                       color="gray"
                       size="2"
                       disabled={isRegenerateMode}
-                      onClick={toggleUploadArea}
+                      onClick={openFilePicker}
                       style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
                     >
                       <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
