@@ -16,7 +16,7 @@ import { downloadDriveFile } from "./n8n-client.js";
 import type { QueryResult, QuerySource } from "./types.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
-import { titleFromQuestion } from "./title-generator.js";
+import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 
 const router = Router();
@@ -413,11 +413,15 @@ router.post(
     });
 
     // Title a fresh conversation from its first message (only while the title
-    // is still the default, so later messages don't overwrite it). Prefer the
-    // LLM-summarized title from the workflow; fall back to a deterministic
-    // heuristic when the workflow returns none.
+    // is still the default, so later messages don't overwrite it). Prefer a
+    // title the workflow summarized; otherwise summarize one with the LLM (like
+    // ChatGPT/Gemini); fall back to a deterministic heuristic if that's
+    // unavailable or fails.
     if (isFirstMessage) {
-      const title = result.title?.trim() || titleFromQuestion(question);
+      const title =
+        result.title?.trim() ||
+        (await summarizeTitle(question, result.answer)) ||
+        titleFromQuestion(question);
       await db
         .update(conversations)
         .set({ title })
