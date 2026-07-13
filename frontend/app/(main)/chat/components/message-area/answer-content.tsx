@@ -221,6 +221,60 @@ function preprocessMath(content: string): string {
 }
 
 /**
+ * Insert the blank line CommonMark needs before an ordered list that directly
+ * follows a paragraph/heading.
+ *
+ * The answer generator (glm-4.6) often emits a grouped list like:
+ *
+ *   **PIC KSO Regional II:**
+ *   6. Ilhamdi - ...
+ *   7. Ellyvia - ...
+ *
+ * with only a single newline between the heading and the first item. Per the
+ * CommonMark spec an ordered list whose first number is NOT 1 may not interrupt
+ * a paragraph, so `6. .. 7. ..` gets swallowed into the `**PIC KSO..**`
+ * paragraph and renders as one run-on line — while a sibling group that happens
+ * to start at `1.` renders as a clean list. Inserting a blank line ends the
+ * paragraph so the list is recognised (as `<ol start="6">`).
+ *
+ * Scope is minimal: a blank line is added only before an ordered-list line
+ * whose previous line is non-blank and is NOT itself a list item — so runs of
+ * consecutive items and already-separated lists are left untouched. Fenced code
+ * blocks are protected (split-and-skip, like the other preprocessors) so a
+ * "3." inside a code sample never triggers it.
+ *
+ * NOTE: this pairs with the `ol` renderer forwarding the `start` prop — without
+ * that, the recognised list would restart its numbering at 1.
+ */
+export function preprocessOrderedListSpacing(content: string): string {
+  // Fast-path: only act if an ordered-list line directly follows a non-blank
+  // line somewhere (a non-newline char, one newline, optional indent, "N. ").
+  if (!/[^\n]\n[ \t]*\d+\.[ \t]/.test(content)) return content;
+
+  const isOrderedItem = (line: string) => /^[ \t]*\d+\.[ \t]/.test(line);
+  const isAnyListItem = (line: string) => /^[ \t]*(?:\d+\.|[-*+])[ \t]/.test(line);
+
+  // Protect fenced code blocks — their content must not be reflowed.
+  const parts = content.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g);
+  return parts
+    .map((part, i) => {
+      if (i % 2 !== 0) return part; // inside fenced block — leave untouched
+      const lines = part.split('\n');
+      const out: string[] = [];
+      for (let j = 0; j < lines.length; j += 1) {
+        const line = lines[j];
+        const prev = j > 0 ? lines[j - 1] : '';
+        if (isOrderedItem(line) && prev.trim() !== '' && !isAnyListItem(prev)) {
+          out.push(''); // the blank line CommonMark needs to start the list
+        }
+        out.push(line);
+      }
+      return out.join('\n');
+    })
+    .join('');
+}
+
+/**
  * Remark plugin: detects > [!NOTE] / [!WARNING] / … blockquotes that LLMs
  * generate and adds the hast class properties that our blockquote renderer
  * looks for ('markdown-alert markdown-alert-{type}'). Also strips the
@@ -757,8 +811,11 @@ export function AnswerContent({
         {children}
       </ul>
     ),
-    ol: ({ children }: { children?: React.ReactNode }) => (
+    ol: ({ children, start }: { children?: React.ReactNode; start?: number }) => (
+      // Forward `start` so a grouped list that continues numbering (e.g. a
+      // "PIC KSO" group beginning at 6) shows the real numbers, not 1,2,3.
       <ol
+        start={start}
         style={{
           paddingLeft: 'var(--space-4)',
           marginBottom: 'var(--space-3)',
@@ -1174,9 +1231,11 @@ export function AnswerContent({
   //    so remark treats them as HTML blocks, not indented code blocks
   // 3. preprocessMath            — \[..\] / \(..\) → $$..$$  /  $..$ 
   //    (skips fenced blocks created by step 1)
-  const normalizedContent = preprocessMath(
-    preprocessHtmlIndentation(
-      preprocessHtmlCodeBlocks(content)
+  const normalizedContent = preprocessOrderedListSpacing(
+    preprocessMath(
+      preprocessHtmlIndentation(
+        preprocessHtmlCodeBlocks(content)
+      )
     )
   );
 
