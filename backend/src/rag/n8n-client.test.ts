@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { queryRag, ingestFile, readFile } from "./n8n-client.js";
+import { queryRag, ingestFile, readFile, downloadDriveFile } from "./n8n-client.js";
 
 describe("n8n-client", () => {
   beforeEach(() => {
@@ -158,5 +158,24 @@ describe("n8n-client", () => {
     await queryRag("c1", "q", [], false, []);
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("downloadDriveFile posts the id and returns the bytes with content type", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new TextEncoder().encode("%PDF-1.4"), {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      }),
+    );
+    const out = await downloadDriveFile("drive-123");
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ driveFileId: "drive-123" });
+    expect(out.contentType).toBe("application/pdf");
+    expect(out.buffer.toString()).toBe("%PDF-1.4");
+  });
+
+  it("downloadDriveFile throws on a non-ok response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("no", { status: 404 }));
+    await expect(downloadDriveFile("missing")).rejects.toThrow();
   });
 });
