@@ -49,6 +49,27 @@ export async function listIndexedDriveRefs(): Promise<string[]> {
   return rows.map((r) => r.sourceRef).filter((r): r is string => !!r);
 }
 
+// Resolve an indexed Drive document by its filename to the Drive file id, for
+// inline preview. Scoped to indexed drive docs so the preview route can only
+// serve files that are actually part of the library, never an arbitrary id.
+export async function findIndexedDriveByFilename(
+  filename: string,
+): Promise<{ driveFileId: string; filename: string } | null> {
+  const rows = await db
+    .select({ driveFileId: libraryDocuments.sourceRef, filename: libraryDocuments.filename })
+    .from(libraryDocuments)
+    .where(
+      and(
+        eq(libraryDocuments.filename, filename),
+        eq(libraryDocuments.source, "drive"),
+        eq(libraryDocuments.status, "indexed"),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  return row && row.driveFileId ? { driveFileId: row.driveFileId, filename: row.filename } : null;
+}
+
 export async function summary(): Promise<{
   total: number;
   failed: number;
