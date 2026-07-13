@@ -71,12 +71,17 @@ export function ConversationFilesPanel({
 
   // Persisted, non-failed files are the "ready" rows.
   const ready = attachments.filter((att) => att.status !== 'failed');
-  const readyNames = new Set(ready.map((att) => att.filename));
+  // Match on the base name (extension stripped): a spreadsheet is flattened to
+  // CSV in the browser before upload, so the dropped "X.xlsx" chip and its stored
+  // "X.csv" attachment share a base name. Deduping on that stops the original
+  // chip from lingering next to the converted attachment as a phantom entry.
+  const stripExt = (name: string) => name.replace(/\.[^./\\]+$/, '');
+  const readyBaseNames = new Set(ready.map((att) => stripExt(att.filename)));
 
   // In-flight uploads from the composer that aren't yet persisted — deduped by
-  // filename so a just-finished upload doesn't show twice — skipping failures.
+  // base name so a just-finished upload doesn't show twice — skipping failures.
   const uploading = composerUploads.filter(
-    (u) => u.status !== 'error' && !readyNames.has(u.name),
+    (u) => u.status !== 'error' && !readyBaseNames.has(stripExt(u.name)),
   );
 
   const rows: FileRow[] = [
