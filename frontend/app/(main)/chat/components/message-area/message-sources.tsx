@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Flex, Card, Text } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import type { ChatSource } from '../../types';
 import { cleanFilename } from '../../utils/clean-filename';
 import { safeHttpUrl, isWebSource } from '../../utils/source-helpers';
 import { PdfPreviewDialog } from '../pdf-preview-dialog';
+import { useChatStore } from '../../store';
+import { listAttachments } from '../../rag-api';
 
 interface MessageSourcesProps {
   sources: ChatSource[];
@@ -41,6 +43,8 @@ interface SourceGroup {
   title: string;
   url?: string;
   isWeb: boolean;
+  /** Origin of the source ("This chat" = a file uploaded to this conversation). */
+  origin?: string;
   /** The `[N]` number this source carries, so the footer aligns with the
    *  inline citation badges in the answer text. */
   label: string;
@@ -48,12 +52,35 @@ interface SourceGroup {
 
 /**
  * Per-answer retrieval sources, rendered as a numbered, full-width vertical list
- * in a footer beneath the answer. Each source shows only its name (matched
- * excerpts are intentionally not displayed). Web-search results are marked with
- * a globe icon and link out; document results show a file icon.
+ * in a footer beneath the answer. Web-search results link out. A file the user
+ * uploaded to THIS chat can be previewed (PDF) or downloaded — we look up its
+ * stored attachment by filename. Google Drive / library documents are shown as
+ * plain, non-clickable references (they aren't served for inline preview).
  */
 export function MessageSources({ sources }: MessageSourcesProps) {
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+  const [attByName, setAttByName] = useState<Record<string, { id: string; hasFile: boolean }>>({});
+  // The conversation currently in view — used to build the attachment serve URL.
+  const convId = useChatStore((s) => (s.activeSlotId ? s.slots[s.activeSlotId]?.convId ?? null : null));
+  // Only uploaded ("This chat") sources are previewable; skip the lookup otherwise.
+  const hasUpload = sources?.some((s) => s.origin === 'This chat') ?? false;
+
+  useEffect(() => {
+    if (!convId || !hasUpload) return;
+    let cancelled = false;
+    listAttachments(convId)
+      .then((rows) => {
+        if (cancelled) return;
+        const map: Record<string, { id: string; hasFile: boolean }> = {};
+        for (const r of rows) map[r.filename] = { id: r.id, hasFile: !!r.hasFile };
+        setAttByName(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [convId, hasUpload]);
+
   if (!sources || sources.length === 0) return null;
 
   // The same document usually matches several chunks, which would otherwise
@@ -69,6 +96,7 @@ export function MessageSources({ sources }: MessageSourcesProps) {
       title: source.title,
       url,
       isWeb: isWebSource(source.title, url),
+      origin: source.origin,
       // Prefer the source's own `[N]` label so the footer number matches the
       // inline citation badge; fall back to position if it's missing.
       label: source.citationLabel ?? String(idx + 1),
@@ -85,13 +113,16 @@ export function MessageSources({ sources }: MessageSourcesProps) {
       <Flex direction="column" gap="2">
         {groups.map((group, idx) => {
           const displayName = cleanFilename(group.title);
-          // Document sources (not web) are Google Drive / library files. Serve
-          // them inline through the same-origin proxy so the session cookie
-          // rides along; PDFs open in the preview modal, other types download.
+          // A file uploaded to this chat can be opened: match it to its stored
+          // attachment and serve the bytes through the same-origin proxy (cookie
+          // rides along). PDFs preview in the modal; other types download.
+          // Google Drive / library sources are left as plain references.
+          const att = group.origin === 'This chat' ? attByName[group.title] : undefined;
+          const serveUrl =
+            att && att.hasFile && convId
+              ? `/chat/conversations/${convId}/attachments/${att.id}/file`
+              : null;
           const isPdf = /\.pdf$/i.test(group.title);
-          const serveUrl = !group.isWeb
-            ? `/chat/library-file?name=${encodeURIComponent(group.title)}`
-            : null;
           const openFile = serveUrl
             ? () => {
                 if (isPdf) {
@@ -101,7 +132,7 @@ export function MessageSources({ sources }: MessageSourcesProps) {
                 }
               }
             : undefined;
-          const clickable = group.isWeb ? !!group.url : true;
+          const clickable = group.isWeb ? !!group.url : !!openFile;
           const nameNode = (
             <Text
               size="2"
