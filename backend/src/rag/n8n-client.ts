@@ -29,6 +29,7 @@ const INGEST_TIMEOUT_MS = 120_000; // legacy ingest (read+chunk+embed); now unus
 const QUERY_PATH = "/webhook/rag-query";
 const INGEST_PATH = "/webhook/rag-ingest";
 const READ_PATH = "/webhook/rag-read";
+const DRIVE_DOWNLOAD_PATH = "/webhook/drive-download"; // returns raw file bytes
 
 function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
@@ -85,6 +86,25 @@ export async function readFile(
   }
   const data = (await res.json()) as Partial<{ text: string }>;
   return { text: typeof data.text === "string" ? data.text : "" };
+}
+
+// Fetch a Google Drive file's raw bytes via the n8n drive-download webhook. The
+// backend has no Drive access, so n8n does the download; used to preview a
+// library source (PDF) inline in the chat UI.
+export async function downloadDriveFile(
+  driveFileId: string,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const res = await fetch(url(DRIVE_DOWNLOAD_PATH), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ driveFileId }),
+  });
+  if (!res.ok) {
+    throw new Error(`n8n drive download failed: ${res.status}`);
+  }
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return { buffer, contentType };
 }
 
 export async function ingestFile(
