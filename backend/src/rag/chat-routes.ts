@@ -12,7 +12,7 @@ import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, type QueryResult, type QuerySource } from "./n8n-client.js";
-import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
+import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
@@ -347,17 +347,24 @@ router.post(
     }
 
     let libraryDocs: QuerySource[] = [];
+    let skipDrive = false;
     try {
-      if (await shouldSearchLibrary(question)) libraryDocs = await searchLibrary(question);
+      if (await shouldSearchLibrary(question)) {
+        libraryDocs = await searchLibrary(question);
+        // Skip the slow live Drive read only when the library provably answers
+        // the question; on any doubt, fall through to the live read.
+        skipDrive = await librarySufficient(question, libraryDocs);
+      }
     } catch {
       libraryDocs = [];
+      skipDrive = false;
     }
 
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage, docs, libraryDocs);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, docs, libraryDocs, skipDrive);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -460,15 +467,20 @@ router.post(
     const history = priorRows.reverse();
 
     let libraryDocs: QuerySource[] = [];
+    let skipDrive = false;
     try {
-      if (await shouldSearchLibrary(lastUser.content)) libraryDocs = await searchLibrary(lastUser.content);
+      if (await shouldSearchLibrary(lastUser.content)) {
+        libraryDocs = await searchLibrary(lastUser.content);
+        skipDrive = await librarySufficient(lastUser.content, libraryDocs);
+      }
     } catch {
       libraryDocs = [];
+      skipDrive = false;
     }
 
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false, [], libraryDocs);
+      result = await queryRag(req.params.id, lastUser.content, history, false, [], libraryDocs, skipDrive);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
