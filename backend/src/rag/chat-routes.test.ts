@@ -15,6 +15,10 @@ vi.mock("./n8n-client.js", () => ({
     sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
   })),
   ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
+  downloadDriveFile: vi.fn(async () => ({
+    buffer: Buffer.from("%PDF-1.4 test"),
+    contentType: "application/pdf",
+  })),
 }));
 
 const searchLibrary = vi.fn(async () => [] as { filename: string; chunkIndex: number; text: string }[]);
@@ -23,7 +27,7 @@ const librarySufficient = vi.fn(async () => false);
 vi.mock("../library/retrieve.js", () => ({ searchLibrary, shouldSearchLibrary, librarySufficient }));
 
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
-import { queryRag, ingestFile } from "./n8n-client.js";
+import { queryRag, ingestFile, downloadDriveFile } from "./n8n-client.js";
 
 // Imported after mocks are registered.
 const { chatRouter } = await import("./chat-routes.js");
@@ -609,5 +613,37 @@ describe("serve attachment file route", () => {
       "/chat/conversations/cX/attachments/att1/file",
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("library file preview route", () => {
+  it("streams a library PDF inline by resolving the filename to a Drive id", async () => {
+    dbMock.setResult([{ driveFileId: "d1", filename: "a.pdf" }]); // findIndexedDriveByFilename
+    const res = await request(app()).get("/chat/library-file").query({ name: "a.pdf" });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(downloadDriveFile)).toHaveBeenCalledWith("d1");
+    expect(res.headers["content-type"]).toContain("application/pdf");
+    expect(res.headers["content-disposition"]).toContain("inline");
+    expect(res.headers["content-security-policy"]).toBe("sandbox");
+  });
+
+  it("400s when the name query param is missing", async () => {
+    const res = await request(app()).get("/chat/library-file");
+    expect(res.status).toBe(400);
+    expect(downloadDriveFile).not.toHaveBeenCalled();
+  });
+
+  it("404s when the filename is not an indexed Drive document", async () => {
+    dbMock.setResult([]); // no matching indexed drive doc
+    const res = await request(app()).get("/chat/library-file").query({ name: "nope.pdf" });
+    expect(res.status).toBe(404);
+    expect(downloadDriveFile).not.toHaveBeenCalled();
+  });
+
+  it("502s when the Drive download fails", async () => {
+    dbMock.setResult([{ driveFileId: "d1", filename: "a.pdf" }]);
+    vi.mocked(downloadDriveFile).mockRejectedValueOnce(new Error("drive down"));
+    const res = await request(app()).get("/chat/library-file").query({ name: "a.pdf" });
+    expect(res.status).toBe(502);
   });
 });
