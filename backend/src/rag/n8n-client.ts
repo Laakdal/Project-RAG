@@ -16,11 +16,14 @@ export async function queryRag(
   // also summarize a short title. Defaults false so non-first turns skip it.
   generateTitle = false,
   libraryDocs: QuerySource[] = [],
+  // When true, the library already answers the question, so the workflow may
+  // skip the slow on-demand live Drive read. Defaults false (do the live read).
+  skipDrive = false,
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle, libraryDocs }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, libraryDocs, skipDrive }),
   });
   if (!res.ok) {
     throw new Error(`n8n query failed: ${res.status}`);
