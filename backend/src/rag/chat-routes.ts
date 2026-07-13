@@ -13,7 +13,7 @@ import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, ingestFile } from "./provider.js";
 import type { QueryResult, QuerySource } from "./types.js";
-import { searchLibrary, shouldSearchLibrary } from "../library/retrieve.js";
+import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 
@@ -336,18 +336,25 @@ router.post(
     // decides. Library retrieval must never break a normal answer, so any
     // failure degrades to no library results.
     let libraryDocs: QuerySource[] = [];
+    let skipDrive = false;
     try {
       const doSearch = useLibrary ?? (await shouldSearchLibrary(question));
-      if (doSearch) libraryDocs = await searchLibrary(question);
+      if (doSearch) {
+        libraryDocs = await searchLibrary(question);
+        // Skip the slow live Drive read only when the library provably answers
+        // the question; on any doubt, fall through to the live read.
+        skipDrive = await librarySufficient(question, libraryDocs);
+      }
     } catch {
       libraryDocs = [];
+      skipDrive = false;
     }
 
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage, libraryDocs);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, libraryDocs, skipDrive);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -451,17 +458,20 @@ router.post(
     // useLibrary flag, so it always uses the intent gate). Failure degrades to
     // no library results so a regenerate never breaks on a library outage.
     let libraryDocs: QuerySource[] = [];
+    let skipDrive = false;
     try {
       if (await shouldSearchLibrary(lastUser.content)) {
         libraryDocs = await searchLibrary(lastUser.content);
+        skipDrive = await librarySufficient(lastUser.content, libraryDocs);
       }
     } catch {
       libraryDocs = [];
+      skipDrive = false;
     }
 
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false, libraryDocs);
+      result = await queryRag(req.params.id, lastUser.content, history, false, libraryDocs, skipDrive);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
