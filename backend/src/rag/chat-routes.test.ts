@@ -19,7 +19,8 @@ vi.mock("./n8n-client.js", () => ({
 
 const searchLibrary = vi.fn(async () => [] as { filename: string; chunkIndex: number; text: string }[]);
 const shouldSearchLibrary = vi.fn(async () => false);
-vi.mock("../library/retrieve.js", () => ({ searchLibrary, shouldSearchLibrary }));
+const librarySufficient = vi.fn(async () => false);
+vi.mock("../library/retrieve.js", () => ({ searchLibrary, shouldSearchLibrary, librarySufficient }));
 
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag, ingestFile } from "./n8n-client.js";
@@ -255,6 +256,7 @@ describe("message route", () => {
       expect.any(Array),
       false,
       [], // libraryDocs — empty until library search populates it
+      false, // skipDrive — false unless the library is judged sufficient
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -300,6 +302,7 @@ describe("message route", () => {
       expect.any(Array),
       true,
       [], // libraryDocs — empty until library search populates it
+      false, // skipDrive
     );
 
     // The conversation title was set from the heuristic (first sentence).
@@ -363,6 +366,19 @@ describe("message route", () => {
     expect(call?.[4]).toEqual([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
   });
 
+  it("passes skipDrive=true only when the library is judged sufficient", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + history
+    shouldSearchLibrary.mockResolvedValueOnce(true);
+    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "the answer" }]);
+    librarySufficient.mockResolvedValueOnce(true);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
+    await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "what does the SOP say?" });
+    const call = vi.mocked(queryRag).mock.calls.at(-1);
+    expect(call?.[5]).toBe(true);
+  });
+
   it("skips the library when useLibrary is false", async () => {
     dbMock.setResult([{ id: "c1" }]); // ownership + history
     vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
@@ -396,6 +412,7 @@ describe("regenerate route", () => {
       expect.any(Array),
       false,
       [], // libraryDocs — empty until library search populates it
+      expect.any(Boolean), // skipDrive
     );
 
     // The answer is written via UPDATE .set (overwrite in place), not a new insert.
