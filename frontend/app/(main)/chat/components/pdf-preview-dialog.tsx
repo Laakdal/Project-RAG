@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Dialog, VisuallyHidden, Flex, Text, IconButton, Spinner } from '@radix-ui/themes';
+import { Dialog, VisuallyHidden, Flex, Text, IconButton, Spinner, Theme } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { usePdfZoom } from '@/app/components/file-preview/use-pdf-zoom';
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from '@/app/components/file-preview/types';
@@ -230,32 +230,39 @@ export function PdfPreviewDialog({ url, filename, onClose }: PdfPreviewDialogPro
           </Flex>
         </Flex>
 
-        {/* Body: spinner while loading, the PDF once ready, or an error note */}
-        <Flex
-          align="center"
-          justify="center"
-          style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--slate-2)' }}
+        {/* Body: spinner while loading, the PDF once ready, or an error note.
+            Forced to dark appearance so the viewer gutter (and its text) render
+            identically in light and dark mode. */}
+        <Theme
+          appearance="dark"
+          style={{ flex: 1, minHeight: 0, display: 'flex' }}
         >
-          {failed ? (
-            <Text size="2" style={{ color: 'var(--slate-11)' }}>
-              Couldn&apos;t load this file.
-            </Text>
-          ) : objectUrl ? (
-            <PDFRenderer
-              fileUrl={objectUrl}
-              fileName={name}
-              pagination={{
-                currentPage,
-                totalPages,
-                scale: pdfScale,
-                onPageChange: setCurrentPage,
-                onTotalPagesDetected: setTotalPages,
-              }}
-            />
-          ) : (
-            <Spinner size="3" />
-          )}
-        </Flex>
+          <Flex
+            align="center"
+            justify="center"
+            style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--slate-2)' }}
+          >
+            {failed ? (
+              <Text size="2" style={{ color: 'var(--slate-11)' }}>
+                Couldn&apos;t load this file.
+              </Text>
+            ) : objectUrl ? (
+              <PDFRenderer
+                fileUrl={objectUrl}
+                fileName={name}
+                pagination={{
+                  currentPage,
+                  totalPages,
+                  scale: pdfScale,
+                  onPageChange: setCurrentPage,
+                  onTotalPagesDetected: setTotalPages,
+                }}
+              />
+            ) : (
+              <Spinner size="3" />
+            )}
+          </Flex>
+        </Theme>
       </Dialog.Content>
     </Dialog.Root>
   );
