@@ -3,6 +3,7 @@ import type { QuerySource, QueryResult, IngestResult, ChatTurn } from "./types.j
 
 const QUERY_PATH = "/webhook/rag-query"; // /webhook/rag-query
 const INGEST_PATH = "/webhook/rag-ingest"; // /webhook/rag-ingest
+const DRIVE_DOWNLOAD_PATH = "/webhook/drive-download"; // returns raw file bytes
 
 function url(path: string): string {
   return `${config.N8N_BASE_URL.replace(/\/$/, "")}${path}`;
@@ -35,6 +36,25 @@ export async function queryRag(
     // Only surface a non-empty string title; the workflow may omit it.
     title: typeof data.title === "string" ? data.title : undefined,
   };
+}
+
+// Fetch a Google Drive file's raw bytes via the n8n drive-download webhook. The
+// backend has no Drive access, so n8n does the download; used to preview a
+// library source (PDF) inline in the chat UI.
+export async function downloadDriveFile(
+  driveFileId: string,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const res = await fetch(url(DRIVE_DOWNLOAD_PATH), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ driveFileId }),
+  });
+  if (!res.ok) {
+    throw new Error(`n8n drive download failed: ${res.status}`);
+  }
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return { buffer, contentType };
 }
 
 export async function ingestFile(
