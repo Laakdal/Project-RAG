@@ -221,73 +221,6 @@ function preprocessMath(content: string): string {
 }
 
 /**
- * Split a run-on grouped numbered list back onto separate lines.
- *
- * The answer generator (glm-4.6) sometimes inlines a grouped list after a bold
- * sub-heading instead of putting each item on its own line, e.g.
- *
- *   **PIC KSO Regional II:** 7. Abrar - ... 8. Mahmud - ... 9. David - ...
- *
- * CommonMark then renders that whole thing as one paragraph (no line breaks =
- * no list), so the group reads as a wall of text next to a sibling group that
- * WAS formatted as a clean list. Prompt rules alone don't stop it reliably, so
- * we normalise it deterministically here.
- *
- * Scope is deliberately tight to avoid mangling prose: a line only qualifies
- * when it starts with a bold `**heading:**` immediately followed by an inline
- * numbered item, AND the inline markers form a strictly-ascending run of 2+
- * integers (guards against a stray "3." or a year in a description). Matching
- * lines are rewritten to
- *
- *   **PIC KSO Regional II:**
- *
- *   7. Abrar - ...
- *   8. Mahmud - ...
- *   9. David - ...
- *
- * Fenced code blocks are protected (split-and-skip, like the other preprocessors).
- */
-function splitInlineGroupedList(line: string): string {
-  // A bold "heading:" at the line start, immediately followed by "N. ".
-  const m = line.match(/^(\s*)(\*\*[^*\n]+?:\*\*)\s+(\d+\.\s[\s\S]*)$/);
-  if (!m) return line;
-  const [, indent, heading, body] = m;
-
-  // Collect the numbered markers in the body (start-of-body or space-prefixed).
-  const markerRe = /(?:^|\s)(\d+)\.\s/g;
-  const nums: number[] = [];
-  let mm: RegExpExecArray | null;
-  while ((mm = markerRe.exec(body)) !== null) nums.push(parseInt(mm[1], 10));
-  // Need a real grouped list: 2+ markers, strictly ascending.
-  if (nums.length < 2) return line;
-  for (let i = 1; i < nums.length; i += 1) {
-    if (nums[i] <= nums[i - 1]) return line;
-  }
-
-  // Break every marker except the first onto its own line, then re-indent.
-  const items = body
-    .replace(/\s+(\d+\.\s)/g, '\n$1')
-    .split('\n')
-    .map((s) => indent + s.trim())
-    .join('\n');
-  return `${indent}${heading}\n\n${items}`;
-}
-
-export function preprocessRunOnLists(content: string): string {
-  // Fast-path: nothing to do unless a bold "heading:" is followed by "N. ".
-  if (!/\*\*[^*\n]+?:\*\*\s+\d+\.\s/.test(content)) return content;
-
-  // Protect fenced code blocks — their content must not be reflowed.
-  const parts = content.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g);
-  return parts
-    .map((part, i) => {
-      if (i % 2 !== 0) return part; // inside fenced block — leave untouched
-      return part.split('\n').map(splitInlineGroupedList).join('\n');
-    })
-    .join('');
-}
-
-/**
  * Remark plugin: detects > [!NOTE] / [!WARNING] / … blockquotes that LLMs
  * generate and adds the hast class properties that our blockquote renderer
  * looks for ('markdown-alert markdown-alert-{type}'). Also strips the
@@ -1239,15 +1172,11 @@ export function AnswerContent({
   // 1. preprocessHtmlCodeBlocks  — convert <pre><code> to fenced blocks
   // 2. preprocessHtmlIndentation — strip ≥4-space indent from HTML tag lines
   //    so remark treats them as HTML blocks, not indented code blocks
-  // 3. preprocessMath            — \[..\] / \(..\) → $$..$$  /  $..$
+  // 3. preprocessMath            — \[..\] / \(..\) → $$..$$  /  $..$ 
   //    (skips fenced blocks created by step 1)
-  // 4. preprocessRunOnLists      — break an inlined "**heading:** 7. .. 8. .."
-  //    grouped numbered list back onto separate lines (skips fenced blocks)
-  const normalizedContent = preprocessRunOnLists(
-    preprocessMath(
-      preprocessHtmlIndentation(
-        preprocessHtmlCodeBlocks(content)
-      )
+  const normalizedContent = preprocessMath(
+    preprocessHtmlIndentation(
+      preprocessHtmlCodeBlocks(content)
     )
   );
 
