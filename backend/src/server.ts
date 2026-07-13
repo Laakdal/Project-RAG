@@ -1,3 +1,4 @@
+import "./proxy-bootstrap.js";
 import express, {
   type NextFunction,
   type Request,
@@ -14,6 +15,7 @@ import authRoutes from "./auth/routes.js";
 import { chatRouter } from "./rag/chat-routes.js";
 import { adminRouter } from "./admin/routes.js";
 import { libraryRouter } from "./library/routes.js";
+import { libraryBackfillRouter } from "./library/backfill-routes.js";
 import { CSRF_HEADER_NAME } from "./auth/csrf.js";
 
 const app = express();
@@ -70,6 +72,9 @@ app.get("/health", async (_req: Request, res: Response) => {
 app.use("/auth", authRoutes);
 app.use("/chat", chatRouter);
 app.use("/admin", adminRouter);
+// Token-authed backfill endpoints must be matched before the session-guarded
+// library router so n8n can reach them without an admin session.
+app.use("/library", libraryBackfillRouter);
 app.use("/library", libraryRouter);
 
 // 404 handler.
