@@ -13,7 +13,7 @@ import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { queryRag, type QueryResult, type QuerySource } from "./n8n-client.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
-import { startBackgroundRead, ensureExtractedText } from "./attachment-reader.js";
+import { startBackgroundRead } from "./attachment-reader.js";
 import { titleFromQuestion } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 import { indexDriveSourcesInBackground } from "../library/drive-index.js";
@@ -331,33 +331,77 @@ router.post(
     // a title only on that first turn (no prior history yet).
     const isFirstMessage = history.length === 0;
 
-    // Gather any per-chat uploaded documents that are ready (or still
-    // processing). ensureExtractedText waits for background reads to finish
-    // before the prompt is assembled, so even a freshly-uploaded file will be
-    // included if it finishes in time.
-    const attRows = await db
-      .select({ id: attachments.id, filename: attachments.filename })
-      .from(attachments)
-      .where(and(eq(attachments.conversationId, req.params.id), sql`${attachments.status} <> 'failed'`));
+    // Gather per-chat uploaded documents. A large/image-heavy file is read by
+    // Gemini in the background (status "processing"); rather than block the
+    // request until it finishes (or fail on a slow read), give it a short grace
+    // window and then return 202 "reading" so the client can show a progress
+    // hint and auto-retry. Reads that finish flip to "ready"/"failed".
+    const selectAtt = () =>
+      db
+        .select({
+          id: attachments.id,
+          filename: attachments.filename,
+          status: attachments.status,
+          extractedText: attachments.extractedText,
+        })
+        .from(attachments)
+        .where(eq(attachments.conversationId, req.params.id));
+    const isReading = (a: { status: string }) =>
+      a.status !== "ready" && a.status !== "failed";
 
-    const docs: { filename: string; text: string }[] = [];
-    for (const a of attRows) {
-      const text = await ensureExtractedText(a.id);
-      if (text) docs.push({ filename: a.filename, text });
+    let attRows = await selectAtt();
+    // Brief grace so a fast read answers immediately without a client round-trip.
+    if (attRows.some(isReading)) {
+      const graceEnd = Date.now() + 7000;
+      while (Date.now() < graceEnd && attRows.some(isReading)) {
+        await new Promise((r) => setTimeout(r, 1000));
+        attRows = await selectAtt();
+      }
+    }
+    // Still reading → let the client retry shortly (auto-retry UX).
+    if (attRows.some(isReading)) {
+      res.status(202).json({ status: "reading" });
+      return;
     }
 
+    const docs: { filename: string; text: string }[] = attRows
+      .filter((a) => a.status === "ready" && a.extractedText)
+      .map((a) => ({ filename: a.filename, text: a.extractedText as string }));
+
+    // Files were attached but none could be read → say so plainly instead of
+    // falling through to a generic/web-searched answer that ignores the file.
+    if (attRows.length > 0 && docs.length === 0) {
+      const answer =
+        "Maaf, saya belum berhasil membaca file yang Anda lampirkan. Coba unggah ulang filenya (pastikan gambar atau dokumennya cukup jelas), lalu tanyakan lagi.";
+      await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "user", content: question });
+      await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] });
+      res.json({ answer, sources: [] });
+      return;
+    }
+
+    // Scoped mode: when the user has attached readable file(s) to this chat,
+    // answer strictly from those — do NOT pull in the shared library. Keeps a
+    // chat about an uploaded document clean, without unrelated docs bleeding in.
+    // (A failed/unreadable attachment already returned a "couldn't read" message
+    // above, so it never reaches here.)
     let libraryDocs: QuerySource[] = [];
     let skipDrive = false;
-    try {
-      if (await shouldSearchLibrary(question)) {
-        libraryDocs = await searchLibrary(question);
-        // Skip the slow live Drive read only when the library provably answers
-        // the question; on any doubt, fall through to the live read.
-        skipDrive = await librarySufficient(question, libraryDocs);
+    if (docs.length === 0) {
+      try {
+        if (await shouldSearchLibrary(question)) {
+          libraryDocs = await searchLibrary(question);
+          // Skip the slow live Drive read only when the library provably answers
+          // the question; on any doubt, fall through to the live read.
+          skipDrive = await librarySufficient(question, libraryDocs);
+        }
+      } catch {
+        libraryDocs = [];
+        skipDrive = false;
       }
-    } catch {
-      libraryDocs = [];
-      skipDrive = false;
     }
 
     // Query first; persist the turn only after a successful answer so a
