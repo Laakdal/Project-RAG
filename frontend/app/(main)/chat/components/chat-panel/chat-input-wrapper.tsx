@@ -296,7 +296,13 @@ export function ChatInputWrapper() {
       // composer for the duration via isStreaming.
       const withPlaceholder = original.map((m) =>
         m.id === targetId
-          ? { ...m, content: [{ type: 'text' as const, text: 'Regenerating…' }] }
+          ? {
+              ...m,
+              content: [{ type: 'text' as const, text: 'Regenerating…' }],
+              // Clear the old sources too, so the previous answer's citations
+              // don't linger under "Regenerating…" (or through a failed retry).
+              metadata: { custom: { sources: [] } },
+            }
           : m,
       );
       store.updateSlot(slotId, { messages: withPlaceholder, isStreaming: true });
