@@ -15,6 +15,8 @@ import { queryRag, downloadDriveFile, type QueryResult, type QuerySource } from 
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
 import { startBackgroundRead } from "./attachment-reader.js";
+import { retrieveAttachmentChunks, deleteAttachmentVectors } from "./attachment-vectors.js";
+import { config } from "../config.js";
 import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 import { indexDriveSourcesInBackground } from "../library/drive-index.js";
@@ -286,6 +288,11 @@ router.delete(
           eq(attachments.id, req.params.attachmentId),
         ),
       );
+    // Best-effort: drop the attachment's chunks from the per-chat vector store.
+    // Never block or fail the response on this.
+    void deleteAttachmentVectors(req.params.attachmentId).catch((err) =>
+      console.error("[chat] failed to delete attachment vectors", err),
+    );
     res.status(204).end();
   },
 );
@@ -402,9 +409,33 @@ router.post(
       return;
     }
 
-    const docs: { filename: string; text: string }[] = attRows
-      .filter((a) => a.status === "ready" && a.extractedText)
-      .map((a) => ({ filename: a.filename, text: a.extractedText as string }));
+    // Adaptive whole-doc vs. retrieval (mirrors how hosted assistants handle
+    // large project files): if the ready docs are small enough, inject the whole
+    // text (no retrieval miss on a short doc); if they're large (e.g. a 900-page
+    // book, ~4MB of text that would blow the context window), retrieve only the
+    // chunks relevant to the question from the per-chat vector store.
+    const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+    const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
+    const truncatedWhole = () =>
+      readyDocs.map((a) => ({
+        filename: a.filename,
+        text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
+      }));
+
+    let docs: { filename: string; text: string }[];
+    if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
+      docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
+    } else {
+      try {
+        docs = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
+        // Retrieval returned nothing (e.g. chunks not embedded) → degrade to a
+        // truncated whole-doc rather than answer with no context.
+        if (docs.length === 0) docs = truncatedWhole();
+      } catch (err) {
+        console.error("[chat] per-chat retrieval failed; using truncated docs", err);
+        docs = truncatedWhole();
+      }
+    }
 
     // Files were attached but none could be read → say so plainly instead of
     // falling through to a generic/web-searched answer that ignores the file.

@@ -5,6 +5,7 @@ import { attachments } from "../db/schema.js";
 import { readFile } from "./n8n-client.js";
 import { config } from "../config.js";
 import { extractPdfHybrid } from "./pdf-extract.js";
+import { embedAttachment } from "./attachment-vectors.js";
 
 function isPdf(filename: string, mimeType: string | null): boolean {
   return (mimeType ?? "").toLowerCase() === "application/pdf" || filename.toLowerCase().endsWith(".pdf");
@@ -22,7 +23,12 @@ async function markFailed(id: string): Promise<void> {
 // Used as both the background job and the query-time self-heal.
 export async function runRead(attachmentId: string): Promise<void> {
   const rows = await db
-    .select({ filename: attachments.filename, mimeType: attachments.mimeType, data: attachments.data })
+    .select({
+      conversationId: attachments.conversationId,
+      filename: attachments.filename,
+      mimeType: attachments.mimeType,
+      data: attachments.data,
+    })
     .from(attachments)
     .where(eq(attachments.id, attachmentId))
     .limit(1);
@@ -41,6 +47,14 @@ export async function runRead(attachmentId: string): Promise<void> {
       ({ text } = await readFile(row.filename, row.data, row.mimeType ?? "application/octet-stream"));
     }
     if (!text || !text.trim()) { await markFailed(attachmentId); return; }
+    // Chunk + embed for per-chat retrieval (RAG) so a large doc can be answered
+    // from relevant chunks instead of the whole text. Best-effort: an embedding
+    // failure must not fail the read — short docs still answer whole-doc-in-context.
+    try {
+      await embedAttachment(row.conversationId, attachmentId, row.filename, text);
+    } catch (err) {
+      console.error("[attachment-reader] embed failed for", attachmentId, err);
+    }
     await db.update(attachments).set({ extractedText: text, status: "ready" }).where(eq(attachments.id, attachmentId));
   } catch (err) {
     console.error("[attachment-reader] read failed for", attachmentId, err);

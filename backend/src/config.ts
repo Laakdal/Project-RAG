@@ -58,6 +58,16 @@ const envSchema = z.object({
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   QDRANT_COLLECTION_LIBRARY: z.string().min(1).default("project_rag_library"),
 
+  // Per-chat retrieval (RAG) for uploaded docs — see src/rag/attachment-vectors.ts.
+  // Chunks are embedded into this collection, scoped by conversationId.
+  QDRANT_COLLECTION_CHAT: z.string().min(1).default("rag_chat_chunks"),
+  // Top-k chunks retrieved per query when a conversation's docs are large.
+  CHAT_RETRIEVE_TOP_K: z.coerce.number().int().positive().default(8),
+  // Below this total extracted-text size (chars) across a conversation's ready
+  // docs, inject the whole text (no retrieval miss on a short doc); above it,
+  // retrieve only the top-k relevant chunks so a big book fits the context window.
+  CHAT_WHOLE_DOC_MAX_CHARS: z.coerce.number().int().positive().default(24000),
+
   // Shared secret for the internal Drive-backfill endpoints (n8n -> backend).
   // The bulk indexer authenticates with this token via the x-index-token header
   // instead of an admin session. Endpoints refuse to run when it is unset.
