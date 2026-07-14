@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Button, Heading, IconButton } from '@radix-ui/themes';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { SelectedCollections } from '../selected-collections';
@@ -120,15 +120,43 @@ export const ChatResponse = React.memo(function ChatResponse({
   debugLog.tick('[chat] [ChatResponse]');
   const isMobile = useIsMobile();
 
+  // The RAG query is non-streaming (one POST, no live progress events), so a
+  // slow answer would otherwise sit on a frozen "Thinking…" for minutes. Drive
+  // the loading status off elapsed time instead: cycle through plausible phases
+  // so it reads like a live status. Resets whenever a new load starts.
+  const [loadingPhase, setLoadingPhase] = useState('Thinking…');
+  useEffect(() => {
+    if (!isStreaming) {
+      setLoadingPhase('Thinking…');
+      return;
+    }
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      setLoadingPhase(
+        elapsed >= 45_000
+          ? 'Still working — this can take a moment for large or Drive documents…'
+          : elapsed >= 12_000
+            ? 'Reading and generating an answer…'
+            : elapsed >= 4_000
+              ? 'Searching your documents…'
+              : 'Thinking…',
+      );
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [isStreaming]);
+
   /** Shown only if the stream is active but no SSE status has arrived yet */
   const streamingFallbackStatus = useMemo(
     (): StatusMessage => ({
       id: 'status-waiting',
       status: 'processing',
-      message: "Thinking…",
+      message: loadingPhase,
       timestamp: '',
     }),
-    [],
+    [loadingPhase],
   );
 
   // ── Render-reason tracking ─────────────────────────────────────────
