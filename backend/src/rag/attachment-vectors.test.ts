@@ -75,8 +75,8 @@ describe("attachment-vectors", () => {
     const out = await retrieveAttachmentChunks("conv-1", "what is X?", 8);
 
     expect(out).toEqual([
-      { filename: "book.pdf", text: "chunk A" },
-      { filename: "book.pdf", text: "chunk B" },
+      { filename: "book.pdf", text: "chunk A", score: 0.9 },
+      { filename: "book.pdf", text: "chunk B", score: 0.8 },
     ]);
     expect(similaritySearchWithScore.mock.calls[0][2]).toEqual({
       must: [{ key: "metadata.conversationId", match: { value: "conv-1" } }],

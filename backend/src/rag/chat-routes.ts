@@ -409,37 +409,11 @@ router.post(
       return;
     }
 
-    // Adaptive whole-doc vs. retrieval (mirrors how hosted assistants handle
-    // large project files): if the ready docs are small enough, inject the whole
-    // text (no retrieval miss on a short doc); if they're large (e.g. a 900-page
-    // book, ~4MB of text that would blow the context window), retrieve only the
-    // chunks relevant to the question from the per-chat vector store.
     const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
-    const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
-    const truncatedWhole = () =>
-      readyDocs.map((a) => ({
-        filename: a.filename,
-        text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
-      }));
-
-    let docs: { filename: string; text: string }[];
-    if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
-      docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
-    } else {
-      try {
-        docs = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
-        // Retrieval returned nothing (e.g. chunks not embedded) → degrade to a
-        // truncated whole-doc rather than answer with no context.
-        if (docs.length === 0) docs = truncatedWhole();
-      } catch (err) {
-        console.error("[chat] per-chat retrieval failed; using truncated docs", err);
-        docs = truncatedWhole();
-      }
-    }
 
     // Files were attached but none could be read → say so plainly instead of
     // falling through to a generic/web-searched answer that ignores the file.
-    if (attRows.length > 0 && docs.length === 0) {
+    if (attRows.length > 0 && readyDocs.length === 0) {
       const answer =
         "Maaf, saya belum berhasil membaca file yang Anda lampirkan. Coba unggah ulang filenya (pastikan gambar atau dokumennya cukup jelas), lalu tanyakan lagi.";
       await db
@@ -452,11 +426,44 @@ router.post(
       return;
     }
 
-    // Scoped mode: when the user has attached readable file(s) to this chat,
-    // answer strictly from those — do NOT pull in the shared library. Keeps a
-    // chat about an uploaded document clean, without unrelated docs bleeding in.
-    // (A failed/unreadable attachment already returned a "couldn't read" message
-    // above, so it never reaches here.)
+    // Per-chat uploaded docs, relevance-gated (like a hosted project assistant):
+    // score how relevant the attached file(s) are to THIS question via the
+    // per-chat vector store. If relevant, answer from them — whole for a short
+    // doc, retrieved chunks for a big book (~4MB would blow the context window).
+    // If NOT relevant (the question is about something else, e.g. a Drive file),
+    // leave docs empty so the shared library / live Drive search below runs.
+    let docs: { filename: string; text: string }[] = [];
+    if (readyDocs.length > 0) {
+      const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
+      let hits: { filename: string; text: string; score: number }[] = [];
+      let attRelevant = true; // if we can't score (retrieval error), stay scoped
+      try {
+        hits = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
+        attRelevant = hits.length > 0 && (hits[0].score ?? 0) >= config.CHAT_RELEVANCE_THRESHOLD;
+      } catch (err) {
+        console.error("[chat] per-chat retrieval failed; scoping to attached docs", err);
+      }
+      if (attRelevant) {
+        if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
+          docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
+        } else {
+          docs =
+            hits.length > 0
+              ? hits.map((h) => ({ filename: h.filename, text: h.text }))
+              : readyDocs.map((a) => ({
+                  filename: a.filename,
+                  text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
+                }));
+        }
+      }
+      // else: the attached file isn't about this question → docs stays [], and the
+      // library/Drive search below answers instead.
+    }
+
+    // Search the shared library + live Drive when the chat has no relevant
+    // attached docs — i.e. no attachment at all, or an attachment that isn't
+    // about this question (relevance gate above left docs empty). When the
+    // attachment IS relevant, docs is non-empty and we stay scoped to it.
     let libraryDocs: QuerySource[] = [];
     let skipDrive = false;
     if (docs.length === 0) {

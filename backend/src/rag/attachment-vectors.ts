@@ -58,17 +58,23 @@ export async function embedAttachment(
   return chunks.length;
 }
 
-// Retrieve the top-k chunks relevant to `question` within one conversation.
+// Retrieve the top-k chunks relevant to `question` within one conversation,
+// with each hit's similarity score (highest first) so the caller can gate on
+// how relevant the attached file actually is to the question.
 export async function retrieveAttachmentChunks(
   conversationId: string,
   question: string,
   k: number,
-): Promise<{ filename: string; text: string }[]> {
+): Promise<{ filename: string; text: string; score: number }[]> {
   const store = await getStore();
   const results = await store.similaritySearchWithScore(question, k, {
     must: [{ key: "metadata.conversationId", match: { value: conversationId } }],
   });
-  return results.map(([doc]) => ({ filename: String(doc.metadata?.filename ?? ""), text: doc.pageContent }));
+  return results.map(([doc, score]) => ({
+    filename: String(doc.metadata?.filename ?? ""),
+    text: doc.pageContent,
+    score,
+  }));
 }
 
 // Best-effort cleanup of an attachment's chunks (called when it's deleted).
