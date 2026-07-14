@@ -12,6 +12,13 @@ const nextConfig = {
     // upload mid-stream and the backend never sees it.
     experimental: {
         proxyTimeout: 600_000,
+        // Next's rewrite proxy buffers the request body in memory with a 10MB
+        // default cap; a larger attachment upload (e.g. a 20MB PDF) gets
+        // truncated to the first 10MB, which corrupts the multipart body so the
+        // backend hangs waiting for the rest and the request 408s. Raise it to
+        // cover the backend's 50MB upload limit (nginx allows 60m). Renamed
+        // `proxyClientMaxBodySize` in Next 16; this is the Next 15 name.
+        middlewareClientMaxBodySize: '60mb',
     },
     /**
      * Static export does not emit per-slug callback HTML. Rewrites map
