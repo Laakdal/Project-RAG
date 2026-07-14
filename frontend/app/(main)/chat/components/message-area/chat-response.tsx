@@ -135,7 +135,7 @@ export const ChatResponse = React.memo(function ChatResponse({
       const elapsed = Date.now() - start;
       setLoadingPhase(
         elapsed >= 45_000
-          ? 'Still working — this can take a moment for large or Drive documents…'
+          ? 'Still working — this can take a moment for large documents…'
           : elapsed >= 12_000
             ? 'Reading and generating an answer…'
             : elapsed >= 4_000
