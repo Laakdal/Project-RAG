@@ -17,8 +17,17 @@ vi.mock("../db/schema.js", () => ({ attachments: {} }));
 vi.mock("drizzle-orm", () => ({ eq: () => ({}) }));
 const readFileMock = vi.hoisted(() => vi.fn());
 vi.mock("./n8n-client.js", () => ({ readFile: readFileMock }));
+const extractPdfMock = vi.hoisted(() => vi.fn());
+vi.mock("./pdf-extract.js", () => ({ extractPdfHybrid: extractPdfMock }));
 
-beforeEach(() => { dbMock.reset(); readFileMock.mockReset(); });
+// Default: the hybrid PDF extractor "can't run" (null) so runRead falls back to
+// the whole-file readFile path; individual tests override as needed.
+beforeEach(() => {
+  dbMock.reset();
+  readFileMock.mockReset();
+  extractPdfMock.mockReset();
+  extractPdfMock.mockResolvedValue(null);
+});
 
 it("ensureExtractedText returns cached text when ready", async () => {
   dbMock.setRows([{ status: "ready", extractedText: "# body" }]);
@@ -39,6 +48,16 @@ it("runRead caches text and marks ready on success", async () => {
   const { runRead } = await import("./attachment-reader.js");
   await runRead("a1");
   expect(dbMock.updates).toContainEqual({ extractedText: "# read", status: "ready" });
+});
+
+it("runRead uses the hybrid PDF extractor and skips the whole-file read", async () => {
+  dbMock.setRows([{ filename: "book.pdf", mimeType: "application/pdf", data: Buffer.from("x") }]);
+  extractPdfMock.mockResolvedValue("# extracted locally");
+  const { runRead } = await import("./attachment-reader.js");
+  await runRead("a1");
+  expect(extractPdfMock).toHaveBeenCalled();
+  expect(readFileMock).not.toHaveBeenCalled();
+  expect(dbMock.updates).toContainEqual({ extractedText: "# extracted locally", status: "ready" });
 });
 
 it("runRead marks failed when the read returns empty", async () => {

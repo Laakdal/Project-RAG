@@ -3,6 +3,12 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { attachments } from "../db/schema.js";
 import { readFile } from "./n8n-client.js";
+import { config } from "../config.js";
+import { extractPdfHybrid } from "./pdf-extract.js";
+
+function isPdf(filename: string, mimeType: string | null): boolean {
+  return (mimeType ?? "").toLowerCase() === "application/pdf" || filename.toLowerCase().endsWith(".pdf");
+}
 
 const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
@@ -23,7 +29,17 @@ export async function runRead(attachmentId: string): Promise<void> {
   const row = rows[0];
   if (!row || !row.data) { await markFailed(attachmentId); return; }
   try {
-    const { text } = await readFile(row.filename, row.data, row.mimeType ?? "application/octet-stream");
+    // PDFs go through the local-first hybrid extractor (pdftotext for text pages,
+    // per-page Gemini OCR only for image pages). It returns null when the local
+    // pipeline can't run (encrypted/corrupt, or poppler missing) — then, and for
+    // every non-PDF, fall back to the whole-file rag-read path so nothing regresses.
+    let text: string | null = null;
+    if (config.LOCAL_PDF_EXTRACT && isPdf(row.filename, row.mimeType)) {
+      text = await extractPdfHybrid(row.data);
+    }
+    if (text === null) {
+      ({ text } = await readFile(row.filename, row.data, row.mimeType ?? "application/octet-stream"));
+    }
     if (!text || !text.trim()) { await markFailed(attachmentId); return; }
     await db.update(attachments).set({ extractedText: text, status: "ready" }).where(eq(attachments.id, attachmentId));
   } catch (err) {

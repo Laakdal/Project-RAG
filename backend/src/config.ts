@@ -40,6 +40,18 @@ const envSchema = z.object({
   EMBED_MODEL: z.string().min(1).default("text-embedding-3-small"),
   GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
 
+  // Local-first PDF extraction (src/rag/pdf-extract.ts): pull the text layer with
+  // pdftotext and OCR only image pages via Gemini. Set false to fall back to the
+  // whole-file rag-read path for every PDF.
+  LOCAL_PDF_EXTRACT: booleanFromString.default("true"),
+  // Parallel per-page OCR calls — bounds load on the n8n/Gemini egress.
+  OCR_PAGE_CONCURRENCY: z.coerce.number().int().positive().default(4),
+  // A page whose extracted text is shorter than this is treated as an image page
+  // that needs OCR.
+  PDF_TEXT_MIN_CHARS: z.coerce.number().int().nonnegative().default(16),
+  // pdftoppm render resolution (DPI) for pages sent to OCR.
+  PDF_RENDER_DPI: z.coerce.number().int().positive().default(150),
+
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.
   DRIVE_FOLDER_ID: z.string().min(1).optional(),
