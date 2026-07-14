@@ -17,6 +17,10 @@ interface ConversationFilesPanelProps {
 
 type FileRow =
   | { key: string; name: string; kind: 'uploading' }
+  // Persisted but still being read server-side (the background Gemini read that
+  // populates extractedText). The upload POST returns instantly with
+  // status:"processing"; this row stays until the read flips it to ready/failed.
+  | { key: string; name: string; kind: 'processing' }
   | {
       key: string;
       name: string;
@@ -69,19 +73,35 @@ export function ConversationFilesPanel({
     };
   }, [conversationId, attachmentsVersion]);
 
-  // Persisted, non-failed files are the "ready" rows.
-  const ready = attachments.filter((att) => att.status !== 'failed');
+  // Persisted, non-failed files. Split into `ready` (read finished) and still
+  // `processing` (background read in flight). The backend excludes failed rows.
+  const persisted = attachments.filter((att) => att.status !== 'failed');
+  // Anything not yet `ready` is still being read (status is `processing`, or the
+  // legacy `indexing` default). Poll while any such row exists.
+  const hasProcessing = persisted.some((att) => att.status !== 'ready');
+
+  // While any file is still being read server-side, poll for its status by
+  // bumping the version counter (which re-runs the refetch effect above). Stops
+  // as soon as everything is ready — and on unmount / conversation change.
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const timer = setInterval(() => bumpAttachmentsVersion(), 2500);
+    return () => clearInterval(timer);
+  }, [hasProcessing, bumpAttachmentsVersion]);
+
   // Match on the base name (extension stripped): a spreadsheet is flattened to
   // CSV in the browser before upload, so the dropped "X.xlsx" chip and its stored
   // "X.csv" attachment share a base name. Deduping on that stops the original
-  // chip from lingering next to the converted attachment as a phantom entry.
+  // chip from lingering next to the converted attachment as a phantom entry. Use
+  // the full persisted set (not just ready) so the composer chip hands off to the
+  // "Processing…" row the instant the upload persists, without a phantom gap.
   const stripExt = (name: string) => name.replace(/\.[^./\\]+$/, '');
-  const readyBaseNames = new Set(ready.map((att) => stripExt(att.filename)));
+  const persistedBaseNames = new Set(persisted.map((att) => stripExt(att.filename)));
 
   // In-flight uploads from the composer that aren't yet persisted — deduped by
   // base name so a just-finished upload doesn't show twice — skipping failures.
   const uploading = composerUploads.filter(
-    (u) => u.status !== 'error' && !readyBaseNames.has(stripExt(u.name)),
+    (u) => u.status !== 'error' && !persistedBaseNames.has(stripExt(u.name)),
   );
 
   const rows: FileRow[] = [
@@ -90,14 +110,18 @@ export function ConversationFilesPanel({
       name: u.name,
       kind: 'uploading' as const,
     })),
-    ...ready.map((att) => ({
-      key: `at-${att.id}`,
-      name: att.filename,
-      kind: 'ready' as const,
-      attachmentId: att.id,
-      chunkCount: att.chunkCount,
-      hasFile: att.hasFile ?? false,
-    })),
+    ...persisted.map((att): FileRow =>
+      att.status === 'ready'
+        ? {
+            key: `at-${att.id}`,
+            name: att.filename,
+            kind: 'ready' as const,
+            attachmentId: att.id,
+            chunkCount: att.chunkCount,
+            hasFile: att.hasFile ?? false,
+          }
+        : { key: `at-${att.id}`, name: att.filename, kind: 'processing' as const },
+    ),
   ];
 
   const handleDelete = async (attachmentId: string) => {
@@ -182,9 +206,7 @@ export function ConversationFilesPanel({
                 >
                   {cleanFilename(row.name)}
                 </Text>
-                {row.kind === 'uploading' ? (
-                  <Spinner size="1" style={{ flexShrink: 0, marginTop: 2 }} />
-                ) : (
+                {row.kind === 'ready' ? (
                   <IconButton
                     variant="ghost"
                     size="1"
@@ -198,6 +220,8 @@ export function ConversationFilesPanel({
                   >
                     <MaterialIcon name="close" size={14} color="var(--slate-11)" />
                   </IconButton>
+                ) : (
+                  <Spinner size="1" style={{ flexShrink: 0, marginTop: 2 }} />
                 )}
               </Flex>
 
@@ -205,9 +229,11 @@ export function ConversationFilesPanel({
               <Text size="1" style={{ color: 'var(--slate-10)', display: 'block', marginTop: 4 }}>
                 {row.kind === 'uploading'
                   ? 'Uploading…'
-                  : row.chunkCount != null
-                    ? `${row.chunkCount} chunk${row.chunkCount === 1 ? '' : 's'}`
-                    : 'Attached'}
+                  : row.kind === 'processing'
+                    ? 'Processing…'
+                    : row.chunkCount != null
+                      ? `${row.chunkCount} chunk${row.chunkCount === 1 ? '' : 's'}`
+                      : 'Attached'}
               </Text>
 
               {/* Format badge. */}
