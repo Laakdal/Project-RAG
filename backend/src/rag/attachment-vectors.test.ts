@@ -52,6 +52,14 @@ describe("attachment-vectors", () => {
     });
   });
 
+  it("embedAttachment batches large upserts to stay under Qdrant's request limit", async () => {
+    const { embedAttachment } = await import("./attachment-vectors.js");
+    const huge = "word ".repeat(80000); // ~400KB → far more than one 256-doc batch
+    const n = await embedAttachment("c", "a", "big.pdf", huge);
+    expect(n).toBeGreaterThan(256);
+    expect(addDocuments.mock.calls.length).toBeGreaterThan(1);
+  });
+
   it("embedAttachment stores nothing for blank text", async () => {
     const { embedAttachment } = await import("./attachment-vectors.js");
     expect(await embedAttachment("c", "a", "f.pdf", "   ")).toBe(0);

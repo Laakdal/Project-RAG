@@ -14,6 +14,10 @@ import { config } from "../config.js";
 
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 150 });
 
+// Qdrant rejects a single upsert request larger than 32MB. A big book yields
+// thousands of 1536-dim vectors, so upsert in batches to stay well under it.
+const UPSERT_BATCH = 256;
+
 function makeEmbeddings(): OpenAIEmbeddings {
   if (!config.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is required for chat-attachment embeddings");
   return new OpenAIEmbeddings({ apiKey: config.OPENAI_API_KEY, model: config.EMBED_MODEL });
@@ -48,7 +52,9 @@ export async function embedAttachment(
     (content, chunkIndex) =>
       new Document({ pageContent: content, metadata: { conversationId, attachmentId, filename, chunkIndex } }),
   );
-  await store.addDocuments(docs);
+  for (let i = 0; i < docs.length; i += UPSERT_BATCH) {
+    await store.addDocuments(docs.slice(i, i + UPSERT_BATCH));
+  }
   return chunks.length;
 }
 
