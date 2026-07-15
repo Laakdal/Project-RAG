@@ -38,6 +38,25 @@ import { CitationMessageRowKeyContext } from './response-tabs/citations/citation
 // Stable empty reference — avoids creating new objects in default params
 const EMPTY_CITATION_MAPS: CitationMaps = emptyCitationMaps();
 
+/**
+ * Elapsed-time-driven loading phases for the non-streaming RAG query. Each entry
+ * is shown once `elapsed >= at` (ms); the last matching entry wins, so keep the
+ * list sorted by `at` ascending. The wording mirrors the real pipeline
+ * (search documents → search the web → read sources → write) so the status reads
+ * like live progress even though the backend emits no per-step SSE events.
+ */
+const LOADING_PHASES: readonly { at: number; text: string }[] = [
+  { at: 0, text: 'Thinking…' },
+  { at: 2_000, text: 'Understanding your question…' },
+  { at: 4_000, text: 'Searching your documents…' },
+  { at: 8_000, text: 'Searching the web…' },
+  { at: 13_000, text: 'Reading the most relevant sources…' },
+  { at: 19_000, text: 'Cross-checking the sources…' },
+  { at: 26_000, text: 'Writing the answer…' },
+  { at: 38_000, text: 'Almost there — putting it together…' },
+  { at: 50_000, text: 'Still working — this can take a moment for large documents…' },
+];
+
 function formatMessageTime(isoString: string): string {
   const date = new Date(isoString);
   if (isNaN(date.getTime())) return '';
@@ -124,24 +143,21 @@ export const ChatResponse = React.memo(function ChatResponse({
   // slow answer would otherwise sit on a frozen "Thinking…" for minutes. Drive
   // the loading status off elapsed time instead: cycle through plausible phases
   // so it reads like a live status. Resets whenever a new load starts.
-  const [loadingPhase, setLoadingPhase] = useState('Thinking…');
+  const [loadingPhase, setLoadingPhase] = useState(LOADING_PHASES[0].text);
   useEffect(() => {
     if (!isStreaming) {
-      setLoadingPhase('Thinking…');
+      setLoadingPhase(LOADING_PHASES[0].text);
       return;
     }
     const start = Date.now();
     const tick = () => {
       const elapsed = Date.now() - start;
-      setLoadingPhase(
-        elapsed >= 45_000
-          ? 'Still working — this can take a moment for large documents…'
-          : elapsed >= 12_000
-            ? 'Reading and generating an answer…'
-            : elapsed >= 4_000
-              ? 'Searching your documents…'
-              : 'Thinking…',
-      );
+      let text = LOADING_PHASES[0].text;
+      for (const phase of LOADING_PHASES) {
+        if (elapsed >= phase.at) text = phase.text;
+        else break;
+      }
+      setLoadingPhase(text);
     };
     tick();
     const timer = setInterval(tick, 1000);
