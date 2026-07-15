@@ -11,7 +11,9 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
+import { randomUUID } from "node:crypto";
 import { queryRag, downloadDriveFile, type QueryResult, type QuerySource } from "./n8n-client.js";
+import { subscribeProgress } from "./progress-bus.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
 import { startBackgroundRead } from "./attachment-reader.js";
@@ -527,6 +529,259 @@ router.post(
     }
 
     res.json({ answer: result.answer, sources: result.sources });
+  },
+);
+
+// Streaming twin of the ask route. Same pipeline (attachment relevance gate →
+// shared library / Drive gate → queryRag), but delivered over Server-Sent Events
+// so the UI can show REAL per-step progress instead of a timed guess. Backend-
+// side steps emit `status` events directly; n8n emits its own (web search,
+// writing) by POSTing to /internal/progress, correlated by `jobId` and relayed
+// here via the progress bus. The final answer arrives as a `complete` event.
+//
+// Kept as a separate handler (a deliberate near-duplicate of the JSON route) so
+// the proven non-streaming path stays untouched and remains a safe fallback.
+router.post(
+  "/conversations/:id/messages/stream",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = askSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "A non-empty question is required" });
+      return;
+    }
+    const { question } = parsed.data;
+
+    // ── SSE setup ──
+    const jobId = randomUUID();
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    // Stop the reverse proxy (nginx) from buffering the stream — without this the
+    // events queue up and arrive all at once with the final answer.
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    let closed = false;
+    const send = (event: string, data: unknown): void => {
+      if (closed) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const status = (message: string, statusKey = "processing"): void =>
+      send("status", { status: statusKey, message });
+
+    // Relay n8n's per-stage events (posted to /internal/progress for this jobId).
+    const unsubscribe = subscribeProgress(jobId, (ev) => send("status", ev));
+
+    // Keep-alive comments so proxies don't drop the connection while we await the
+    // buffered n8n answer (which can take a couple of minutes on a cold Drive read).
+    const heartbeat = setInterval(() => {
+      if (!closed) res.write(`: ping\n\n`);
+    }, 15000);
+
+    const cleanup = (): void => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    // Client navigated away / aborted: stop relaying and drop subscriptions.
+    req.on("close", () => {
+      closed = true;
+      cleanup();
+    });
+
+    try {
+      send("connected", { jobId });
+      status("Understanding your question…", "understanding");
+
+      const priorRows = await db
+        .select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(eq(messages.conversationId, req.params.id))
+        .orderBy(desc(messages.createdAt))
+        .limit(10);
+      const history = priorRows.reverse();
+      const isFirstMessage = history.length === 0;
+
+      // Attachment reading: unlike the JSON route (7s grace then 202 for the client
+      // to retry), stream a "reading…" status and wait inline for the background
+      // read to finish, bounded so a stuck read can't hang the request forever.
+      const selectAtt = () =>
+        db
+          .select({
+            id: attachments.id,
+            filename: attachments.filename,
+            status: attachments.status,
+            extractedText: attachments.extractedText,
+          })
+          .from(attachments)
+          .where(eq(attachments.conversationId, req.params.id));
+      const isReading = (a: { status: string }) =>
+        a.status !== "ready" && a.status !== "failed";
+
+      let attRows = await selectAtt();
+      if (attRows.some(isReading)) {
+        status("Reading your attached file…", "reading");
+        const readDeadline = Date.now() + 150_000;
+        while (Date.now() < readDeadline && attRows.some(isReading) && !closed) {
+          await new Promise((r) => setTimeout(r, 1000));
+          attRows = await selectAtt();
+        }
+      }
+      if (closed) {
+        cleanup();
+        return;
+      }
+      if (attRows.some(isReading)) {
+        send("error", {
+          message:
+            "File masih diproses dan memakan waktu lebih lama dari biasanya. Silakan coba tanyakan lagi sebentar lagi.",
+        });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+
+      // Files attached but none readable → answer plainly (mirror JSON route).
+      if (attRows.length > 0 && readyDocs.length === 0) {
+        const answer =
+          "Maaf, saya belum berhasil membaca file yang Anda lampirkan. Coba unggah ulang filenya (pastikan gambar atau dokumennya cukup jelas), lalu tanyakan lagi.";
+        await db
+          .insert(messages)
+          .values({ conversationId: req.params.id, role: "user", content: question });
+        await db
+          .insert(messages)
+          .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] });
+        send("complete", { answer, sources: [] });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      // Per-chat relevance gate (mirror JSON route).
+      let docs: { filename: string; text: string }[] = [];
+      if (readyDocs.length > 0) {
+        status("Reading your attached file…", "reading");
+        const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
+        let hits: { filename: string; text: string; score: number }[] = [];
+        let attRelevant = true;
+        try {
+          hits = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
+          attRelevant = hits.length > 0 && (hits[0].score ?? 0) >= config.CHAT_RELEVANCE_THRESHOLD;
+        } catch (err) {
+          console.error("[chat] per-chat retrieval failed; scoping to attached docs", err);
+        }
+        if (attRelevant) {
+          if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
+            docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
+          } else {
+            docs =
+              hits.length > 0
+                ? hits.map((h) => ({ filename: h.filename, text: h.text }))
+                : readyDocs.map((a) => ({
+                    filename: a.filename,
+                    text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
+                  }));
+          }
+        }
+      }
+
+      // Shared library + live Drive gate (mirror JSON route).
+      let libraryDocs: QuerySource[] = [];
+      let skipDrive = false;
+      if (docs.length === 0) {
+        status("Searching your documents…", "searching_docs");
+        try {
+          if (await shouldSearchLibrary(question)) {
+            libraryDocs = await searchLibrary(question);
+            skipDrive = await librarySufficient(question, libraryDocs);
+          }
+        } catch {
+          libraryDocs = [];
+          skipDrive = false;
+        }
+      }
+
+      if (closed) {
+        cleanup();
+        return;
+      }
+
+      // n8n runs the rest (intent, web search, generation) and streams its own
+      // progress via jobId → /internal/progress → the bus → the relay above.
+      let result: QueryResult;
+      try {
+        result = await queryRag(
+          req.params.id,
+          question,
+          history,
+          isFirstMessage,
+          docs,
+          libraryDocs,
+          skipDrive,
+          jobId,
+        );
+      } catch {
+        send("error", { message: "The assistant is unavailable right now" });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      if (closed) {
+        cleanup();
+        return;
+      }
+
+      indexDriveSourcesInBackground(result.sources);
+
+      await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "user", content: question });
+      await db.insert(messages).values({
+        conversationId: req.params.id,
+        role: "assistant",
+        content: result.answer,
+        sources: result.sources,
+      });
+
+      if (isFirstMessage) {
+        const title =
+          result.title?.trim() ||
+          (await summarizeTitle(question, result.answer)) ||
+          titleFromQuestion(question);
+        await db
+          .update(conversations)
+          .set({ title })
+          .where(
+            and(
+              eq(conversations.id, req.params.id),
+              eq(conversations.title, "New chat"),
+            ),
+          );
+      }
+
+      send("complete", { answer: result.answer, sources: result.sources });
+      cleanup();
+      res.end();
+    } catch (err) {
+      console.error("[chat] stream handler failed", err);
+      send("error", { message: "Something went wrong" });
+      cleanup();
+      try {
+        res.end();
+      } catch {
+        /* already closed */
+      }
+    }
   },
 );
 

@@ -52,11 +52,15 @@ export async function queryRag(
   // When true, the library already answers the question, so the workflow may
   // skip the slow on-demand live Drive read. Defaults false (do the live read).
   skipDrive = false,
+  // Correlates the workflow's per-stage progress events (POSTed to the backend's
+  // /internal/progress) with an open SSE request. Omitted for the non-streaming
+  // path, in which case the workflow simply emits no progress.
+  jobId?: string,
 ): Promise<QueryResult> {
   const res = await fetch(url(QUERY_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId, question, history, generateTitle, docs, libraryDocs, skipDrive }),
+    body: JSON.stringify({ conversationId, question, history, generateTitle, docs, libraryDocs, skipDrive, jobId }),
     signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
   });
   if (!res.ok) {
