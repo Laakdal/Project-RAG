@@ -1,0 +1,551 @@
+{
+  "updatedAt": "2026-06-28T14:31:58.733Z",
+  "createdAt": "2026-06-27T19:08:40.995Z",
+  "id": "LM6tNLrat9Ylbwsy",
+  "name": "RAG Library Sync",
+  "description": "Phase 2 starter: Google Drive folder sync — watches a folder, downloads each file (Google-native auto-export to PDF/XLSX), reads it with Gemini 2.5 Flash via OpenRouter. Storage (embed + upsert to project_rag_library + edit-replace) still to add.",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "file0",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          }
+        }
+      },
+      "id": "2c2b6987-eeff-41f5-852c-54bb44575f33",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1024,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/project_rag_library/points/delete",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { must: [ { key: \"metadata.driveFileId\", match: { value: $('Prep For Reader').item.json.driveFileId } } ] } }) }}",
+        "options": {}
+      },
+      "id": "dac524c4-509c-468f-ba99-b386354e9b2f",
+      "name": "Qdrant Delete Existing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "mode": "id",
+          "value": "project_rag_library"
+        },
+        "options": {
+          "collectionConfig": "{\"vectors\":{\"size\":1536,\"distance\":\"Cosine\"}}"
+        }
+      },
+      "id": "a0c06e1e-3120-4cc5-8498-c8cb9a435641",
+      "name": "Qdrant Insert",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1936,
+        304
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "xenEDyFAUtMctcxF",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $('Read Document').item.json.text }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "driveFileId",
+                "value": "={{ $('Prep For Reader').item.json.driveFileId }}"
+              },
+              {
+                "name": "filename",
+                "value": "={{ $('Prep For Reader').item.json.filename }}"
+              },
+              {
+                "name": "modifiedTime",
+                "value": "={{ $('Prep For Reader').item.json.modifiedTime }}"
+              },
+              {
+                "name": "scope",
+                "value": "library"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a19ceec0-3c61-4623-b80d-19c21514040a",
+      "name": "Document Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        2032,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 100,
+        "options": {}
+      },
+      "id": "817012ce-a563-432f-83f2-4e641a29929c",
+      "name": "Recursive Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b5f6ebc4-3559-4e07-a79d-d302d254b66c",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1904,
+        480
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "p0EOec7CMmdqbrMZ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "36b481c3-dd67-415d-971d-ba91e2fd5412",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "mimeType != 'application/vnd.google-apps.folder' and trashed = false and 'me' in owners"
+            },
+            {
+              "name": "fields",
+              "value": "nextPageToken,files(id,name,mimeType,modifiedTime)"
+            },
+            {
+              "name": "pageSize",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "pageToken",
+                    "value": "={{ $response.body.nextPageToken }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.nextPageToken }}"
+            }
+          }
+        }
+      },
+      "id": "0f512f27-64c3-4ac8-b891-523dc2a9091e",
+      "name": "Drive API List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "files",
+        "options": {}
+      },
+      "id": "3efde442-ecf3-4405-9c6e-9c71c98dd7c1",
+      "name": "List Account Files",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        144,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/project_rag_library/points/scroll",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { must: [ { key: \"metadata.driveFileId\", match: { value: $json.id } } ] }, limit: 1, with_payload: true }) }}",
+        "options": {}
+      },
+      "id": "d5c54798-bd36-40cc-975e-bb2b91c04ae5",
+      "name": "Check Existing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        368,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPPORTED = ['pdf','docx','pptx','xlsx','png','jpg','jpeg','webp','txt','md','csv','json'];\nfunction readable(file) {\n  const mt = file.mimeType || '';\n  // Google Docs/Sheets/Slides get converted on download → readable\n  if (mt.startsWith('application/vnd.google-apps.')) return mt !== 'application/vnd.google-apps.folder';\n  const ext = ((file.name || '').split('.').pop() || '').toLowerCase();\n  return SUPPORTED.includes(ext);\n}\nconst inputs = $input.all();\nconst files = $('List Account Files').all();\nconst out = [];\nfor (let i = 0; i < inputs.length; i++) {\n  const res = inputs[i].json;\n  const file = files[i].json;\n  const points = (res && res.result && res.result.points) || [];\n  const storedMtime = points[0] && points[0].payload && points[0].payload.metadata && points[0].payload.metadata.modifiedTime;\n  const needsSync = readable(file) && (points.length === 0 || storedMtime !== file.modifiedTime);\n  out.push({ json: { id: file.id, name: file.name, mimeType: file.mimeType, modifiedTime: file.modifiedTime, needsSync } });\n}\nreturn out;"
+      },
+      "id": "002b8d19-78b6-4970-bb24-ac0a50b6153b",
+      "name": "Decide Sync",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.needsSync }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5080b1f8-af3b-4ba5-b217-1095cbb3677a",
+      "name": "Needs Sync?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const bin = (items[i].binary && items[i].binary.file0) || {};\n  const meta = $('Decide Sync').item.json;\n  const fileName = bin.fileName || meta.name || 'document';\n  const ext = (bin.fileExtension || (fileName.split('.').pop() || '')).toLowerCase();\n  out.push({ json: { filename: fileName, ext, driveFileId: meta.id, modifiedTime: meta.modifiedTime }, binary: items[i].binary, pairedItem: { item: i } });\n}\nreturn out;"
+      },
+      "id": "5ea7e758-3680-4da4-80b8-8153abc48ce5",
+      "name": "Prep For Reader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "7UM6zdEaX7xQXunZ",
+          "cachedResultName": "Read Document"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "839867d1-cac7-4faf-9eef-f3dd43a6cdd9",
+      "name": "Read Document",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1472,
+        304
+      ],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Qdrant Delete Existing": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant Insert",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Insert",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Drive API List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive API List": {
+      "main": [
+        [
+          {
+            "node": "List Account Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Account Files": {
+      "main": [
+        [
+          {
+            "node": "Check Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing": {
+      "main": [
+        [
+          {
+            "node": "Decide Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Sync": {
+      "main": [
+        [
+          {
+            "node": "Needs Sync?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Sync?": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Prep For Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep For Reader": {
+      "main": [
+        [
+          {
+            "node": "Read Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Document": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Delete Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "62740226-5e74-432e-8f5c-88fa6f9ee818",
+  "activeVersionId": null,
+  "versionCounter": 21,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-27T19:08:40.995Z",
+      "createdAt": "2026-06-27T19:08:40.995Z",
+      "role": "workflow:owner",
+      "workflowId": "LM6tNLrat9Ylbwsy",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

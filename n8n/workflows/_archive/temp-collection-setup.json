@@ -1,0 +1,177 @@
+{
+  "updatedAt": "2026-06-23T00:54:53.102Z",
+  "createdAt": "2026-06-23T00:51:43.947Z",
+  "id": "YWK8MXXAFBQmZKwq",
+  "name": "TEMP Collection Setup",
+  "description": "Temporary helper: reads rag_collection vector schema and creates project_rag_chat with identical config.",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "ade000d2-4988-4150-9353-92d58243f4ef",
+      "name": "Run Setup",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "092ce07c-ea49-4419-b268-aaf428b6716e",
+      "name": "Get rag_collection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://qdrant:6333/collections/rag_collection",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "qdrantApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "qdrantApi": {
+          "id": "xenEDyFAUtMctcxF",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "id": "d0589566-d3ee-4126-9991-3dc1f9179cb3",
+      "name": "Build PUT Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const resp = $input.first().json;\nconst body = resp.body || resp;\nconst params = (body.result && body.result.config && body.result.config.params) || {};\nconst vectors = params.vectors;\nif (!vectors) { throw new Error('Could not read vectors config from rag_collection: ' + JSON.stringify(body).slice(0,500)); }\nreturn [{ json: { vectors: vectors, sourceStatus: body.status || 'unknown' } }];"
+      }
+    },
+    {
+      "id": "caaf15aa-7a0c-4fce-b2be-da71bcdd83a8",
+      "name": "Create project_rag_chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "http://qdrant:6333/collections/project_rag_chat",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "qdrantApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ vectors: $json.vectors }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "qdrantApi": {
+          "id": "xenEDyFAUtMctcxF",
+          "name": "Qdrant account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run Setup": {
+      "main": [
+        [
+          {
+            "node": "Get rag_collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get rag_collection": {
+      "main": [
+        [
+          {
+            "node": "Build PUT Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build PUT Body": {
+      "main": [
+        [
+          {
+            "node": "Create project_rag_chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "da1210ae-f8d3-4431-b120-02c76fb05e21",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-23T00:51:43.947Z",
+      "createdAt": "2026-06-23T00:51:43.947Z",
+      "role": "workflow:owner",
+      "workflowId": "YWK8MXXAFBQmZKwq",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

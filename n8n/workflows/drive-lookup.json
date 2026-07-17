@@ -1,0 +1,613 @@
+{
+  "updatedAt": "2026-07-12T17:33:02.541Z",
+  "createdAt": "2026-06-28T13:10:57.470Z",
+  "id": "9oaXbVXlV1fkmA7n",
+  "name": "Drive Lookup",
+  "description": "On-demand Drive retrieval sub-workflow. Input {question}; searches Drive (keyword fullText+name), reads the top file via Read Document (Gemini Flash) with a drive_read_cache read-through cache; outputs {filename, driveFileId, text}[].",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "f95ac855-f3cf-43e9-a038-7a77cef7260c",
+      "name": "Lookup Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recursive Drive scope: search PalmCo AND every subfolder (Drive's `in parents`\n// is not recursive). List Folders (upstream) lists all owned folders; walk the\n// parent->children map to collect ROOT + descendants and constrain to that set.\nconst ROOT = '1RCQF5970CpglBjehHS_jWSrD-hmenbjx'; // PalmCo knowledge base\nconst MAX_FOLDERS = 100;\n\nconst folders = $input.all().map(i => i.json).filter(f => f && f.id);\nconst childrenByParent = new Map();\nfor (const f of folders) {\n  const parents = Array.isArray(f.parents) ? f.parents : (f.parentId ? [f.parentId] : []);\n  for (const p of parents) {\n    if (!childrenByParent.has(p)) childrenByParent.set(p, []);\n    childrenByParent.get(p).push(f.id);\n  }\n}\nconst scope = new Set([ROOT]);\nconst stack = [ROOT];\nwhile (stack.length) {\n  const cur = stack.pop();\n  for (const child of (childrenByParent.get(cur) || [])) {\n    if (!scope.has(child)) { scope.add(child); stack.push(child); }\n  }\n}\nconst folderIds = [...scope].slice(0, MAX_FOLDERS);\n\nconst question = ($('Lookup Trigger').first().json || {}).question || '';\n\n// Prefer LLM-extracted search terms (robust to phrasing, dates, synonyms). The\n// \"Extract Terms\" chain (json_object mode) returns the parsed object directly as\n// json.phrases / json.terms; a text-mode chain would return a JSON string in\n// json.text. Handle both. Fall back to the local stopword + light-stemming\n// heuristic only if that call failed or was empty.\nlet phrases = [];\nlet terms = [];\nlet source = 'llm';\ntry {\n  const r = $('Extract Terms').first().json || {};\n  let parsed = null;\n  if (Array.isArray(r.phrases) || Array.isArray(r.terms)) {\n    parsed = r;\n  } else {\n    const content = r.text != null ? r.text : (r.output != null ? r.output : (r.response != null ? r.response : ''));\n    const s = String(content); const a = s.indexOf('{'); const b = s.lastIndexOf('}');\n    if (a >= 0 && b > a) parsed = JSON.parse(s.slice(a, b + 1));\n  }\n  if (parsed) {\n    if (Array.isArray(parsed.phrases)) phrases = parsed.phrases.map(x => String(x).trim()).filter(Boolean).slice(0, 3);\n    if (Array.isArray(parsed.terms)) terms = parsed.terms.map(x => String(x).toLowerCase().trim()).filter(Boolean);\n  }\n} catch (e) {}\nterms = [...new Set(terms)].slice(0, 12);\n\nif (!terms.length) {\n  source = 'heuristic';\n  const STOP = new Set(['the','a','an','of','in','on','for','to','and','or','is','are','was','were','what','which','how','my','me','i','you','this','that','file','files','drive','google','about','please','summarize','explain','give','tell','show','find','list','from','with','it','its','based','document','documents','can','could','would','should','have','has','had','not','do','does','did','but','if','then','than','so','all','any','some','more','most','also','just','get','use','used','using','coba','cobalah','tolong','jelaskan','jelasin','jelaskanlah','berdasarkan','bedasarkan','carikan','cari','sebutkan','tuliskan','buatkan','berikan','apa','apakah','yang','dari','dan','atau','untuk','dengan','pada','adalah','saya','kamu','aku','ini','itu','dalam','tentang','mengenai','bisa','akan','juga','ada','nya','kah','dong','deh','nih','gimana','kasih','lihat','baca','isi','bagaimana','kenapa','mengapa','kapan','dimana','siapa','berapa','sudah','belum','sedang','telah','punya','mau','ingin','perlu']);\n  const stripID = word => word.replace(/^(me|men|mem|meng|meny|ber|per|ke|se|di|ter|pe)/, '').replace(/(kan|an|nya|lah|kah|pun)$/, '');\n  const phraseRegex = /\"([^\"]+)\"/g;\n  let m; let cq = question;\n  while ((m = phraseRegex.exec(question)) !== null) { phrases.push(m[1].trim()); cq = cq.replace(m[0], ' '); }\n  const rawWords = (cq.toLowerCase().match(/[a-z0-9]{2,}/g) || []);\n  const kw = [];\n  for (const w of rawWords) { if (!STOP.has(w)) kw.push(w); }\n  for (const w of rawWords) { if (STOP.has(w)) continue; const st = stripID(w); if (st.length >= 4 && st !== w && !STOP.has(st)) kw.push(st); }\n  terms = [...new Set(kw)].slice(0, 12);\n  if (!terms.length) terms = (question.match(/[A-Za-z0-9]{2,}/g) || []).slice(0, 5);\n}\n\nconst esc = s => String(s).replace(/'/g, \"\\\\'\");\nconst conditions = [];\nfor (const phrase of phrases) conditions.push(`fullText contains '${esc(phrase)}'`);\nfor (const term of terms) conditions.push(`fullText contains '${esc(term)}' or name contains '${esc(term)}'`);\n\nconst parentClause = folderIds.map(id => `'${esc(id)}' in parents`).join(' or ');\nconst scopeFilter = `trashed = false and 'me' in owners and (${parentClause})`;\nconst q = conditions.length ? `(${conditions.join(' or ')}) and ${scopeFilter}` : scopeFilter;\n\nreturn [{ json: { q, question, terms, phrases, termCount: terms.length, scopeFolders: folderIds.length, source } }];"
+      },
+      "id": "3b13c319-870e-4a2d-bc04-852de396d43d",
+      "name": "Build Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const terms = ($('Build Query').first().json.terms || []).map(t => String(t).toLowerCase());\nconst SIZE_CAP = 20 * 1024 * 1024, MAX = 1;\nconst items = $input.all();\nconst scored = [];\nfor (let idx = 0; idx < items.length; idx++) {\n  const f = items[idx].json || {};\n  if (!f.id) continue;\n  if (f.size && Number(f.size) > SIZE_CAP) continue;\n  const name = String(f.name || '').toLowerCase();\n  let nameHits = 0;\n  for (const t of terms) { if (t && name.indexOf(t) !== -1) nameHits++; }\n  scored.push({ f: f, nameHits: nameHits, idx: idx });\n}\nscored.sort((a, b) => (b.nameHits - a.nameHits) || (a.idx - b.idx));\nconst out = [];\nfor (const s of scored) {\n  out.push({ json: { driveFileId: s.f.id, filename: s.f.name, mimeType: s.f.mimeType, modifiedTime: s.f.modifiedTime } });\n  if (out.length >= MAX) break;\n}\nreturn out;"
+      },
+      "id": "6a929dc0-a7b9-4d74-9886-3d87f8a77752",
+      "name": "Pick Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Uo699BYYvsgO3TAV"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "driveFileId",
+              "keyValue": "={{ $json.driveFileId }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "c51305d4-6ef9-42e3-8d6b-4c530f02e373",
+      "name": "Cache Fetch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        96
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $json || {};\nreturn [{ json: { filename: j.filename || '', driveFileId: j.driveFileId || '', text: String(j.markdown || '') } }];"
+      },
+      "id": "8a8b4d5e-584a-4e2d-bfc3-9d57312d156c",
+      "name": "From Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconst text = j.text || '';\nif (!text) return [];\nreturn [{ json: { filename: j.filename || '', driveFileId: j.driveFileId || '', text: String(text) } }];"
+      },
+      "id": "4cfd3ec7-0882-4ded-b2e0-0f22496e46b2",
+      "name": "Lookup Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.driveFileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "file0",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          }
+        }
+      },
+      "id": "2e61ebc8-5721-441c-b90a-e5a335adb9c5",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        832,
+        352
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const bin = (items[i].binary && items[i].binary.file0) || {};\n  const meta = $('Decide Cache').first().json;\n  const fileName = bin.fileName || meta.filename || 'document';\n  const ext = (bin.fileExtension || (fileName.split('.').pop() || '')).toLowerCase();\n  out.push({ json: { filename: fileName, ext: ext, driveFileId: meta.driveFileId, modifiedTime: meta.modifiedTime, model: 'google/gemini-2.5-flash' }, binary: items[i].binary, pairedItem: { item: i } });\n}\nreturn out;"
+      },
+      "id": "0aaf1449-c96d-4ea4-8029-aa9d825fcfb5",
+      "name": "Prep For Reader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "7UM6zdEaX7xQXunZ",
+          "cachedResultName": "Read Document"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "2d84a6e3-8554-4b87-9278-c5e8fed2942a",
+      "name": "Read Document",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1280,
+        352
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Uo699BYYvsgO3TAV"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "driveFileId",
+              "keyValue": "={{ $('Decide Cache').first().json.driveFileId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "driveFileId": "={{ $('Decide Cache').first().json.driveFileId }}",
+            "modifiedTime": "={{ $('Decide Cache').first().json.modifiedTime }}",
+            "filename": "={{ $('Decide Cache').first().json.filename }}",
+            "markdown": "={{ (($('Read Document').first().json || {}).text || '').slice(0, 100000) }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "934834c9-51a8-4f60-ab7c-588649d09c45",
+      "name": "Cache Upsert",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1504,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const file = $('Decide Cache').first().json;\nconst text = (($('Read Document').first().json) || {}).text || '';\nreturn [{ json: { filename: file.filename, driveFileId: file.driveFileId, text: String(text) } }];"
+      },
+      "id": "bd59b646-e67d-40bd-a403-535af8bf73d5",
+      "name": "From Read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "={{ $json.q }}",
+        "filter": {
+          "whatToSearch": "files",
+          "includeTrashed": false
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "708eb08f-7662-4e85-895e-8d5fd71afd59",
+      "name": "Drive Search",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        432,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileItems = $('Pick Files').all();\nif (!fileItems.length) return [];\nconst file = fileItems[0].json;\nconst cached = $input.first().json || {};\nconst hit = !!(cached.markdown && cached.modifiedTime === file.modifiedTime);\nreturn [{ json: { hit: hit, driveFileId: file.driveFileId, filename: file.filename, modifiedTime: file.modifiedTime, markdown: hit ? cached.markdown : '' } }];"
+      },
+      "id": "eb282453-0cb0-43bf-bdcc-3824496e1232",
+      "name": "Decide Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "hit-cond",
+              "leftValue": "={{ $json.hit }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "00365337-9f14-48de-8842-095283c94f9f",
+      "name": "Cache Hit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'me' in owners and trashed = false",
+        "returnAll": true,
+        "filter": {
+          "whatToSearch": "folders",
+          "includeTrashed": false
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "1386f30e-5aad-4e8c-8f8f-f25f9c3ba8bf",
+      "name": "List Folders",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        48,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "z-ai/glm-4.6",
+        "options": {
+          "responseFormat": "json_object",
+          "temperature": 0
+        }
+      },
+      "id": "64ac32e6-0652-4125-a45a-f5cba00f993b",
+      "name": "Term Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        272
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "MZvZzDvDMnbBgoUs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You extract Google Drive search keywords from a question about the user's company documents (usually Indonesian). Reply with ONLY a raw JSON object with two fields, both string arrays: phrases and terms.\nphrases = 1 to 3 exact multi-word strings likely to appear verbatim in the target file or its filename (a key phrase like perjalanan dinas, a date like 23 juni 2025, or a document type).\nterms = 5 to 10 individual important words, INCLUDING every date part, number, and proper name, plus useful synonyms or abbreviations (for example sppd for surat perintah perjalanan dinas). All lowercase, keep the Indonesian words. EXCLUDE filler and generic words such as database, file, dokumen, data.\n\nQuestion: {{ $('Lookup Trigger').first().json.question }}",
+        "batching": {}
+      },
+      "id": "72913cd5-260e-415d-93d9-9ebd2477d827",
+      "name": "Extract Terms",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -256,
+        96
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cache Fetch": {
+      "main": [
+        [
+          {
+            "node": "Decide Cache",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "From Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Cache": {
+      "main": [
+        [
+          {
+            "node": "Lookup Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Prep For Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep For Reader": {
+      "main": [
+        [
+          {
+            "node": "Read Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Read": {
+      "main": [
+        [
+          {
+            "node": "Lookup Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Query": {
+      "main": [
+        [
+          {
+            "node": "Drive Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive Search": {
+      "main": [
+        [
+          {
+            "node": "Pick Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Files": {
+      "main": [
+        [
+          {
+            "node": "Cache Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Cache": {
+      "main": [
+        [
+          {
+            "node": "Cache Hit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Hit?": {
+      "main": [
+        [
+          {
+            "node": "From Cache",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Folders": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Term Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Terms",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Terms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Terms": {
+      "main": [
+        [
+          {
+            "node": "List Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Document": {
+      "main": [
+        [
+          {
+            "node": "Cache Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Upsert": {
+      "main": [
+        [
+          {
+            "node": "From Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "8a3e3a83-3bc4-49fe-a876-570e96b6d5b3",
+  "activeVersionId": "8a3e3a83-3bc4-49fe-a876-570e96b6d5b3",
+  "versionCounter": 38,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-28T13:10:57.470Z",
+      "createdAt": "2026-06-28T13:10:57.470Z",
+      "role": "workflow:owner",
+      "workflowId": "9oaXbVXlV1fkmA7n",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

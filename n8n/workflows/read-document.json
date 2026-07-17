@@ -1,0 +1,815 @@
+{
+  "updatedAt": "2026-07-08T07:32:44.670Z",
+  "createdAt": "2026-06-27T20:33:49.935Z",
+  "id": "7UM6zdEaX7xQXunZ",
+  "name": "Read Document",
+  "description": "Shared reusable document reader sub-workflow. Takes binary file0 + json {filename, ext}, routes by extension, reads PDF/image via Gemini 2.5 Flash (OpenRouter), Office via Gotenberg-to-PDF, text/xlsx natively, returns {text} Markdown.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "3c3a4310-f895-4d4a-b7df-aeb2ddb755d1",
+      "name": "Reader Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-docx",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "docx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-doc",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-odt",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "odt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-rtf",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "rtf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-odp",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "odp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-ppt",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "ppt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-xls",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "xls",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-ods",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "ods",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "docx"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-pptx",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "pptx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pptx"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-pdf",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pdf"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-png",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "png",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-jpg",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "jpg",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-jpeg",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "jpeg",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-webp",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "webp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-txt",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "txt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-md",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "md",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-csv",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-json",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "json",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-tsv",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "tsv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-xml",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "xml",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-yaml",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "yaml",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-yml",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "yml",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cond-log",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-xlsx",
+                    "leftValue": "={{ ($json.ext || $binary.file0.fileExtension || '').toLowerCase() }}",
+                    "rightValue": "xlsx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "xlsx"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b31bb190-1e6a-4cbb-8cf0-8b4a032b61fe",
+      "name": "Route Ext",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gotenberg:3000/forms/libreoffice/convert",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "file0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "file0"
+            }
+          }
+        }
+      },
+      "id": "fa31479b-1c26-40c9-a86e-5cd025c0b00d",
+      "name": "Gotenberg Convert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        128,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items=$input.all();const out=[];for(let i=0;i<items.length;i++){const buffer=await this.helpers.getBinaryDataBuffer(i,'file0');const bin=(items[i].binary&&items[i].binary.file0)||{};out.push({json:{base64:buffer.toString('base64'),fileName:bin.fileName||'document'},binary:items[i].binary,pairedItem:{item:i}});}return out;"
+      },
+      "id": "f9d3bb42-b53a-4f08-9186-98a325e9234e",
+      "name": "PDF To Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items=$input.all();const out=[];for(let i=0;i<items.length;i++){const buffer=await this.helpers.getBinaryDataBuffer(i,'file0');const bin=(items[i].binary&&items[i].binary.file0)||{};out.push({json:{base64:buffer.toString('base64'),fileName:bin.fileName||'document',mimeType:bin.mimeType||'image/png'},binary:items[i].binary,pairedItem:{item:i}});}return out;"
+      },
+      "id": "93521d5a-2f26-4bce-9278-453e1956aef9",
+      "name": "Image To Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    model: ($('Reader Trigger').first().json.model || \"google/gemini-2.5-pro\"),\n    temperature: 0,\n    max_tokens: 16384,\n    messages: [{\n      role: \"user\",\n      content: [\n        {\n          type: \"text\",\n          text: `Transcribe this image's entire contents into Markdown, verbatim and completely.\nYou MUST read and transcribe the actual text INSIDE the image, exactly as shown.\nDo NOT output image placeholders; write what the image actually contains.\nPut code or terminal text in fenced code blocks and render tables as Markdown tables.\nNever pad with spaces or emit blank or whitespace-only lines, and never repeat a character to fill space; use single spaces and at most one blank line between blocks.\nMark unreadable text as [illegible].\nFor purely decorative graphics with no text, add a brief [Figure: ...] note.\nOutput only the transcription, nothing else.`\n        },\n        {\n          type: \"image_url\",\n          image_url: {\n            url: \"data:\" + $json.mimeType + \";base64,\" + $json.base64\n          }\n        }\n      ]\n    }]\n  })\n}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "08c92e71-8192-45ef-bdf3-25ec09e2bacb",
+      "name": "Read Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        512
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "openRouterApi": {
+          "id": "MZvZzDvDMnbBgoUs",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nlet text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content)\n  || j.text || j.data || '';\n// Defensive: a VLM transcribing padded editor/terminal screenshots can fall into a\n// degenerate character-repetition loop (runaway spaces, dashes, '=', etc.) that bloats\n// or truncates the document. Strip trailing space and collapse any non-newline char\n// repeated 20+ times down to 20, plus squeeze excessive blank lines, so one screenshot\n// can't derail the read. The real content survives; only degenerate runs are clipped.\ntext = String(text || '')\n  .replace(/[ \\t]+$/gm, '')\n  .replace(/([^\\n])\\1{19,}/g, (m, c) => c.repeat(20))\n  .replace(/\\n{4,}/g, '\\n\\n');\nreturn [{ json: { text } }];"
+      },
+      "id": "e7dabf1d-54a0-4408-bde3-b853f26cffcf",
+      "name": "Reader Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "file0",
+        "options": {}
+      },
+      "id": "5ae01008-e261-4407-8c8b-b7aefa9ab66c",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        352,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "file0",
+        "options": {}
+      },
+      "id": "51c60f2c-6f93-49fe-ada4-5ccdcff15a0d",
+      "name": "Extract XLSX",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        352,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst sheets = {};\nfor (const row of rows) {\n  const sheet = row['__sheet'] || 'Sheet1';\n  if (!sheets[sheet]) sheets[sheet] = [];\n  sheets[sheet].push(row);\n}\nconst text = Object.entries(sheets).map(([sheetName, sheetRows]) => {\n  const rowText = sheetRows.map(r => \n    Object.entries(r)\n      .filter(([k]) => k !== '__sheet')\n      .map(([k, v]) => k + ': ' + v)\n      .join(' | ')\n  ).join('\\n');\n  return `## Sheet: ${sheetName}\\n${rowText}`;\n}).join('\\n\\n');\nreturn [{ json: { text }, pairedItem: { item: 0 } }];"
+      },
+      "id": "b22e97b1-79c5-418b-aa4a-a2fdb071b97f",
+      "name": "Stringify XLSX",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    model: ($('Reader Trigger').first().json.model || \"google/gemini-2.5-pro\"),\n    temperature: 0,\n    max_tokens: 16384,\n    plugins: [{\n      id: \"file-parser\",\n      pdf: { engine: \"native\" }\n    }],\n    messages: [{\n      role: \"user\",\n      content: [\n        {\n          type: \"text\",\n          text: `Transcribe this document's entire contents into Markdown, verbatim and completely, from the FIRST page through the LAST page. Transcribe every page in order; never stop early, summarize, or skip pages.\nPages or images may include screenshots (e.g. of code, terminal output, editor windows, tables) — you MUST read and transcribe the actual text INSIDE those images, exactly as shown.\nDo NOT output image placeholders; write what each image actually contains.\nPut code or terminal text in fenced code blocks and render tables as Markdown tables.\nNever pad with spaces or emit blank or whitespace-only lines, and never repeat a character to fill space; use single spaces and at most one blank line between blocks.\nMark unreadable text as [illegible].\nFor purely decorative graphics with no text, add a brief [Figure: ...] note.\nOutput only the transcription, nothing else.`\n        },\n        {\n          type: \"file\",\n          file: {\n            filename: $json.fileName,\n            file_data: \"data:application/pdf;base64,\" + $json.base64\n          }\n        }\n      ]\n    }]\n  })\n}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ae5de5fc-83a0-489e-bdbc-2a9b329f61b5",
+      "name": "Read PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "openRouterApi": {
+          "id": "MZvZzDvDMnbBgoUs",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read PDF's error output drops the binary, so re-attach the PDF bytes that\n// went into the reader (the original PDF, or the Gotenberg-converted PDF for\n// Office files) so the text-layer fallback below can read file0.\nreturn [{ json: {}, binary: $('PDF To Base64').first().binary }];"
+      },
+      "id": "82547169-ff3d-4a90-85e7-708da5e4b2dd",
+      "name": "Restore PDF Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file0",
+        "options": {}
+      },
+      "id": "e5c8a088-979b-4bd6-9aca-d0e594d02eab",
+      "name": "Extract PDF Fallback",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Graceful skip: the read/convert failed and there is no text layer to fall\n// back to (a failed image read, or an Office file when Gotenberg is down), so\n// emit empty text. Ingest then completes with 0 chunks instead of hard-failing.\nreturn [{ json: { text: '' } }];"
+      },
+      "id": "6509011c-0eaa-46c0-9ad3-d72747b6734c",
+      "name": "Empty Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        464
+      ]
+    }
+  ],
+  "connections": {
+    "Reader Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Ext",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Ext": {
+      "main": [
+        [
+          {
+            "node": "Gotenberg Convert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gotenberg Convert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PDF To Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image To Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract XLSX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gotenberg Convert": {
+      "main": [
+        [
+          {
+            "node": "PDF To Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Empty Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF To Base64": {
+      "main": [
+        [
+          {
+            "node": "Read PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image To Base64": {
+      "main": [
+        [
+          {
+            "node": "Read Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Image": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Empty Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract XLSX": {
+      "main": [
+        [
+          {
+            "node": "Stringify XLSX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stringify XLSX": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PDF": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Restore PDF Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore PDF Binary": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Fallback": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty Text": {
+      "main": [
+        [
+          {
+            "node": "Reader Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "66fa2b22-ddeb-47dc-882d-85cb89746c2f",
+  "activeVersionId": "66fa2b22-ddeb-47dc-882d-85cb89746c2f",
+  "versionCounter": 52,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-27T20:33:49.935Z",
+      "createdAt": "2026-06-27T20:33:49.935Z",
+      "role": "workflow:owner",
+      "workflowId": "7UM6zdEaX7xQXunZ",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 66fa2b22",
+    "description": ""
+  }
+}

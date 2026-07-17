@@ -1,0 +1,93 @@
+{
+  "updatedAt": "2026-06-27T14:50:35.552Z",
+  "createdAt": "2026-06-14T10:25:33.897Z",
+  "id": "DDvuO3HWI0KkQX2d",
+  "name": "RAG Skripsi",
+  "description": null,
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -48
+      ],
+      "id": "ca8df623-7c95-4bf7-a40d-3ce0219f39fd",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -48
+      ],
+      "id": "b0f71ec7-02f4-4dbe-a9ec-a5845e35971b",
+      "name": "AI-Terminal",
+      "credentials": {
+        "sshPassword": {
+          "id": "IsLEr2ieN34e6z6c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "AI-Terminal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "489fa15f-ab8b-4124-afb2-b769f0e2a723",
+  "activeVersionId": null,
+  "versionCounter": 25,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-14T10:25:33.897Z",
+      "createdAt": "2026-06-14T10:25:33.897Z",
+      "role": "workflow:owner",
+      "workflowId": "DDvuO3HWI0KkQX2d",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

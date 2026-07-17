@@ -1,0 +1,764 @@
+{
+  "updatedAt": "2026-07-15T15:07:33.979Z",
+  "createdAt": "2026-06-23T00:22:36.054Z",
+  "id": "H4WL7om1JO3UmavC",
+  "name": "RAG Query",
+  "description": "rag-query webhook: per-chat Qdrant retrieval (project_rag_chat_oai by conversationId) + gated on-demand Drive lookup (Drive Lookup subflow); gpt-4o-mini grounded in docs, web as labeled fallback; responds {answer, sources}.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "751409c2-64e5-45e5-9265-9fe469609d62",
+      "name": "Query Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        128
+      ],
+      "webhookId": "17ba2cad-ebdb-499e-8aa8-ec4f7b300087"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify({ conversationId: ($json.body && $json.body.conversationId) || $json.conversationId || \"\", question: ($json.body && $json.body.question) || $json.question || \"\", history: ($json.body && $json.body.history) || $json.history || [], docs: ($json.body && $json.body.docs) || $json.docs || [], libraryDocs: ($json.body && $json.body.libraryDocs) || $json.libraryDocs || [], skipDrive: (($json.body && $json.body.skipDrive) === true) || ($json.skipDrive === true) }) }}",
+        "options": {}
+      },
+      "id": "4a3a3ec0-0254-4f87-8405-05f0512b5ad2",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const flags = $('Prepare Retrieval').first().json || {};\nconst n = $('Normalize Input').first().json || {};\nconst question = n.question || '';\nconst history = Array.isArray(n.history) ? n.history : [];\nconst NL = String.fromCharCode(10);\nconst historyText = history.map(m => (m.role === 'assistant' ? 'Assistant: ' : 'User: ') + (m.content || '')).join(NL);\nconst TOPK = 20;\n\nconst rows = [];\nconst all = $input.all();\nfor (let i = 0; i < all.length; i++) {\n  const j = all[i].json || {};\n  if (j.isChatDoc === true) {\n    rows.push({ text: String(j.text || '').slice(0, 100000), filename: j.filename || '', isLibrary: false });\n  } else if (j.driveFileId && j.text != null) {\n    rows.push({ text: String(j.text).slice(0, 24000), filename: j.filename || '', isLibrary: true, origin: j.origin, driveFileId: j.driveFileId });\n  }\n}\nconst chat = rows.filter(r => !r.isLibrary);\nconst lib = rows.filter(r => r.isLibrary);\n\n// Use everything gathered: per-chat docs plus any Drive/Library results. Dedup\n// identical rows (a lookup can return the same file more than once).\nlet chosen = chat.concat(lib);\nconst seen = new Set();\nchosen = chosen.filter(r => { const k = (r.filename || '') + '#' + (r.text || '').slice(0, 60); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, TOPK);\n\nconst sources = [], contextParts = [];\nfor (const r of chosen) {\n  const origin = r.origin || (r.isLibrary ? 'Drive' : 'This chat');\n  contextParts.push('[' + (contextParts.length + 1) + '] (' + origin + ' · ' + r.filename + ') ' + r.text);\n  sources.push({ filename: r.filename, chunkIndex: 0, text: r.text, origin, driveFileId: r.driveFileId });\n}\nreturn [{ json: { question, context: contextParts.length ? contextParts.join(NL + NL) : '', sources, historyText } }];"
+      },
+      "id": "5da5deba-2f31-4faa-aead-378edbbd1ff3",
+      "name": "Build Context and Sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a friendly, knowledgeable assistant for a document chat app. When the user asks about their documents, answer from the DOCUMENT CONTEXT below — their uploaded files and their Google Drive. For generic, creative, or general questions, answer normally from your own knowledge.\n\nDeciding what to use:\n- If the DOCUMENT CONTEXT answers the question, ground your answer in it — including meta questions like \"what is in this file\", \"summarize this\", or \"explain this\". Mention which file it came from.\n- If the DOCUMENT CONTEXT is empty or does not cover the question: for generic, creative, or general-knowledge requests (e.g. making a flowchart or diagram, writing code, brainstorming, or general questions), answer normally using your own knowledge — do NOT say you couldn't find it, and do NOT cite a document you didn't actually use. Only when the user is specifically asking about the content of a document they expected you to have, and it is not present, say plainly that you couldn't find it in their files.\n- Never present general knowledge as if it came from their documents, and never invent document content.\n- Citations: ONLY write a [n] marker when the Document context below actually contains a source numbered [n]. If the Document context is empty, write NO [n] markers at all, and do not state specific facts (prices, specs, dates, names, figures) as if they came from a source. Never continue a citation number from an earlier turn or from the conversation history — the numbering only ever refers to the Document context of THIS answer. If you have no grounded source for a specific claim, either answer from general knowledge and say plainly it is general knowledge, or say you do not have that information.\n\nAnswering about a numbered item (e.g. \"soal nomor 6\", \"question 7\", \"step 3\"):\n- Find the line in the context that BEGINS with that exact number and a period (e.g. \"6.\"). Answer using ONLY the script, code, or text shown directly under THAT line, up to the next numbered line.\n- The filename or code under that item may contain a DIFFERENT number (e.g. item 6 contains a file named \"script5.sh\") — that is normal and correct. Use exactly the filename and content that appear under the requested item. NEVER switch to a different item just because its filename or a number inside it matches the number the user asked for.\n\nComparing options or deciding which is better (e.g. \"which is better, X or Y\", \"X vs Y\", \"should I pick A or B\", \"compare ...\"):\n- Start with one sentence stating what is being compared.\n- Then a markdown table with a \"Factor\" column and one column per option, filled ONLY with factors found in the document context, each cell carrying its citation marker ([n]). Do not invent values — leave out any factor the context does not cover.\n- Then a line starting with \"Recommendation:\" naming the best option, with a 1-2 sentence justification referencing those factors.\n- If relevant information was missing from the context, add a short \"Note:\" line saying what was not found.\n- This comparison table is an allowed exception to the \"avoid lists\" guidance below. If the comparison can only be answered from general knowledge (not the documents), say so first, then give your opinion.\n\nWho was on official travel (perjalanan dinas / SPPD) on a specific date (e.g. \"siapa yang perjalanan dinas pada 23 Juni 2025\"):\n- Scan EVERY travel document in the context, not just the one whose filename or text matches the date. A person counts if the asked date falls anywhere WITHIN their travel period — a trip dated \"17 Jun-12 Jul\" covers 23 Jun even though it never mentions that exact date. Include those people too, and state the dates their trip ran.\n- List each person found by name, with their position/role, each carrying its citation marker ([n]).\n- Then give a short structured breakdown of the trip(s), using ONLY facts present in the context, with bold labels: **Tujuan**, **Keperluan**, **Durasi**, **Fasilitas Transportasi**. Omit any label the context does not cover; never invent values.\n- If different documents describe different trips that overlap the asked date, cover each of them (a separate short paragraph or entry per trip is fine).\n- This is an allowed exception to the \"avoid lists\" guidance below.\n\nBrainstorming or generating ideas/options (e.g. \"brainstorm ...\", \"give me ideas\", \"what are my options\", \"suggest approaches\", \"list some ways to ...\", \"which feature should I prioritise\", \"rank ...\"):\n- You may write one short framing sentence, then output a fenced code block whose opening fence is ```idss-options containing a SINGLE JSON object of this exact shape:\n```idss-options\n{ \"multiSelect\": false, \"action\": \"compare\", \"prompt\": \"Short question shown above the options\", \"options\": [ { \"label\": \"Option title\", \"description\": \"One-line rationale, cite [n] when grounded.\", \"followup\": \"Question to ask if this option is picked\" } ] }\n```\n- Set \"multiSelect\" to false when the options are distinct directions to explore (each becomes a clickable follow-up); set it to true when the options are candidates the user may want to weigh against each other (they can select several and act on them together).\n- When \"multiSelect\" is true, set \"action\" to match the question's intent: \"prioritize\" for prioritisation questions (which to do first), \"rank\" for ordering/ranking questions, or \"compare\" (the default) for \"which is better\" questions. The action sets the button label and the follow-up it sends. For single-select blocks omit \"action\" or leave it \"compare\".\n- Provide 4-7 options. Ground each option in the document context when the question is about their documents; if drawing on general knowledge, say so in the framing sentence, and never invent document content.\n- Put ONLY the JSON inside the block. This block is an allowed exception to the \"avoid lists\" guidance below.\n- Emit an idss-options block ONLY for a genuinely NEW brainstorming or idea request. If the CONVERSATION SO FAR already contains an idss-options block and the current message is picking one of its options, answering its question, or drilling into a topic it raised, DO NOT emit another block — answer that specific request directly in prose (or with a diagram/table if apt). Never repeat the same block twice.\n- Each option's \"followup\" must be a self-contained statement or query that can be answered or searched on its own (e.g. \"Rincian lengkap paket Basic AL-Store: harga, spesifikasi, dan fitur\"), NOT a yes/no question like \"Apakah Anda ingin melihat ...?\".\n\nDiagrams and flowcharts:\n- When the user asks for a flowchart, diagram, sequence diagram, mindmap, ER diagram, class diagram, or any visual, you MUST output a fenced Mermaid code block so it renders as a diagram. NEVER draw with ASCII art, boxes made of characters, or plain text, and never use a plain \"text\" code block for a diagram.\n- Format it exactly as a code block whose opening fence is ```mermaid, for example:\n```mermaid\nflowchart TD\n  A[\"Mulai\"] --> B[\"User membuka halaman login\"]\n  B --> C[\"User memasukkan username & password\"]\n  C --> D[\"Sistem membuat sesi & menentukan peran\"]\n  D --> E[\"Arahkan ke dashboard sesuai peran\"]\n```\n- Use valid Mermaid syntax. Keep node labels short and wrap any label containing spaces or punctuation in double quotes. Put nothing except Mermaid code inside the block; you may add one short sentence before it.\n\nHow to write:\n- Answer in flowing, conversational paragraphs, as if explaining it out loud. Avoid bold headings and bullet lists unless the content is genuinely a list of distinct items.\n- Keep it professional and plain: NEVER use emoji, icons, or decorative symbols anywhere in the answer, and do NOT use Markdown headings (#, ##, ###). Structure with short bold labels or plain sentences instead of headed sections.\n- When the content genuinely is a list (e.g. listing people, items, or steps), format it as a proper markdown list: put EVERY entry on its own line as a numbered or bulleted item, with a blank line before the list starts. If you group entries under a sub-heading (e.g. \"PIC Utama\", \"PIC KSO\"), put that sub-heading on its OWN line, then start its entries on the following lines. NEVER put a numbered item on the same line as a heading and never continue a list inline inside a paragraph. Keep the SAME formatting for every group in the answer — do not format one group as a clean list and another as a run-on paragraph.\n- Use the CONVERSATION SO FAR to understand follow-up questions and references like \"it\", \"that\", or \"the previous one\".\n- Reply in the same language the user asked in (for example, answer in Indonesian if they ask in Indonesian).\n- Be focused and natural — not padded, not robotic.\n\nDocument context:\n{{ $json.context }}\n\nConversation so far (earlier turns in THIS chat; empty if this is the first message):\n{{ $json.historyText }}\n\nQuestion: {{ $json.question }}",
+        "batching": {}
+      },
+      "id": "3d0b6196-06e7-409f-906e-159148974805",
+      "name": "Generate Answer",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3248,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nlet answer = '';\nif (j.text != null) { answer = j.text; }\nelse if (j.output != null) { answer = j.output; }\nelse if (j.response != null) { answer = j.response; }\nconst sources = ($('Assemble Final').first().json.sources) || [];\nreturn [{ json: { answer: answer, sources: sources } }];"
+      },
+      "id": "7260a8b3-b3b1-4945-8306-685f28b63776",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ answer: $json.answer, sources: $json.sources }) }}",
+        "options": {}
+      },
+      "id": "d3f31e8b-53c9-4945-8e02-72f3ef11d62d",
+      "name": "Respond Query",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3744,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "z-ai/glm-4.6",
+          "mode": "list",
+          "cachedResultName": "z-ai/glm-4.6"
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "low"
+          }
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3312,
+        352
+      ],
+      "id": "f7c9bcb6-2640-4331-9dba-7833c749b37e",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ZMTnLurDQUrdHSRF",
+          "name": "OpenRouter Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"google/gemini-2.5-flash\", temperature: 0, messages: [{ role: \"user\", content: \"You route a document chat. The user MAY have attached file(s) to THIS chat (their text, if any, is below). Reply with ONLY a JSON object, nothing else: {useDrive: boolean, webSearch: boolean}.\\nuseDrive = true when the user asks about the CONTENT of a document, file, report, SOP, manual, journal, or paper; references a SPECIFIC document, letter, or official item (a document/reference number, a dated administrative item such as a memo or surat/nota dinas, or an internal code or acronym such as PPAB / SPPD / DTIS); mentions their Google Drive, library, or company/organization documents; or asks about the user's own organization (e.g. PalmCo) and its activities, projects, letters, or records - UNLESS the attached file(s) below already contain that information. useDrive = false for generic build or creative tasks (flowchart, diagram, code, brainstorm) and for general-knowledge or small-talk questions about the public world.\\nImportant: an unfamiliar acronym, an internal code, or a specific dated reference is far more likely to be the user's OWN internal document than a public topic. When in doubt between the user's documents and the public web, choose useDrive=true and webSearch=false, because a web search cannot see the user's internal documents.\\nwebSearch = true ONLY when the question is a self-contained GENERAL/PUBLIC-knowledge or factual question about the world (a public definition, concept, technology, public company, person, place, event, or current info) that a web search could answer WITHOUT the user's own files, organization, or attachments. webSearch = false when the question refers to or depends on attached/uploaded content, a specific or named document, an official reference or number, or the user's own organization and its records (e.g. 'foto apa ini', 'jelaskan gambar ini', 'apa isi file ini', 'ringkas dokumen ini', 'PPAB tanggal 7 juli 2025'), is a build or creative task, or is a greeting or small talk. If a file is attached below, lean webSearch=false unless the question is clearly a separate general-knowledge question.\\nFollow-up questions: the user may be continuing an earlier topic with a short message (a yes/no, a pick like 'detail paket X', a pronoun like 'that one', or a request to go deeper). Use the RECENT CONVERSATION below to route these consistently instead of defaulting to false,false: if the recent assistant answers were WEB-search results about a public topic (a public product, company, website, or general fact), keep webSearch=true and useDrive=false; if the recent answers were grounded in the user's own documents or Drive, keep useDrive=true and webSearch=false.\\nExamples (question -> useDrive,webSearch): 'apa itu css' -> false,true; 'apa itu palmco' -> true,false; 'PPAB tanggal 7 juli 2025' -> true,false; 'surat dinas nomor 110/VII/2025' -> true,false; 'SPPD Jakarta' -> true,false; 'foto apa ini' -> false,false; 'jelaskan gambar ini' -> false,false; 'buatkan flowchart login' -> false,false; 'apa isi SOP IT Project Management' -> true,false; 'ringkas laporan keuangan Q3' -> true,false; 'halo' -> false,false.\\n\\nAttached file(s) (may be empty):\\n\" + (($('Normalize Input').first().json.docs || []).map(function(d){ return (d.filename || '') + \": \" + (d.text || ''); }).join(\"\\n\\n\").slice(0, 8000)) + \"\\n\\nRecent conversation (most recent last; empty if new chat):\\n\" + ((($('Normalize Input').first().json.history) || []).slice(-4).map(function(m){ return (m.role === 'assistant' ? 'A: ' : 'U: ') + String(m.content || '').replace(/\\s+/g, ' ').slice(0, 400); }).join(\"\\n\")) + \"\\n\\nQuestion: \" + ($('Normalize Input').first().json.question || '') }] }) }}",
+        "options": {}
+      },
+      "id": "fef8e9f6-6190-4bd5-90e7-ea62e7e964af",
+      "name": "Intent Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        128
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "MZvZzDvDMnbBgoUs",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "let useDrive = false;\nlet webSearch = false;\nconst c = $input.first().json;\nconst content = (c && c.choices && c.choices[0] && c.choices[0].message && c.choices[0].message.content) || '';\nconst s = String(content); const a = s.indexOf('{'); const b = s.lastIndexOf('}');\nif (a >= 0 && b > a) { try { const o = JSON.parse(s.slice(a, b + 1)); useDrive = o.useDrive === true; webSearch = o.webSearch === true; } catch (e) {} }\nconst n = $('Normalize Input').first().json;\nconst hasFile = Array.isArray(n.docs) && n.docs.length > 0;\nreturn [{ json: { conversationId: n.conversationId, question: n.question, history: n.history, hasFile: hasFile, useDrive: useDrive, webSearch: webSearch, skipDrive: n.skipDrive === true } }];"
+      },
+      "id": "0033a305-8c5b-4625-a843-90198d990b4f",
+      "name": "Set Flags File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        128
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "79e3f44e-b708-4644-8b1b-968fb8ac94ea",
+      "name": "Prepare Retrieval",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "bee5d24d-b93f-449c-a71a-06ea796a6993",
+      "name": "Merge Loads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1840,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "want-drive",
+              "leftValue": "={{ $json.useDrive === true && $json.hasFile !== true && $json.skipDrive !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "da975a80-ba45-42e4-b6d9-7302513c50a1",
+      "name": "Want Drive?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1360,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "9oaXbVXlV1fkmA7n",
+          "cachedResultName": "Drive Lookup"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "2ade9f14-b0d9-4dab-8f19-46c0f95d2faa",
+      "name": "Drive Lookup Call",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1568,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [];"
+      },
+      "id": "fe5dcaf6-48fc-4aa3-a49a-99a7de375cee",
+      "name": "Skip Drive",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const n = $('Normalize Input').first().json || {};\nconst docs = n.docs || [];\nconst lib = n.libraryDocs || [];\nconst rows = docs.map(d => ({ json: { filename: d.filename || '', text: d.text || '', isChatDoc: true } }));\nlib.forEach((d, i) => rows.push({ json: { driveFileId: 'library:' + i, filename: d.filename || '', text: d.text || '', isLibrary: true, origin: 'Library' } }));\n// Always emit at least one item (a placeholder Build Context ignores) so the\n// merge -> context -> answer chain still runs when there is nothing attached.\nreturn rows.length ? rows : [{ json: { placeholder: true } }];"
+      },
+      "id": "d09eff9c-5b40-4f87-a1aa-e0f594af4198",
+      "name": "Docs To Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "has-docs",
+              "leftValue": "={{ ($json.sources || []).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "89b07f5e-fdb9-4cb8-842d-21cf46587121",
+      "name": "Has Docs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2208,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gpt-4o-mini\", tools: [{ type: \"web_search_preview\", user_location: { type: \"approximate\", country: \"ID\" } }], input: \"Jawab pertanyaan berikut secara ringkas dan akurat berdasarkan hasil pencarian web, dalam bahasa yang sama dengan pertanyaan. Jika nama, singkatan, atau entitas dalam pertanyaan bersifat ambigu, utamakan konteks, perusahaan, dan sumber dari Indonesia. Utamakan sumber yang tepercaya dan otoritatif (situs resmi perusahaan atau lembaga, media berita kredibel, ensiklopedia, situs pemerintah atau akademik) dan hindari situs spam, media sosial, forum, atau agregator berkualitas rendah. Pertanyaan: \" + ($json.question || \"\"), max_output_tokens: 700 }) }}",
+        "options": {}
+      },
+      "id": "d539c2df-ee73-40e3-b4be-872c75f55fac",
+      "name": "Web Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2576,
+        400
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "MZvZzDvDMnbBgoUs",
+          "name": "OpenRouter account"
+        },
+        "openAiApi": {
+          "id": "p0EOec7CMmdqbrMZ",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nconst out = Array.isArray(r.output) ? r.output : [];\nlet atext = '';\nconst raw = [];\nfor (const o of out) {\n  if (o && o.type === 'message' && Array.isArray(o.content)) {\n    for (const c of o.content) {\n      if (c && (c.type === 'output_text' || typeof c.text === 'string')) {\n        const base = atext.length;\n        atext += (c.text || '');\n        const a2 = Array.isArray(c.annotations) ? c.annotations : [];\n        for (const a of a2) {\n          if (a && a.type === 'url_citation' && a.url) {\n            const p = (typeof a.start_index === 'number') ? a.start_index : ((typeof a.end_index === 'number') ? a.end_index : 0);\n            raw.push({ url: a.url, title: a.title || '', pos: base + p });\n          }\n        }\n      }\n    }\n  }\n}\nconst linkRe = /\\[([^\\]]{1,120})\\]\\((https?:\\/\\/[^)\\s]+)\\)/g;\nlet mm;\nwhile ((mm = linkRe.exec(atext)) !== null) { raw.push({ url: mm[2], title: mm[1], pos: mm.index }); }\nfunction stripMd(s) { return (s || '').replace(/\\[([^\\]]{1,120})\\]\\((https?:\\/\\/[^)\\s]+)\\)/g, '$1'); }\nfunction host(u) { const m = String(u || '').match(/^https?:\\/\\/([^\\/?#]+)/i); return m ? m[1].toLowerCase() : ''; }\n// Strip utm_* tracking params (e.g. ?utm_source=openai) from a URL.\nfunction cleanUrl(u) {\n  u = String(u || '');\n  let hash = '';\n  const hi = u.indexOf('#');\n  if (hi >= 0) { hash = u.slice(hi); u = u.slice(0, hi); }\n  const qi = u.indexOf('?');\n  if (qi < 0) return u + hash;\n  const base = u.slice(0, qi);\n  const kept = u.slice(qi + 1).split('&').filter(function(p){ return p && !/^utm_/i.test(p); });\n  return base + (kept.length ? ('?' + kept.join('&')) : '') + hash;\n}\nconst BLOCK = ['about.me','pinterest.','facebook.com','instagram.com','quora.com','reddit.com','tiktok.com','scribd.com','coursehero.com'];\nfunction blocked(u) { const h = host(u); return !h || BLOCK.some(function(b){ return h.indexOf(b) !== -1; }); }\nconst byKey = new Map();\nconst order = [];\nfor (const a of raw) {\n  if (blocked(a.url)) continue;\n  const key = a.url.split('?')[0];\n  if (!byKey.has(key)) { byKey.set(key, { url: a.url, title: a.title || host(a.url), pos: a.pos }); order.push(key); }\n}\nconst uniq = order.map(function(k){ return byKey.get(k); });\nconst NL = String.fromCharCode(10);\nfor (const c of uniq) {\n  const seg = stripMd(atext.slice(Math.max(0, c.pos - 240), c.pos)).replace(/\\s+/g, ' ').trim();\n  c.snippet = seg.slice(-260) || c.title;\n}\nconst bc = $('Build Context and Sources').first().json || {};\nconst directive = 'PETUNJUK: Konteks di bawah berasal dari PENCARIAN WEB, bukan dokumen milik pengguna. Sampaikan sebagai hasil pencarian web (mis. \"berdasarkan hasil pencarian web\"), sertakan penanda [n] sesuai nomor sumber, dan JANGAN menyebutnya \"dokumen\" atau file pengguna. Jangan menyalin petunjuk ini ke jawaban.';\nlet context, sources;\nif (uniq.length) {\n  const parts = uniq.map(function(c, i){ return '[' + (i + 1) + '] (Web · ' + c.title + ') ' + (c.snippet || c.title); });\n  context = directive + NL + NL + parts.join(NL + NL);\n  sources = uniq.map(function(c, i){ return { filename: c.title, chunkIndex: i, text: c.snippet || '', origin: 'Web', webUrl: cleanUrl(c.url) }; });\n} else {\n  const clean = stripMd(atext).replace(/\\s+/g, ' ').trim();\n  context = clean ? (directive + NL + NL + '[Hasil pencarian web]' + NL + clean) : (bc.context || '');\n  sources = [];\n}\nreturn [{ json: { question: bc.question || '', historyText: bc.historyText || '', context: context, sources: sources } }];"
+      },
+      "id": "6345daee-cb42-4ed3-87b9-ad7ce322f5be",
+      "name": "Parse Web",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2736,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nreturn [{ json: { question: j.question || '', context: j.context || '', historyText: j.historyText || '', sources: Array.isArray(j.sources) ? j.sources : [] } }];"
+      },
+      "id": "35d79067-265b-4955-b69e-ddf302896980",
+      "name": "Assemble Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "web-ok",
+              "leftValue": "={{ $('Set Flags File').first().json.webSearch === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cead21f2-1121-496c-bed6-9efa28f154fa",
+      "name": "Web OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2368,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "grounded",
+              "leftValue": "={{ ((String($json.context || '')).trim().length > 0) || ($('Set Flags File').first().json.useDrive !== true) || ($('Set Flags File').first().json.hasFile === true) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2c79f695-def0-4136-b224-4baa294ebd60",
+      "name": "Grounded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3040,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Deterministic grounding guard: reached only when a Drive/document lookup\n// returned no context and no file was attached. Return an honest 'not found'\n// message instead of letting the LLM invent document content.\nconst j = $input.first().json || {};\nconst q = String(j.question || '').toLowerCase();\nconst idMarkers = ['apa','apakah','siapa','berapa','kapan','mengapa','kenapa','bagaimana','yang','dari','dengan','untuk','pada','dalam','berdasarkan','bedasarkan','tolong','jelaskan','dinas','dokumen','saya','ini','itu','dan','atau'];\nconst isID = idMarkers.some(function(w){ return new RegExp('\\\\b' + w + '\\\\b').test(q); });\nconst msg = isID\n  ? 'Maaf, saya tidak menemukan file atau data yang cocok di Google Drive Anda untuk menjawab pertanyaan ini. Coba periksa nama filenya, pastikan file tersebut ada di folder yang terhubung, atau lampirkan filenya langsung ke chat ini agar saya bisa membacanya (termasuk PDF hasil scan/gambar).'\n  : \"I couldn't find a matching file or data in your Google Drive to answer this. Please check the file name, make sure it is in the connected folder, or attach the file directly to this chat so I can read it (including scanned/image PDFs).\";\nreturn [{ json: { text: msg } }];"
+      },
+      "id": "6bef840f-3a5a-4c72-8db5-67017dd3ef76",
+      "name": "No Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        512
+      ]
+    }
+  ],
+  "connections": {
+    "Query Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Answer": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Answer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Check": {
+      "main": [
+        [
+          {
+            "node": "Set Flags File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Flags File": {
+      "main": [
+        [
+          {
+            "node": "Prepare Retrieval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Retrieval": {
+      "main": [
+        [
+          {
+            "node": "Want Drive?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Docs To Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Loads": {
+      "main": [
+        [
+          {
+            "node": "Build Context and Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Want Drive?": {
+      "main": [
+        [
+          {
+            "node": "Drive Lookup Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive Lookup Call": {
+      "main": [
+        [
+          {
+            "node": "Merge Loads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Skip Drive": {
+      "main": [
+        [
+          {
+            "node": "Merge Loads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Intent Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docs To Rows": {
+      "main": [
+        [
+          {
+            "node": "Merge Loads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context and Sources": {
+      "main": [
+        [
+          {
+            "node": "Has Docs?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Docs?": {
+      "main": [
+        [
+          {
+            "node": "Assemble Final",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Search": {
+      "main": [
+        [
+          {
+            "node": "Parse Web",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Web": {
+      "main": [
+        [
+          {
+            "node": "Assemble Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web OK?": {
+      "main": [
+        [
+          {
+            "node": "Web Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assemble Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Final": {
+      "main": [
+        [
+          {
+            "node": "Grounded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grounded?": {
+      "main": [
+        [
+          {
+            "node": "Generate Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Match": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "a073cde9-db59-4a68-b7f1-a82615320ddb",
+  "activeVersionId": "a073cde9-db59-4a68-b7f1-a82615320ddb",
+  "versionCounter": 190,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-23T00:22:36.054Z",
+      "createdAt": "2026-06-23T00:22:36.054Z",
+      "role": "workflow:owner",
+      "workflowId": "H4WL7om1JO3UmavC",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

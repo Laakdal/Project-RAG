@@ -1,0 +1,103 @@
+{
+  "updatedAt": "2026-06-28T14:50:08.210Z",
+  "createdAt": "2026-06-28T14:48:58.660Z",
+  "id": "LFbYnrOrGGDdq6nG",
+  "name": "OpenRouter Embed Probe (throwaway)",
+  "description": "Throwaway: tests whether OpenRouter serves an embeddings endpoint for gemini-embedding-001. Delete after.",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "d6f45aaa-33e3-4e59-9e55-4b1b570d12be",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "28db4ed9-a8f3-449b-b0a7-47e3bd73fbfd",
+      "name": "OpenRouter Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"google/gemini-embedding-001\", input: \"hello world embedding test\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "16a6203e-cffe-4456-99be-a1ac1a3793e0",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-28T14:48:58.660Z",
+      "createdAt": "2026-06-28T14:48:58.660Z",
+      "role": "workflow:owner",
+      "workflowId": "LFbYnrOrGGDdq6nG",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

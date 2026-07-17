@@ -1,0 +1,99 @@
+{
+  "updatedAt": "2026-06-28T11:56:46.916Z",
+  "createdAt": "2026-06-28T11:56:30.904Z",
+  "id": "rYx21pbdQNG8jSZ3",
+  "name": "Gotenberg Probe (throwaway)",
+  "description": "Throwaway: probes http://gotenberg:3000/health to check if Gotenberg is up. Delete after.",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "246ed6de-b13c-4d26-af82-71a3cc130de7",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "cbbb2af3-fc3c-45e9-8ea4-85c158cbe831",
+      "name": "Gotenberg Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://gotenberg:3000/health",
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Gotenberg Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "74e62d73-1c11-4dca-b4dd-8d1dbd93127f",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-28T11:56:30.904Z",
+      "createdAt": "2026-06-28T11:56:30.904Z",
+      "role": "workflow:owner",
+      "workflowId": "rYx21pbdQNG8jSZ3",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}
