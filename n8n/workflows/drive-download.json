@@ -1,0 +1,143 @@
+{
+  "updatedAt": "2026-07-13T08:23:59.220Z",
+  "createdAt": "2026-07-13T08:23:51.876Z",
+  "id": "yyUBCeJx03GDDsVZ",
+  "name": "Drive Download",
+  "description": "Webhook that downloads a Google Drive file by id and returns its bytes, for inline preview in the chat UI.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "7cb9a21c-6d8b-4b7f-87b1-29a881ee6b7f",
+      "name": "Download Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "drive-download",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "38053a76-2920-4b40-9c4d-11ed5d13a53d"
+    },
+    {
+      "id": "2a2a26ed-e38d-40d3-bc5e-818f290f3633",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.body.driveFileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "data",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "id": "73e4ec8a-5b5f-495e-8911-6220cbdcb2d1",
+      "name": "Respond Binary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Download Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Respond Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "6f245e57-6f3c-489a-9af9-a79f1ac63867",
+  "activeVersionId": "6f245e57-6f3c-489a-9af9-a79f1ac63867",
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-13T08:23:51.876Z",
+      "createdAt": "2026-07-13T08:23:51.876Z",
+      "role": "workflow:owner",
+      "workflowId": "yyUBCeJx03GDDsVZ",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

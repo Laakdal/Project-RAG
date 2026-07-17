@@ -1,0 +1,161 @@
+{
+  "updatedAt": "2026-07-08T10:41:56.383Z",
+  "createdAt": "2026-07-03T14:22:17.739Z",
+  "id": "cWBr3mBDWtp5puAi",
+  "name": "Drive List",
+  "description": "drive-list webhook: lists all non-trashed files owned by the connected Google account (Drive) as [{driveFileId, filename, mimeType, modifiedTime}]. Backend Drive-sync calls this.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "59fe4a4b-d020-4b22-9911-117eaadf0fa7",
+      "name": "Drive List Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "drive-list",
+        "responseMode": "responseNode"
+      },
+      "webhookId": "afb4e844-8c02-458a-adfd-3bee9b4d829e"
+    },
+    {
+      "id": "04c6ed3f-058f-43c5-b021-be2bc615cdb8",
+      "name": "List Owned Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "trashed = false and 'me' in owners and mimeType != 'application/vnd.google-apps.folder' and '1RCQF5970CpglBjehHS_jWSrD-hmenbjx' in parents",
+        "returnAll": true,
+        "filter": {
+          "whatToSearch": "files",
+          "includeTrashed": false
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "id": "db91f546-ad76-4090-b673-457dba175ec3",
+      "name": "Map File List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const files = $input.all().map(i => i.json).filter(f => f && f.id).map(f => ({ driveFileId: f.id, filename: f.name || '', mimeType: f.mimeType || '', modifiedTime: f.modifiedTime || '' }));\nreturn [{ json: { files } }];"
+      }
+    },
+    {
+      "id": "bf6158db-a473-4821-b4ed-ced98629a0a0",
+      "name": "Respond File List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ files: $json.files }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Drive List Webhook": {
+      "main": [
+        [
+          {
+            "node": "List Owned Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Owned Files": {
+      "main": [
+        [
+          {
+            "node": "Map File List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map File List": {
+      "main": [
+        [
+          {
+            "node": "Respond File List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "5311b5ba-ec78-4676-a158-385cb3e77936",
+  "activeVersionId": "5311b5ba-ec78-4676-a158-385cb3e77936",
+  "versionCounter": 2,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-03T14:22:17.739Z",
+      "createdAt": "2026-07-03T14:22:17.739Z",
+      "role": "workflow:owner",
+      "workflowId": "cWBr3mBDWtp5puAi",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

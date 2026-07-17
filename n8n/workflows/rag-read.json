@@ -1,0 +1,166 @@
+{
+  "updatedAt": "2026-06-28T16:33:21.646Z",
+  "createdAt": "2026-06-28T16:33:21.646Z",
+  "id": "jIMMj2XGw3BwdTSu",
+  "name": "RAG Read",
+  "description": "rag-read webhook: multipart file -> Read Document (Gemini Flash) -> {text}. Stateless reader for instant per-chat uploads; no chunk/embed/Qdrant.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "99db6a87-cf8c-4d35-a8ee-995ad8f44fd5",
+      "name": "Read Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-read",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "file"
+        }
+      },
+      "webhookId": "6c861b90-a41f-4bf5-925a-49ffc67469f7"
+    },
+    {
+      "id": "94dc3111-438e-4d7a-a70b-81612bdfd0c5",
+      "name": "Prep For Reader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const bin = $input.item.binary || {};\nconst f = bin.file0 || bin.file || {};\nconst ext = (f.fileExtension || '').toLowerCase();\nconst filename = $('Read Webhook').item.json.body.filename;\nreturn { json: { filename, ext }, binary: { file0: f } };"
+      }
+    },
+    {
+      "id": "71e3e3c2-6da2-45bc-8a23-de1fabb78c85",
+      "name": "Read Document",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "7UM6zdEaX7xQXunZ",
+          "cachedResultName": "Read Document"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "57d07af4-2174-4f4a-91c7-705cb457930c",
+      "name": "Respond Read",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ text: ($json.text || '') }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Read Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep For Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep For Reader": {
+      "main": [
+        [
+          {
+            "node": "Read Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Document": {
+      "main": [
+        [
+          {
+            "node": "Respond Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "f4752f5d-17ba-4c8f-915c-a8dd0c452ff2",
+  "activeVersionId": "f4752f5d-17ba-4c8f-915c-a8dd0c452ff2",
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-28T16:33:21.646Z",
+      "createdAt": "2026-06-28T16:33:21.646Z",
+      "role": "workflow:owner",
+      "workflowId": "jIMMj2XGw3BwdTSu",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "updatedAt": "2026-07-13T03:20:20.800Z",
+  "createdAt": "2026-07-13T03:20:03.253Z",
+  "id": "J8ycFJsNO2AnjBUc",
+  "name": "Library Backfill",
+  "description": "Bulk-indexes the PalmCo Drive tree into the backend Qdrant library: enumerate files, skip indexed, OCR-read, POST text to /library/index-drive.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "0f1a0c5d-7173-4d09-892d-86b3328834a3",
+      "name": "Start Backfill",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bd0c93d0-cf23-4dc1-807a-f997a193ff07",
+      "name": "List Folders",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -420,
+        300
+      ],
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'me' in owners and trashed = false",
+        "returnAll": true,
+        "filter": {
+          "whatToSearch": "folders",
+          "includeTrashed": false
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "id": "d896614a-854f-4765-9f0c-8cd22599c56a",
+      "name": "Build Scope Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const ROOT = '1RCQF5970CpglBjehHS_jWSrD-hmenbjx';\nconst MAX_FOLDERS = 200;\nconst folders = $input.all().map(i => i.json).filter(f => f && f.id);\nconst childrenByParent = new Map();\nfor (const f of folders) {\n  const parents = Array.isArray(f.parents) ? f.parents : (f.parentId ? [f.parentId] : []);\n  for (const p of parents) {\n    if (!childrenByParent.has(p)) childrenByParent.set(p, []);\n    childrenByParent.get(p).push(f.id);\n  }\n}\nconst scope = new Set([ROOT]);\nconst stack = [ROOT];\nwhile (stack.length) {\n  const cur = stack.pop();\n  for (const c of (childrenByParent.get(cur) || [])) {\n    if (!scope.has(c)) { scope.add(c); stack.push(c); }\n  }\n}\nconst folderIds = [...scope].slice(0, MAX_FOLDERS);\nconst esc = s => String(s).replace(/'/g, \"\\\\'\");\nconst parentClause = folderIds.map(id => `'${esc(id)}' in parents`).join(' or ');\nconst q = `trashed = false and 'me' in owners and (${parentClause})`;\nreturn [{ json: { q, scopeFolders: folderIds.length } }];"
+      }
+    },
+    {
+      "id": "36fa21b2-52bd-46e2-8428-4d7fb6658379",
+      "name": "List Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        20,
+        300
+      ],
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "={{ $json.q }}",
+        "returnAll": true,
+        "filter": {
+          "whatToSearch": "files",
+          "includeTrashed": false
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "id": "152d054c-cccc-4207-aba2-0092745190fd",
+      "name": "Fetch Indexed Refs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://rag_backend:4000/library/drive-refs",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-index-token",
+              "value": "__REDACTED_LIBRARY_INDEX_TOKEN__"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "c683e7da-ac43-431e-bfb4-a9503d8949e6",
+      "name": "Filter New Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const files = $('List Files').all().map(i => i.json).filter(f => f && f.id);\nconst refs = new Set(($json.refs || []));\nconst SIZE_CAP = 20 * 1024 * 1024;\nconst MAX = 60;\nconst out = [];\nfor (const f of files) {\n  if (refs.has(f.id)) continue;\n  if (f.mimeType === 'application/vnd.google-apps.folder') continue;\n  if (f.size && Number(f.size) > SIZE_CAP) continue;\n  out.push({ json: { driveFileId: f.id, filename: f.name, mimeType: f.mimeType, modifiedTime: f.modifiedTime } });\n  if (out.length >= MAX) break;\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "5035e6bd-e720-4726-97dc-946be6d64176",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        900,
+        420
+      ],
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.driveFileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "file0",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YXf9fPO9PngkGC2A",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e237abf6-4fa6-44f8-8266-f95d2b5dea88",
+      "name": "Prep For Reader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const bin = (items[i].binary && items[i].binary.file0) || {};\n  const meta = $('Next File').first().json;\n  const fileName = bin.fileName || meta.filename || 'document';\n  const ext = (bin.fileExtension || (fileName.split('.').pop() || '')).toLowerCase();\n  out.push({ json: { filename: fileName, ext: ext, driveFileId: meta.driveFileId, model: 'google/gemini-2.5-flash' }, binary: items[i].binary, pairedItem: { item: i } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "709f0581-ee5b-4f2c-bade-7a7258d4210f",
+      "name": "Read Document",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1340,
+        420
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "7UM6zdEaX7xQXunZ",
+          "cachedResultName": "Read Document"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2cdcc8a4-b3df-414b-ba71-26d30c310410",
+      "name": "Post Index",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1560,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://rag_backend:4000/library/index-drive",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-index-token",
+              "value": "__REDACTED_LIBRARY_INDEX_TOKEN__"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"driveFileId\": {{ JSON.stringify($('Next File').first().json.driveFileId) }},\n  \"filename\": {{ JSON.stringify($('Next File').first().json.filename) }},\n  \"text\": {{ JSON.stringify(($json.text || \"\")) }}\n}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "2a546e61-f7fa-47cc-90b7-47954345ed04",
+      "name": "Next File",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Start Backfill": {
+      "main": [
+        [
+          {
+            "node": "List Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Folders": {
+      "main": [
+        [
+          {
+            "node": "Build Scope Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Scope Query": {
+      "main": [
+        [
+          {
+            "node": "List Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Files": {
+      "main": [
+        [
+          {
+            "node": "Fetch Indexed Refs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Indexed Refs": {
+      "main": [
+        [
+          {
+            "node": "Filter New Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Files": {
+      "main": [
+        [
+          {
+            "node": "Next File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Prep For Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep For Reader": {
+      "main": [
+        [
+          {
+            "node": "Read Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Document": {
+      "main": [
+        [
+          {
+            "node": "Post Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Index": {
+      "main": [
+        [
+          {
+            "node": "Next File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next File": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "54c66a95-3cd7-4cb3-a457-21c4114e2f20",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-13T03:20:03.253Z",
+      "createdAt": "2026-07-13T03:20:03.253Z",
+      "role": "workflow:owner",
+      "workflowId": "J8ycFJsNO2AnjBUc",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

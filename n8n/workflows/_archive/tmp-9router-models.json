@@ -1,0 +1,99 @@
+{
+  "updatedAt": "2026-07-07T23:44:14.778Z",
+  "createdAt": "2026-07-07T23:43:32.908Z",
+  "id": "c3WzUojzbpTuB3a7",
+  "name": "TMP 9Router Models",
+  "description": "Temporary: SSH to VPS and list 9Router model IDs",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "d64fc8ff-6c6a-4280-9b57-b78b670401bb",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f0c5a4b8-e73e-40f5-8506-66b93ec9ba8b",
+      "name": "List Models",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "resource": "command",
+        "operation": "execute",
+        "authentication": "password",
+        "command": "curl -s http://127.0.0.1:20128/v1/models | tr ',' '\\n' | grep '\"id\"'",
+        "cwd": "/"
+      },
+      "credentials": {
+        "sshPassword": {
+          "id": "IsLEr2ieN34e6z6c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "List Models",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "a0378686-1d0b-4d71-956c-194c2e8c8add",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-07T23:43:32.908Z",
+      "createdAt": "2026-07-07T23:43:32.908Z",
+      "role": "workflow:owner",
+      "workflowId": "c3WzUojzbpTuB3a7",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "updatedAt": "2026-06-28T11:38:06.759Z",
+  "createdAt": "2026-06-28T11:37:00.716Z",
+  "id": "9A9CCYTqfjsZjceL",
+  "name": "Fallback Verify (throwaway)",
+  "description": "Throwaway: verifies a Code node can re-emit an upstream node's binary into extractFromFile pdf. Delete after.",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "6cf7397e-95e3-4ef1-b8fc-b03f338fa29d",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "49bc176f-fe24-4148-be6b-1c9e177b37ec",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "file0"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "c446de50-e4b6-438a-b02d-ce60798983c7",
+      "name": "PDF To Base64 Mimic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const items=$input.all();const out=[];for(let i=0;i<items.length;i++){out.push({json:{ok:true},binary:items[i].binary,pairedItem:{item:i}});}return out;"
+      }
+    },
+    {
+      "id": "5f780b56-695c-4257-a41e-1b80d48fbf43",
+      "name": "Restore PDF Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: {}, binary: $('PDF To Base64 Mimic').first().binary }];"
+      }
+    },
+    {
+      "id": "128de569-da6d-414b-8d2c-b10f41e35f1b",
+      "name": "Extract PDF Fallback",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file0",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "PDF To Base64 Mimic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF To Base64 Mimic": {
+      "main": [
+        [
+          {
+            "node": "Restore PDF Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore PDF Binary": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "ab09478a-3a6e-4048-b110-c9e58a560385",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-06-28T11:37:00.716Z",
+      "createdAt": "2026-06-28T11:37:00.716Z",
+      "role": "workflow:owner",
+      "workflowId": "9A9CCYTqfjsZjceL",
+      "projectId": "VHmOLls5g6raZyOb",
+      "project": {
+        "updatedAt": "2026-06-14T10:28:31.326Z",
+        "createdAt": "2026-06-13T13:08:44.015Z",
+        "id": "VHmOLls5g6raZyOb",
+        "name": "Ario Rafa <ariorafa.maheswara@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "dc7f5bb0-0564-448f-b951-95a3a4935cb7"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}
