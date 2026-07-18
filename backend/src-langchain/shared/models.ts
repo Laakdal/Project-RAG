@@ -4,11 +4,25 @@ import type { BaseLanguageModelInput } from "@langchain/core/language_models/bas
 import type { AIMessageChunk } from "@langchain/core/messages";
 import { config } from "../../src/config.js";
 import { getSetting } from "../../src/settings/service.js";
+import { resolveRole, type Role } from "../../src/settings/connections.js";
+
+const OPENAI_BASE = "https://api.openai.com/v1";
+
+// Resolve a role's {model, apiKey, baseURL} from its bound API connection,
+// falling back to the env settings so nothing breaks if a role is unbound.
+function forRole(
+  role: Role,
+  fallback: { model: string | undefined; apiKey: string | undefined; baseURL: string },
+): { model: string | undefined; apiKey: string | undefined; baseURL: string } {
+  const c = resolveRole(role);
+  if (!c) return fallback;
+  return { model: c.model, apiKey: c.apiKey, baseURL: c.baseUrl || fallback.baseURL };
+}
 
 export function requireLanggraphEnv(): void {
   const missing = [
-    !getSetting("OPENAI_API_KEY") && "OPENAI_API_KEY",
-    !getSetting("OPENROUTER_API_KEY") && "OPENROUTER_API_KEY",
+    !forRole("answer", { model: undefined, apiKey: getSetting("OPENROUTER_API_KEY"), baseURL: "" }).apiKey && "an 'answer' API connection",
+    !forRole("embedding", { model: undefined, apiKey: getSetting("OPENAI_API_KEY"), baseURL: "" }).apiKey && "an 'embedding' API connection",
     !config.QDRANT_URL && "QDRANT_URL",
   ].filter(Boolean);
   if (missing.length) {
@@ -17,63 +31,87 @@ export function requireLanggraphEnv(): void {
 }
 
 export function makeEmbeddings(): OpenAIEmbeddings {
-  return new OpenAIEmbeddings({
+  const c = forRole("embedding", {
     model: getSetting("EMBED_MODEL"),
     apiKey: getSetting("OPENAI_API_KEY"),
+    baseURL: OPENAI_BASE,
+  });
+  return new OpenAIEmbeddings({
+    model: c.model,
+    apiKey: c.apiKey,
+    configuration: { baseURL: c.baseURL },
   });
 }
 
 export function makeChatModel(
   opts: { webSearch?: boolean } = {}
 ): Runnable<BaseLanguageModelInput, AIMessageChunk> {
-  const model = new ChatOpenAI({
+  const c = forRole("utility", {
     model: getSetting("GENERATE_MODEL"),
     apiKey: getSetting("OPENAI_API_KEY"),
-    useResponsesApi: true,
+    baseURL: OPENAI_BASE,
+  });
+  const model = new ChatOpenAI({
+    model: c.model,
+    apiKey: c.apiKey,
+    configuration: { baseURL: c.baseURL },
+    // Web search uses OpenAI's Responses API; only enable it for that path so a
+    // non-OpenAI utility connection still works for plain rewrite/grade calls.
+    useResponsesApi: Boolean(opts.webSearch),
   });
   return opts.webSearch
     ? model.bindTools([{ type: "web_search_preview" }])
     : model;
 }
 
-// Answer generator: glm-4.6 through OpenRouter's OpenAI-compatible endpoint, to
-// match the live n8n "Generate Answer" node. Kept separate from makeChatModel
-// (which stays on OpenAI for the web-search Responses API) so only the answer
-// step swaps models.
+// Answer generator (glm-4.6 via OpenRouter by default). Temperature 0 so it
+// reliably follows the strict formatting rules (Mermaid fences, no headings).
 export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
-  return new ChatOpenAI({
+  const c = forRole("answer", {
     model: getSetting("ANSWER_MODEL"),
     apiKey: getSetting("OPENROUTER_API_KEY"),
-    configuration: { baseURL: config.OPENROUTER_BASE_URL },
-    // Match the live n8n node: temperature 0 so glm-4.6 reliably follows the
-    // strict formatting rules (Mermaid fences, no headings).
+    baseURL: config.OPENROUTER_BASE_URL,
+  });
+  return new ChatOpenAI({
+    model: c.model,
+    apiKey: c.apiKey,
+    configuration: { baseURL: c.baseURL },
     temperature: 0,
   });
 }
 
-// Intent classifier: gemini-2.5-flash via OpenRouter (temperature 0), matching
-// the live n8n Intent Check node. Returns a small JSON object the caller parses.
+// Intent classifier (gemini-2.5-flash via OpenRouter by default), temperature 0.
 export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
-  return new ChatOpenAI({
+  const c = forRole("intent", {
     model: getSetting("INTENT_MODEL"),
     apiKey: getSetting("OPENROUTER_API_KEY"),
-    configuration: { baseURL: config.OPENROUTER_BASE_URL },
+    baseURL: config.OPENROUTER_BASE_URL,
+  });
+  return new ChatOpenAI({
+    model: c.model,
+    apiKey: c.apiKey,
+    configuration: { baseURL: c.baseURL },
     temperature: 0,
   });
 }
 
-// Read a document by handing the raw bytes to Gemini (vision/multimodal) over
-// OpenRouter's OpenAI-compatible chat completions endpoint. Returns plain text.
+// Read a document by handing the raw bytes to a vision/multimodal model over an
+// OpenAI-compatible chat completions endpoint (the "reader" connection).
 export async function geminiRead(file: Buffer, mimeType: string): Promise<string> {
+  const c = forRole("reader", {
+    model: getSetting("GEMINI_READ_MODEL"),
+    apiKey: getSetting("OPENROUTER_API_KEY"),
+    baseURL: config.OPENROUTER_BASE_URL,
+  });
   const dataUrl = `data:${mimeType};base64,${file.toString("base64")}`;
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const res = await fetch(`${c.baseURL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${getSetting("OPENROUTER_API_KEY")}`,
+      Authorization: `Bearer ${c.apiKey}`,
     },
     body: JSON.stringify({
-      model: getSetting("GEMINI_READ_MODEL"),
+      model: c.model,
       messages: [
         {
           role: "user",
