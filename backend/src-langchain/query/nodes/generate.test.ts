@@ -29,10 +29,35 @@ describe("generate node", () => {
     const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
     const system = messages.find((m) => m.role === "system");
     expect(system).toBeDefined();
-    expect(system!.content).toMatch(/only the provided context/i);
+    expect(system!.content).toMatch(/ground your answer in it/i);
     expect(system!.content).toMatch(/Recommendation:/);
     expect(system!.content).toMatch(/table/i);
     expect(system!.content).toMatch(/do not invent|never invent/i);
+  });
+
+  it("system prompt carries Mermaid diagram guidance", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "draw a flowchart", docs } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "system");
+    expect(system!.content).toMatch(/mermaid/i);
+    expect(system!.content).toMatch(/flowchart/);
+  });
+
+  it("injects conversation history into the user message", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const history = [
+      { role: "user", content: "who is on the trip?" },
+      { role: "assistant", content: "Budi and Ani." },
+    ];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "and what were the dates?", docs, history } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const user = messages.find((m) => m.role === "user");
+    expect(user!.content).toMatch(/User: who is on the trip\?/);
+    expect(user!.content).toMatch(/Assistant: Budi and Ani\./);
+    expect(user!.content).toMatch(/Conversation so far/);
   });
 
   it("system prompt carries brainstorming / idss-options guidance", async () => {
