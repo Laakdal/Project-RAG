@@ -8,10 +8,41 @@ import { hashPassword } from "../auth/password.js";
 import { passwordSchema } from "../auth/password-policy.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { GuardError, ensureNotSelf, ensureNotLastAdmin } from "./guards.js";
+import { managedView, setSetting, isManagedKey } from "../settings/service.js";
 
 const router = Router();
 router.use(requireAuth);
 router.use(requireAdmin);
+
+// --- Runtime settings (API keys, models, Drive) ---
+
+// List managed settings. Secrets return only whether they are set, never the
+// value; non-secrets return the effective value so it can be edited in place.
+router.get("/settings", async (_req: Request, res: Response) => {
+  res.json({ settings: managedView() });
+});
+
+const settingUpdateSchema = z.object({
+  key: z.string().min(1),
+  value: z.string(),
+});
+
+// Upsert a single setting. Trims surrounding whitespace (matters for pasted API
+// keys); an empty value is allowed only for non-secret fields to clear them.
+router.put("/settings", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = settingUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  const { key } = parsed.data;
+  if (!isManagedKey(key)) {
+    res.status(400).json({ error: `Unknown setting: ${key}` });
+    return;
+  }
+  await setSetting(key, parsed.data.value.trim());
+  res.json({ settings: managedView() });
+});
 
 // Columns returned for a user row across the admin surface (never the hash).
 const userColumns = {
