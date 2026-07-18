@@ -5,7 +5,8 @@ vi.mock("./nodes/retrieve.js", () => ({ retrieve: vi.fn(async () => ({ docs: [{ 
 const grade = vi.fn(async () => ({ relevant: true }));
 vi.mock("./nodes/grade.js", () => ({ grade }));
 vi.mock("./nodes/generate.js", () => ({ generate: vi.fn(async () => ({ answer: "from-docs", sources: [{ filename: "d", chunkIndex: 0, text: "t" }] })) }));
-vi.mock("./nodes/webSearch.js", () => ({ webSearch: vi.fn(async () => ({ answer: "from-web", sources: [] })) }));
+const webSearch = vi.fn(async () => ({ docs: [{ filename: "Web search", chunkIndex: 0, text: "web ctx" }] }));
+vi.mock("./nodes/webSearch.js", () => ({ webSearch }));
 vi.mock("./nodes/title.js", () => ({ title: vi.fn(async () => ({ title: "T" })) }));
 
 describe("runQuery graph", () => {
@@ -20,11 +21,13 @@ describe("runQuery graph", () => {
     expect(r.title).toBe("T");
   });
 
-  it("falls back to web search when not relevant", async () => {
+  it("routes through web search then generate when not relevant", async () => {
     grade.mockResolvedValueOnce({ relevant: false });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "q", [], false);
-    expect(r.answer).toBe("from-web");
-    expect(r.sources).toEqual([]);
+    // Web search only gathers context; generate always produces the final answer.
+    expect(webSearch).toHaveBeenCalled();
+    expect(r.answer).toBe("from-docs");
+    expect(r.title).toBe("T");
   });
 });
