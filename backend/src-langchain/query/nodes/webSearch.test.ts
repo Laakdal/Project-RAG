@@ -7,11 +7,12 @@ vi.mock("../../shared/models.js", () => ({ makeChatModel }));
 describe("webSearch node", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("answers via the web-search model with empty sources", async () => {
+  it("returns the web result as a labelled context doc for generate", async () => {
     const { webSearch } = await import("./webSearch.js");
     const out = await webSearch({ question: "weather today?" } as never);
-    expect(out.answer).toContain("sunny");
-    expect(out.sources).toEqual([]);
+    expect(out.docs).toHaveLength(1);
+    expect(out.docs[0].filename).toBe("Web search");
+    expect(out.docs[0].text).toContain("sunny");
     expect(makeChatModel).toHaveBeenCalledWith({ webSearch: true });
   });
 
@@ -26,27 +27,20 @@ describe("webSearch node", () => {
     invoke.mockResolvedValueOnce({ content: [{ type: "text", text: "hello world" }] as unknown as string });
     const { webSearch } = await import("./webSearch.js");
     const out = await webSearch({ question: "q?" } as never);
-    expect(out.answer).toBe("hello world");
-    expect(out.sources).toEqual([]);
+    expect(out.docs[0].text).toBe("hello world");
   });
 
-  it("delegates to generate (docs-based answer) when the web LLM errors and docs exist", async () => {
-    invoke
-      .mockRejectedValueOnce(new Error("web llm down"))
-      .mockResolvedValueOnce({ content: "Based on the docs: 42 is the answer." });
-    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "42 is the answer" }];
+  it("returns no docs when the web result is empty (generate then uses general knowledge)", async () => {
+    invoke.mockResolvedValueOnce({ content: "" });
     const { webSearch } = await import("./webSearch.js");
-    const out = await webSearch({ question: "what is the answer?", docs } as never);
-    expect(out.answer).toContain("42 is the answer");
-    expect(out.sources).toEqual(docs);
+    const out = await webSearch({ question: "q?" } as never);
+    expect(out.docs).toEqual([]);
   });
 
-  it("returns FALLBACK_ANSWER when the web LLM errors and no docs exist", async () => {
+  it("returns no docs when the web LLM errors", async () => {
     invoke.mockRejectedValueOnce(new Error("web llm down"));
     const { webSearch } = await import("./webSearch.js");
-    const { FALLBACK_ANSWER } = await import("./generate.js");
-    const out = await webSearch({ question: "q?", docs: [] } as never);
-    expect(out.answer).toBe(FALLBACK_ANSWER);
-    expect(out.sources).toEqual([]);
+    const out = await webSearch({ question: "q?" } as never);
+    expect(out.docs).toEqual([]);
   });
 });
