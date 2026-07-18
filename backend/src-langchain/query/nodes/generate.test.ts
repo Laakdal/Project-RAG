@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const invoke = vi.fn(async () => ({ content: "The answer is 42." }));
-vi.mock("../../shared/models.js", () => ({ makeChatModel: () => ({ invoke }) }));
+vi.mock("../../shared/models.js", () => ({ makeAnswerModel: () => ({ invoke }) }));
 
 describe("generate node", () => {
   beforeEach(() => vi.clearAllMocks());
