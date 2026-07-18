@@ -10,8 +10,9 @@ vi.mock("googleapis", () => ({
   },
 }));
 
-vi.mock("../../src/config.js", () => ({
-  config: { GOOGLE_SERVICE_ACCOUNT_JSON: "{}", DRIVE_FOLDER_ID: "folder1" },
+vi.mock("../../src/settings/service.js", () => ({
+  getSetting: (k: string) =>
+    k === "GOOGLE_SERVICE_ACCOUNT_JSON" ? "{}" : k === "DRIVE_FOLDER_ID" ? "folder1" : undefined,
 }));
 
 describe("drive client", () => {
