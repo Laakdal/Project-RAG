@@ -12,6 +12,8 @@ const generate = vi.fn(async () => ({ answer: "from-docs", sources: [{ filename:
 vi.mock("./nodes/generate.js", () => ({ generate }));
 const webSearch = vi.fn(async () => ({ docs: [{ filename: "Web search", chunkIndex: 0, text: "web ctx" }] }));
 vi.mock("./nodes/webSearch.js", () => ({ webSearch }));
+const driveLookup = vi.fn(async () => ({ docs: [{ filename: "SOP.pdf", chunkIndex: 0, text: "drive ctx" }] }));
+vi.mock("./nodes/driveLookup.js", () => ({ driveLookup }));
 vi.mock("./nodes/title.js", () => ({ title: vi.fn(async () => ({ title: "T" })) }));
 
 describe("runQuery graph", () => {
@@ -31,12 +33,13 @@ describe("runQuery graph", () => {
     expect(r.title).toBe("T");
   });
 
-  it("useDrive with irrelevant docs and a public question falls back to web then generate", async () => {
-    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: true });
+  it("useDrive with irrelevant library results falls back to live Drive lookup", async () => {
+    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false });
     grade.mockResolvedValueOnce({ relevant: false });
     const { runQuery } = await import("./graph.js");
-    const r = await runQuery("c1", "q", [], false);
-    expect(webSearch).toHaveBeenCalled();
+    const r = await runQuery("c1", "apa isi SOP IT", [], false);
+    expect(driveLookup).toHaveBeenCalled();
+    expect(webSearch).not.toHaveBeenCalled();
     expect(r.answer).toBe("from-docs");
   });
 
