@@ -31,8 +31,10 @@ const graph = new StateGraph(State)
   .addEdge("rewrite", "retrieve")
   .addEdge("retrieve", "grade")
   .addConditionalEdges("grade", (s) => (s.relevant ? "generate" : "webSearch"))
+  // Web search only gathers context; generate is the single terminal answer
+  // node, so every reply is formatted by the ported Generate Answer prompt.
+  .addEdge("webSearch", "generate")
   .addEdge("generate", "titleNode")
-  .addEdge("webSearch", "titleNode")
   .addEdge("titleNode", END)
   .compile();
 
