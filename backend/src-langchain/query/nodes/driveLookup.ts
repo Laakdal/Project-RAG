@@ -1,6 +1,6 @@
 import { searchFiles, downloadFile } from "../../library/drive.js";
 import { geminiRead } from "../../shared/models.js";
-import { config } from "../../../src/config.js";
+import { getSetting } from "../../../src/settings/service.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 // Light keyword extraction (EN + ID stopwords) — good enough to build a Drive
@@ -28,7 +28,7 @@ export async function driveLookup(state: {
   question: string;
   rewritten?: string;
 }): Promise<{ docs: QuerySource[] }> {
-  if (!config.GOOGLE_SERVICE_ACCOUNT_JSON) return { docs: [] };
+  if (!getSetting("GOOGLE_SERVICE_ACCOUNT_JSON")) return { docs: [] };
   try {
     const kw = terms(state.rewritten ?? state.question);
     if (!kw.length) return { docs: [] };
