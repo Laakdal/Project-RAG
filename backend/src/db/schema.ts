@@ -112,3 +112,27 @@ export const settings = pgTable("settings", {
 });
 
 export type Setting = typeof settings.$inferSelect;
+
+// Admin-managed API connections (OpenAI-compatible provider endpoints). Each is
+// a reusable {base URL, key, model} that pipeline roles bind to. Created
+// idempotently at startup; see src/settings/connections.ts.
+export const apiConnections = pgTable("api_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  platform: text("platform").notNull(), // preset label: 'openrouter' | 'openai' | '9router' | 'custom' ...
+  baseUrl: text("base_url").notNull(),
+  apiKey: text("api_key").notNull(),
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ApiConnection = typeof apiConnections.$inferSelect;
+
+// Which connection each pipeline role uses (answer, intent, utility, reader, embedding).
+export const modelRoles = pgTable("model_roles", {
+  role: text("role").primaryKey(),
+  connectionId: uuid("connection_id").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ModelRole = typeof modelRoles.$inferSelect;
