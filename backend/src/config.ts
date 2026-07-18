@@ -50,6 +50,9 @@ const envSchema = z.object({
   // no-headings formatting rules the ported prompt relies on.
   ANSWER_MODEL: z.string().min(1).default("z-ai/glm-4.6"),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  // Intent classifier (useDrive / webSearch routing), gemini-2.5-flash via
+  // OpenRouter to match the live n8n Intent Check node.
+  INTENT_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
 
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.
