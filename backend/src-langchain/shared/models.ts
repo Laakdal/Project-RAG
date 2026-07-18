@@ -35,6 +35,18 @@ export function makeChatModel(
     : model;
 }
 
+// Answer generator: glm-4.6 through OpenRouter's OpenAI-compatible endpoint, to
+// match the live n8n "Generate Answer" node. Kept separate from makeChatModel
+// (which stays on OpenAI for the web-search Responses API) so only the answer
+// step swaps models.
+export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
+  return new ChatOpenAI({
+    model: config.ANSWER_MODEL,
+    apiKey: config.OPENROUTER_API_KEY,
+    configuration: { baseURL: config.OPENROUTER_BASE_URL },
+  });
+}
+
 // Read a document by handing the raw bytes to Gemini (vision/multimodal) over
 // OpenRouter's OpenAI-compatible chat completions endpoint. Returns plain text.
 export async function geminiRead(file: Buffer, mimeType: string): Promise<string> {
