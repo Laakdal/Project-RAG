@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { config } from "../../src/config.js";
+import { getSetting } from "../../src/settings/service.js";
 
 export type DriveFile = {
   id: string;
@@ -10,8 +10,9 @@ export type DriveFile = {
 };
 
 function driveClient() {
-  if (!config.GOOGLE_SERVICE_ACCOUNT_JSON) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required");
-  const credentials = JSON.parse(config.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const saJson = getSetting("GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!saJson) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required");
+  const credentials = JSON.parse(saJson);
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
