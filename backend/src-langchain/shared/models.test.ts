@@ -42,6 +42,7 @@ describe("makeChatModel", () => {
     vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
     vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
 
     const { makeChatModel } = await import("./models.js");
     const result = makeChatModel();
@@ -49,7 +50,8 @@ describe("makeChatModel", () => {
     expect(ChatOpenAIMock).toHaveBeenCalledWith({
       model: "gpt-test",
       apiKey: "test-key",
-      useResponsesApi: true,
+      configuration: { baseURL: "https://api.openai.com/v1" },
+      useResponsesApi: false,
     });
     expect(typeof result.invoke).toBe("function");
     expect(bindToolsMock).not.toHaveBeenCalled();
@@ -65,6 +67,7 @@ describe("makeChatModel", () => {
     vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
     vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
 
     const { makeChatModel } = await import("./models.js");
     const result = makeChatModel({ webSearch: true });
@@ -82,6 +85,7 @@ describe("geminiRead", () => {
     });
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
     vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
     const { geminiRead } = await import("./models.js");
     const text = await geminiRead(Buffer.from("%PDF-1.4"), "application/pdf");
     expect(text).toBe("extracted text");
