@@ -83,11 +83,11 @@ export default function SettingsPage() {
 
   return (
     <Box style={{ padding: 'var(--space-5)', maxWidth: 760 }}>
-      <Heading size="6" mb="2">API Keys &amp; Config</Heading>
+      <Heading size="6" mb="2">Integrations &amp; Tokens</Heading>
       <Text size="2" style={{ color: 'var(--gray-10)', display: 'block', marginBottom: 'var(--space-5)' }}>
-        Runtime settings for the RAG pipeline. A value saved here overrides the server environment
+        Google Drive and internal tokens. A value saved here overrides the server environment
         immediately — no redeploy. Secrets are write-only: they are never shown again, only their
-        set/unset status.
+        set/unset status. LLM providers and models are managed under API Connections.
       </Text>
 
       <Flex direction="column" gap="5">
