@@ -101,3 +101,14 @@ export const libraryDocuments = pgTable("library_documents", {
 
 export type LibraryDocument = typeof libraryDocuments.$inferSelect;
 export type NewLibraryDocument = typeof libraryDocuments.$inferInsert;
+
+// Admin-editable runtime settings (API keys, model names, Drive config). A DB
+// value overrides the env default for the same key; see src/settings/service.ts.
+// The table is created idempotently at startup, so it needs no migration file.
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Setting = typeof settings.$inferSelect;
