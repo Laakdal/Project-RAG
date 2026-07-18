@@ -42,7 +42,14 @@ const envSchema = z.object({
   GOTENBERG_URL: z.string().url().optional(),
   GEMINI_READ_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
   EMBED_MODEL: z.string().min(1).default("text-embedding-3-small"),
+  // Used by the OpenAI-backed graph nodes (rewrite, grade, web search). The web
+  // search branch needs OpenAI's Responses API, so this stays an OpenAI model.
   GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  // Answer generation runs on glm-4.6 via OpenRouter to match the live n8n
+  // "Generate Answer" node — gpt-4o-mini does not honour the strict Mermaid /
+  // no-headings formatting rules the ported prompt relies on.
+  ANSWER_MODEL: z.string().min(1).default("z-ai/glm-4.6"),
+  OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
 
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.
