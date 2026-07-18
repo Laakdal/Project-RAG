@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { config } from "../config.js";
+import { getSetting } from "../settings/service.js";
 
 const TITLE_SYSTEM =
   "You write a very short chat title (3 to 6 words) that captures what the conversation is " +
@@ -11,10 +11,11 @@ const TITLE_SYSTEM =
 // falls back to the deterministic heuristic — a title is never allowed to block
 // or break the response.
 export async function summarizeTitle(question: string, answer?: string): Promise<string | null> {
-  if (!config.OPENAI_API_KEY) return null;
+  const apiKey = getSetting("OPENAI_API_KEY");
+  if (!apiKey) return null;
   const model = new ChatOpenAI({
-    apiKey: config.OPENAI_API_KEY,
-    model: config.GENERATE_MODEL,
+    apiKey,
+    model: getSetting("GENERATE_MODEL"),
     temperature: 0.2,
   });
   const user = answer
