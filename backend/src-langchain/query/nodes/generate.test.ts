@@ -27,7 +27,7 @@ describe("generate node", () => {
     const { generate } = await import("./generate.js");
     await generate({ question: "which is better, A or B?", docs } as never);
     const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
-    const system = messages.find((m) => m.role === "system");
+    const system = messages.find((m) => m.role === "user");
     expect(system).toBeDefined();
     expect(system!.content).toMatch(/ground your answer in it/i);
     expect(system!.content).toMatch(/Recommendation:/);
@@ -40,7 +40,7 @@ describe("generate node", () => {
     const { generate } = await import("./generate.js");
     await generate({ question: "draw a flowchart", docs } as never);
     const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
-    const system = messages.find((m) => m.role === "system");
+    const system = messages.find((m) => m.role === "user");
     expect(system!.content).toMatch(/mermaid/i);
     expect(system!.content).toMatch(/flowchart/);
   });
@@ -65,7 +65,7 @@ describe("generate node", () => {
     const { generate } = await import("./generate.js");
     await generate({ question: "brainstorm some ideas", docs } as never);
     const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
-    const system = messages.find((m) => m.role === "system");
+    const system = messages.find((m) => m.role === "user");
     expect(system).toBeDefined();
     expect(system!.content).toMatch(/brainstorm/i);
     expect(system!.content).toMatch(/idss-options/);
