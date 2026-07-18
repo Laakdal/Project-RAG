@@ -17,6 +17,7 @@ import { adminRouter } from "./admin/routes.js";
 import { libraryRouter } from "./library/routes.js";
 import { libraryBackfillRouter } from "./library/backfill-routes.js";
 import { CSRF_HEADER_NAME } from "./auth/csrf.js";
+import { initSettings } from "./settings/service.js";
 
 const app = express();
 
@@ -95,6 +96,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
       : "Internal server error";
   res.status(500).json({ error: message });
 });
+
+// Load admin-editable settings (creates the table if needed). Best-effort: a
+// failure just means callers fall back to the env config.
+try {
+  await initSettings();
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.warn("Settings init failed; using env config only:", err instanceof Error ? err.message : err);
+}
 
 const server = app.listen(config.PORT, () => {
   // eslint-disable-next-line no-console
