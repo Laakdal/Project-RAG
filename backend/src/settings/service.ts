@@ -7,17 +7,20 @@ import { config } from "../config.js";
 // default of the same name. `secret` values are never returned to the client
 // (only whether they are set); everything else is returned so the field can be
 // edited in place. `multiline` hints the UI to use a textarea.
+// `hidden` keys stay resolvable via getSetting (env fallback for unbound roles)
+// but are not shown in the flat Integrations panel — the LLM keys/models are now
+// managed as API connections instead (see settings/connections.ts).
 export const MANAGED_SETTINGS = [
-  { key: "OPENROUTER_API_KEY", label: "OpenRouter API key", secret: true, multiline: false },
-  { key: "OPENAI_API_KEY", label: "OpenAI API key", secret: true, multiline: false },
-  { key: "GOOGLE_SERVICE_ACCOUNT_JSON", label: "Google service account JSON", secret: true, multiline: true },
-  { key: "LIBRARY_INDEX_TOKEN", label: "Library index token", secret: true, multiline: false },
-  { key: "DRIVE_FOLDER_ID", label: "Drive folder ID", secret: false, multiline: false },
-  { key: "ANSWER_MODEL", label: "Answer model (glm-4.6 via OpenRouter)", secret: false, multiline: false },
-  { key: "INTENT_MODEL", label: "Intent classifier model", secret: false, multiline: false },
-  { key: "GENERATE_MODEL", label: "Utility model (rewrite / grade / web search)", secret: false, multiline: false },
-  { key: "EMBED_MODEL", label: "Embedding model", secret: false, multiline: false },
-  { key: "GEMINI_READ_MODEL", label: "Document reader model", secret: false, multiline: false },
+  { key: "GOOGLE_SERVICE_ACCOUNT_JSON", label: "Google service account JSON", secret: true, multiline: true, hidden: false },
+  { key: "DRIVE_FOLDER_ID", label: "Drive folder ID", secret: false, multiline: false, hidden: false },
+  { key: "LIBRARY_INDEX_TOKEN", label: "Library index token", secret: true, multiline: false, hidden: false },
+  { key: "OPENROUTER_API_KEY", label: "OpenRouter API key", secret: true, multiline: false, hidden: true },
+  { key: "OPENAI_API_KEY", label: "OpenAI API key", secret: true, multiline: false, hidden: true },
+  { key: "ANSWER_MODEL", label: "Answer model", secret: false, multiline: false, hidden: true },
+  { key: "INTENT_MODEL", label: "Intent classifier model", secret: false, multiline: false, hidden: true },
+  { key: "GENERATE_MODEL", label: "Utility model", secret: false, multiline: false, hidden: true },
+  { key: "EMBED_MODEL", label: "Embedding model", secret: false, multiline: false, hidden: true },
+  { key: "GEMINI_READ_MODEL", label: "Document reader model", secret: false, multiline: false, hidden: true },
 ] as const;
 
 export type ManagedKey = (typeof MANAGED_SETTINGS)[number]["key"];
@@ -64,7 +67,7 @@ export function isManagedKey(key: string): key is ManagedKey {
 // Safe view for the admin UI: secrets expose only whether they are set (and
 // where the value comes from), never the value itself.
 export function managedView() {
-  return MANAGED_SETTINGS.map((m) => {
+  return MANAGED_SETTINGS.filter((m) => !m.hidden).map((m) => {
     const effective = getSetting(m.key);
     const fromDb = overrides.has(m.key);
     return {
