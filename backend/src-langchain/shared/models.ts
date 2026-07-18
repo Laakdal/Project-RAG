@@ -3,11 +3,12 @@ import { Runnable } from "@langchain/core/runnables";
 import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import type { AIMessageChunk } from "@langchain/core/messages";
 import { config } from "../../src/config.js";
+import { getSetting } from "../../src/settings/service.js";
 
 export function requireLanggraphEnv(): void {
   const missing = [
-    !config.OPENAI_API_KEY && "OPENAI_API_KEY",
-    !config.OPENROUTER_API_KEY && "OPENROUTER_API_KEY",
+    !getSetting("OPENAI_API_KEY") && "OPENAI_API_KEY",
+    !getSetting("OPENROUTER_API_KEY") && "OPENROUTER_API_KEY",
     !config.QDRANT_URL && "QDRANT_URL",
   ].filter(Boolean);
   if (missing.length) {
@@ -17,8 +18,8 @@ export function requireLanggraphEnv(): void {
 
 export function makeEmbeddings(): OpenAIEmbeddings {
   return new OpenAIEmbeddings({
-    model: config.EMBED_MODEL,
-    apiKey: config.OPENAI_API_KEY,
+    model: getSetting("EMBED_MODEL"),
+    apiKey: getSetting("OPENAI_API_KEY"),
   });
 }
 
@@ -26,8 +27,8 @@ export function makeChatModel(
   opts: { webSearch?: boolean } = {}
 ): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   const model = new ChatOpenAI({
-    model: config.GENERATE_MODEL,
-    apiKey: config.OPENAI_API_KEY,
+    model: getSetting("GENERATE_MODEL"),
+    apiKey: getSetting("OPENAI_API_KEY"),
     useResponsesApi: true,
   });
   return opts.webSearch
@@ -41,8 +42,8 @@ export function makeChatModel(
 // step swaps models.
 export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   return new ChatOpenAI({
-    model: config.ANSWER_MODEL,
-    apiKey: config.OPENROUTER_API_KEY,
+    model: getSetting("ANSWER_MODEL"),
+    apiKey: getSetting("OPENROUTER_API_KEY"),
     configuration: { baseURL: config.OPENROUTER_BASE_URL },
     // Match the live n8n node: temperature 0 so glm-4.6 reliably follows the
     // strict formatting rules (Mermaid fences, no headings).
@@ -54,8 +55,8 @@ export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChu
 // the live n8n Intent Check node. Returns a small JSON object the caller parses.
 export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   return new ChatOpenAI({
-    model: config.INTENT_MODEL,
-    apiKey: config.OPENROUTER_API_KEY,
+    model: getSetting("INTENT_MODEL"),
+    apiKey: getSetting("OPENROUTER_API_KEY"),
     configuration: { baseURL: config.OPENROUTER_BASE_URL },
     temperature: 0,
   });
@@ -69,10 +70,10 @@ export async function geminiRead(file: Buffer, mimeType: string): Promise<string
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${getSetting("OPENROUTER_API_KEY")}`,
     },
     body: JSON.stringify({
-      model: config.GEMINI_READ_MODEL,
+      model: getSetting("GEMINI_READ_MODEL"),
       messages: [
         {
           role: "user",
