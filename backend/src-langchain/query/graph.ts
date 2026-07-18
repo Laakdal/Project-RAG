@@ -1,5 +1,6 @@
 import { StateGraph, Annotation, START, END } from "@langchain/langgraph";
 import { rewrite } from "./nodes/rewrite.js";
+import { intent } from "./nodes/intent.js";
 import { retrieve } from "./nodes/retrieve.js";
 import { grade } from "./nodes/grade.js";
 import { generate } from "./nodes/generate.js";
@@ -13,6 +14,8 @@ const State = Annotation.Root({
   history: Annotation<ChatTurn[]>(),
   generateTitle: Annotation<boolean>(),
   rewritten: Annotation<string>(),
+  useDrive: Annotation<boolean>(),
+  needsWeb: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
   relevant: Annotation<boolean>(),
   answer: Annotation<string>(),
@@ -22,15 +25,28 @@ const State = Annotation.Root({
 
 const graph = new StateGraph(State)
   .addNode("rewrite", rewrite)
+  .addNode("intentNode", intent)
   .addNode("retrieve", retrieve)
   .addNode("grade", grade)
   .addNode("generate", generate)
   .addNode("webSearch", webSearch)
   .addNode("titleNode", title)
   .addEdge(START, "rewrite")
-  .addEdge("rewrite", "retrieve")
+  .addEdge("rewrite", "intentNode")
+  // Route on intent: own documents -> retrieve; public question -> web search;
+  // otherwise (creative/build/small talk) -> generate from general knowledge
+  // with no retrieval or web search (this is what stops creative asks from
+  // web-searching and citing a spurious "Web search" source).
+  .addConditionalEdges("intentNode", (s) =>
+    s.useDrive ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
+  )
   .addEdge("retrieve", "grade")
-  .addConditionalEdges("grade", (s) => (s.relevant ? "generate" : "webSearch"))
+  // Docs relevant -> answer from them. Not relevant: only fall back to the web
+  // when intent flagged a public question; otherwise generate (empty context ->
+  // the prompt says plainly it couldn't find it in their files).
+  .addConditionalEdges("grade", (s) =>
+    s.relevant ? "generate" : s.needsWeb ? "webSearch" : "generate",
+  )
   // Web search only gathers context; generate is the single terminal answer
   // node, so every reply is formatted by the ported Generate Answer prompt.
   .addEdge("webSearch", "generate")
