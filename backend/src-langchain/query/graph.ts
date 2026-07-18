@@ -2,6 +2,7 @@ import { StateGraph, Annotation, START, END } from "@langchain/langgraph";
 import { rewrite } from "./nodes/rewrite.js";
 import { intent } from "./nodes/intent.js";
 import { retrieve } from "./nodes/retrieve.js";
+import { driveLookup } from "./nodes/driveLookup.js";
 import { grade } from "./nodes/grade.js";
 import { generate } from "./nodes/generate.js";
 import { webSearch } from "./nodes/webSearch.js";
@@ -28,6 +29,7 @@ const graph = new StateGraph(State)
   .addNode("intentNode", intent)
   .addNode("retrieve", retrieve)
   .addNode("grade", grade)
+  .addNode("driveLookup", driveLookup)
   .addNode("generate", generate)
   .addNode("webSearch", webSearch)
   .addNode("titleNode", title)
@@ -41,14 +43,15 @@ const graph = new StateGraph(State)
     s.useDrive ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
   )
   .addEdge("retrieve", "grade")
-  // Docs relevant -> answer from them. Not relevant: only fall back to the web
-  // when intent flagged a public question; otherwise generate (empty context ->
-  // the prompt says plainly it couldn't find it in their files).
+  // Docs relevant -> answer from them. Not relevant: for a document question,
+  // try a live Drive lookup; for a public question, the web; otherwise generate
+  // (empty context -> the prompt says plainly it couldn't find it in their files).
   .addConditionalEdges("grade", (s) =>
-    s.relevant ? "generate" : s.needsWeb ? "webSearch" : "generate",
+    s.relevant ? "generate" : s.useDrive ? "driveLookup" : s.needsWeb ? "webSearch" : "generate",
   )
-  // Web search only gathers context; generate is the single terminal answer
-  // node, so every reply is formatted by the ported Generate Answer prompt.
+  // Drive lookup and web search only gather context; generate is the single
+  // terminal answer node, so every reply is formatted by the ported prompt.
+  .addEdge("driveLookup", "generate")
   .addEdge("webSearch", "generate")
   .addEdge("generate", "titleNode")
   .addEdge("titleNode", END)
