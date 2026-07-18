@@ -50,6 +50,17 @@ export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChu
   });
 }
 
+// Intent classifier: gemini-2.5-flash via OpenRouter (temperature 0), matching
+// the live n8n Intent Check node. Returns a small JSON object the caller parses.
+export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
+  return new ChatOpenAI({
+    model: config.INTENT_MODEL,
+    apiKey: config.OPENROUTER_API_KEY,
+    configuration: { baseURL: config.OPENROUTER_BASE_URL },
+    temperature: 0,
+  });
+}
+
 // Read a document by handing the raw bytes to Gemini (vision/multimodal) over
 // OpenRouter's OpenAI-compatible chat completions endpoint. Returns plain text.
 export async function geminiRead(file: Buffer, mimeType: string): Promise<string> {
