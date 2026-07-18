@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("../settings/service.js", () => ({
+  getSetting: (k: string) =>
+    k === "OPENAI_API_KEY" ? "sk-test" : k === "GENERATE_MODEL" ? "gpt-4o-mini" : undefined,
+}));
 vi.mock("../config.js", () => ({
   config: { OPENAI_API_KEY: "sk-test", GENERATE_MODEL: "gpt-4o-mini" },
 }));
