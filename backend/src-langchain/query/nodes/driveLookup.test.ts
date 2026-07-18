@@ -5,7 +5,7 @@ const downloadFile = vi.fn(async () => ({ buffer: Buffer.from("x"), mimeType: "a
 const geminiRead = vi.fn(async () => "drive doc text");
 vi.mock("../../library/drive.js", () => ({ searchFiles, downloadFile }));
 vi.mock("../../shared/models.js", () => ({ geminiRead }));
-vi.mock("../../../src/config.js", () => ({ config: { GOOGLE_SERVICE_ACCOUNT_JSON: "{}" } }));
+vi.mock("../../../src/settings/service.js", () => ({ getSetting: () => "{}" }));
 
 describe("driveLookup node", () => {
   beforeEach(() => vi.clearAllMocks());
