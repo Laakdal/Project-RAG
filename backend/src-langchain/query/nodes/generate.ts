@@ -82,11 +82,14 @@ function buildHistoryText(history: ChatTurn[] | undefined): string {
 
 export async function generate(state: {
   question: string;
-  docs: QuerySource[];
+  docs?: QuerySource[];
   history?: ChatTurn[];
 }): Promise<{ answer: string; sources: QuerySource[] }> {
   try {
-    const context = state.docs.map((d, i) => `[${i + 1}] ${d.text}`).join("\n\n");
+    // The creative/general path reaches generate without retrieve or web search
+    // ever setting docs, so default to an empty context (the prompt handles it).
+    const docs = state.docs ?? [];
+    const context = docs.map((d, i) => `[${i + 1}] ${d.text}`).join("\n\n");
     const historyText = buildHistoryText(state.history);
     // Send everything as a single message to mirror the n8n Basic LLM Chain
     // (promptType "define"): the instructions and the context/history/question
@@ -99,7 +102,7 @@ export async function generate(state: {
       `Question: ${state.question}`;
     const res = await makeAnswerModel().invoke([{ role: "user", content: prompt }]);
     const answer = extractText(res.content);
-    return { answer, sources: state.docs };
+    return { answer, sources: docs };
   } catch {
     return { answer: FALLBACK_ANSWER, sources: [] };
   }
