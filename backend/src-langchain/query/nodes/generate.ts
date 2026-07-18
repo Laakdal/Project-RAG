@@ -88,14 +88,16 @@ export async function generate(state: {
   try {
     const context = state.docs.map((d, i) => `[${i + 1}] ${d.text}`).join("\n\n");
     const historyText = buildHistoryText(state.history);
-    const userMessage =
+    // Send everything as a single message to mirror the n8n Basic LLM Chain
+    // (promptType "define"): the instructions and the context/history/question
+    // live in one prompt. Splitting into system + user weakened glm-4.6's
+    // adherence to the strict formatting rules.
+    const prompt =
+      `${SYSTEM_PROMPT}\n\n` +
       `Document context:\n${context}\n\n` +
       `Conversation so far (earlier turns in THIS chat; empty if this is the first message):\n${historyText}\n\n` +
       `Question: ${state.question}`;
-    const res = await makeAnswerModel().invoke([
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userMessage },
-    ]);
+    const res = await makeAnswerModel().invoke([{ role: "user", content: prompt }]);
     const answer = extractText(res.content);
     return { answer, sources: state.docs };
   } catch {
