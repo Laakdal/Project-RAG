@@ -14,8 +14,22 @@ const MOCK_CONFIG = {
     QDRANT_URL: "http://qdrant",
     EMBED_MODEL: "embed-test",
     GEMINI_READ_MODEL: "gemini-test",
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
   },
 };
+
+// The model factories now read managed keys through the settings service
+// (DB override -> env fallback). Mock it to return the same test values.
+const SETTING_VALUES: Record<string, string> = {
+  GENERATE_MODEL: "gpt-test",
+  OPENAI_API_KEY: "test-key",
+  OPENROUTER_API_KEY: "or-key",
+  EMBED_MODEL: "embed-test",
+  GEMINI_READ_MODEL: "gemini-test",
+  ANSWER_MODEL: "answer-test",
+  INTENT_MODEL: "intent-test",
+};
+const MOCK_SETTINGS = { getSetting: (k: string) => SETTING_VALUES[k] };
 
 describe("makeChatModel", () => {
   it("constructs ChatOpenAI with the config values and returns an invokable", async () => {
@@ -27,6 +41,7 @@ describe("makeChatModel", () => {
     });
     vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
 
     const { makeChatModel } = await import("./models.js");
     const result = makeChatModel();
@@ -49,6 +64,7 @@ describe("makeChatModel", () => {
     });
     vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
 
     const { makeChatModel } = await import("./models.js");
     const result = makeChatModel({ webSearch: true });
@@ -65,6 +81,7 @@ describe("geminiRead", () => {
       json: async () => ({ choices: [{ message: { content: "extracted text" } }] }),
     });
     vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
     const { geminiRead } = await import("./models.js");
     const text = await geminiRead(Buffer.from("%PDF-1.4"), "application/pdf");
     expect(text).toBe("extracted text");
