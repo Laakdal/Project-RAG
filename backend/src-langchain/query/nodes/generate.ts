@@ -1,4 +1,4 @@
-import { makeChatModel } from "../../shared/models.js";
+import { makeAnswerModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
 import type { QuerySource, ChatTurn } from "../../../src/rag/types.js";
 
@@ -92,7 +92,7 @@ export async function generate(state: {
       `Document context:\n${context}\n\n` +
       `Conversation so far (earlier turns in THIS chat; empty if this is the first message):\n${historyText}\n\n` +
       `Question: ${state.question}`;
-    const res = await makeChatModel().invoke([
+    const res = await makeAnswerModel().invoke([
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userMessage },
     ]);
