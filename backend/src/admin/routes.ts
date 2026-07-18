@@ -9,6 +9,17 @@ import { passwordSchema } from "../auth/password-policy.js";
 import { requireCsrf } from "../auth/csrf.js";
 import { GuardError, ensureNotSelf, ensureNotLastAdmin } from "./guards.js";
 import { managedView, setSetting, isManagedKey } from "../settings/service.js";
+import {
+  ROLES,
+  PLATFORMS,
+  isRole,
+  listConnections,
+  roleBindings,
+  createConnection,
+  updateConnection,
+  deleteConnection,
+  setRole,
+} from "../settings/connections.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -42,6 +53,65 @@ router.put("/settings", requireCsrf, async (req: Request, res: Response) => {
   }
   await setSetting(key, parsed.data.value.trim());
   res.json({ settings: managedView() });
+});
+
+// --- API connections (provider endpoints) + role bindings ---
+
+function connectionsView() {
+  return { connections: listConnections(), roles: roleBindings(), platforms: PLATFORMS, roleDefs: ROLES };
+}
+
+const connectionSchema = z.object({
+  name: z.string().min(1),
+  platform: z.string().min(1),
+  baseUrl: z.string().min(1),
+  apiKey: z.string().min(1),
+  model: z.string().min(1),
+});
+
+router.get("/connections", async (_req: Request, res: Response) => {
+  res.json(connectionsView());
+});
+
+router.post("/connections", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = connectionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  await createConnection(parsed.data);
+  res.json(connectionsView());
+});
+
+router.put("/connections/:id", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = connectionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  await updateConnection(req.params.id, parsed.data);
+  res.json(connectionsView());
+});
+
+router.delete("/connections/:id", requireCsrf, async (req: Request, res: Response) => {
+  await deleteConnection(req.params.id);
+  res.json(connectionsView());
+});
+
+const roleSchema = z.object({ role: z.string().min(1), connectionId: z.string().uuid() });
+
+router.put("/roles", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = roleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  if (!isRole(parsed.data.role)) {
+    res.status(400).json({ error: `Unknown role: ${parsed.data.role}` });
+    return;
+  }
+  await setRole(parsed.data.role, parsed.data.connectionId);
+  res.json(connectionsView());
 });
 
 // Columns returned for a user row across the admin surface (never the hash).
