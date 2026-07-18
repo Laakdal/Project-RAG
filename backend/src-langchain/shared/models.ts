@@ -44,6 +44,9 @@ export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChu
     model: config.ANSWER_MODEL,
     apiKey: config.OPENROUTER_API_KEY,
     configuration: { baseURL: config.OPENROUTER_BASE_URL },
+    // Match the live n8n node: temperature 0 so glm-4.6 reliably follows the
+    // strict formatting rules (Mermaid fences, no headings).
+    temperature: 0,
   });
 }
 
