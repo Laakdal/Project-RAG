@@ -89,12 +89,12 @@ router.put("/connections/:id", requireCsrf, async (req: Request, res: Response) 
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
     return;
   }
-  await updateConnection(req.params.id, parsed.data);
+  await updateConnection(String(req.params.id), parsed.data);
   res.json(connectionsView());
 });
 
 router.delete("/connections/:id", requireCsrf, async (req: Request, res: Response) => {
-  await deleteConnection(req.params.id);
+  await deleteConnection(String(req.params.id));
   res.json(connectionsView());
 });
 
