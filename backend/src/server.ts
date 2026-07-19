@@ -19,6 +19,7 @@ import { libraryBackfillRouter } from "./library/backfill-routes.js";
 import { CSRF_HEADER_NAME } from "./auth/csrf.js";
 import { initSettings } from "./settings/service.js";
 import { initConnections } from "./settings/connections.js";
+import { initDriveSources } from "./settings/drive-sources.js";
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 try {
   await initSettings();
   await initConnections();
+  await initDriveSources();
 } catch (err) {
   // eslint-disable-next-line no-console
   console.warn("Settings init failed; using env config only:", err instanceof Error ? err.message : err);
