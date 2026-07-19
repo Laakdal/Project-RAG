@@ -24,15 +24,46 @@ const State = Annotation.Root({
   title: Annotation<string | undefined>(),
 });
 
+// Human, display-ready labels for the graph nodes worth surfacing to the user.
+// `titleNode` is intentionally omitted — it runs after the answer is already
+// formed, so there is nothing meaningful to report for it. Indonesian to match
+// the rest of the chat UI.
+const PHASE_LABELS: Record<string, string> = {
+  rewrite: "Memahami pertanyaan…",
+  intentNode: "Menentukan sumber jawaban…",
+  retrieve: "Mencari di dokumen Anda…",
+  grade: "Menilai relevansi dokumen…",
+  driveLookup: "Membaca dari Google Drive…",
+  webSearch: "Menelusuri web…",
+  generate: "Menyusun jawaban…",
+};
+
+// Wrap a node so it announces its phase the moment it STARTS, via the per-run
+// `onPhase` callback carried in config.configurable. This fixes the lingering
+// label problem: streamMode "updates" only reports a node AFTER it finishes, so
+// during a slow node (e.g. a 20s Drive read) the PREVIOUS label would stay up.
+// Emitting at entry means the label always matches the step actually running.
+// The non-streaming runQuery path passes no callback, so this is a no-op there.
+type PhaseConfig = { configurable?: { onPhase?: (p: QueryPhase) => void } };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function phaseNode<S, R>(key: string, fn: (state: S, config?: any) => R) {
+  const label = PHASE_LABELS[key];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (state: S, config?: any): R => {
+    if (label) (config as PhaseConfig | undefined)?.configurable?.onPhase?.({ key, label });
+    return fn(state, config);
+  };
+}
+
 const graph = new StateGraph(State)
-  .addNode("rewrite", rewrite)
-  .addNode("intentNode", intent)
-  .addNode("retrieve", retrieve)
-  .addNode("grade", grade)
-  .addNode("driveLookup", driveLookup)
-  .addNode("generate", generate)
-  .addNode("webSearch", webSearch)
-  .addNode("titleNode", title)
+  .addNode("rewrite", phaseNode("rewrite", rewrite))
+  .addNode("intentNode", phaseNode("intentNode", intent))
+  .addNode("retrieve", phaseNode("retrieve", retrieve))
+  .addNode("grade", phaseNode("grade", grade))
+  .addNode("driveLookup", phaseNode("driveLookup", driveLookup))
+  .addNode("generate", phaseNode("generate", generate))
+  .addNode("webSearch", phaseNode("webSearch", webSearch))
+  .addNode("titleNode", phaseNode("titleNode", title))
   .addEdge(START, "rewrite")
   .addEdge("rewrite", "intentNode")
   // Route on intent: own documents -> retrieve; public question -> web search;
@@ -71,29 +102,16 @@ export async function runQuery(
   };
 }
 
-// Human, display-ready labels for the graph nodes worth surfacing to the user.
-// `titleNode` is intentionally omitted — it runs after the answer is already
-// formed, so there is nothing meaningful to report for it. Indonesian to match
-// the rest of the chat UI.
-const PHASE_LABELS: Record<string, string> = {
-  rewrite: "Memahami pertanyaan…",
-  intentNode: "Menentukan sumber jawaban…",
-  retrieve: "Mencari di dokumen Anda…",
-  grade: "Menilai relevansi dokumen…",
-  driveLookup: "Membaca dari Google Drive…",
-  webSearch: "Menelusuri web…",
-  generate: "Menyusun jawaban…",
-};
-
-// Streaming variant of runQuery. Runs the identical graph but observes it with
-// two stream modes at once:
-//   - "updates" yields `{ [nodeName]: partialState }` after each node runs — we
-//     report the node as a phase and merge its partial state into an accumulator
-//     (every channel is last-write-wins, so replaying the updates reconstructs
-//     the same final state `invoke` would return).
-//   - "messages" yields `[messageChunk, metadata]` for every LLM token as it is
-//     produced — we forward only the answer model's tokens (metadata tags them
-//     with the `generate` node) so the client can render the reply as it writes.
+// Streaming variant of runQuery. Runs the identical graph, observed with two
+// stream modes at once:
+//   - "values" yields the full accumulated state after each super-step; the last
+//     one is the final state (answer/sources/title), same as `invoke` returns.
+//   - "messages" yields `[messageChunk, metadata]` for every LLM token; we
+//     forward only the answer node's tokens (metadata tags them with `generate`)
+//     so the client can render the reply as it writes.
+// Phases are NOT read from the stream — they are emitted by the phaseNode wrapper
+// at node ENTRY (via configurable.onPhase), so a slow node shows its own label
+// while it runs instead of the previous node's.
 export async function runQueryStream(
   conversationId: string,
   question: string,
@@ -102,21 +120,17 @@ export async function runQueryStream(
   onPhase: (phase: QueryPhase) => void,
   onToken: (text: string) => void = () => {},
 ): Promise<QueryResult> {
-  const acc: Record<string, unknown> = {};
+  let lastValues: Record<string, unknown> = {};
   const stream = await graph.stream(
     { conversationId, question, history, generateTitle },
-    { streamMode: ["updates", "messages"] },
+    { streamMode: ["values", "messages"], configurable: { onPhase } },
   );
   for await (const part of stream) {
     // With an array streamMode each item is a `[mode, data]` tuple; cast through
     // unknown so this compiles regardless of the exact stream typing.
     const [mode, data] = part as unknown as [string, unknown];
-    if (mode === "updates") {
-      for (const [node, partial] of Object.entries(data as Record<string, unknown>)) {
-        const label = PHASE_LABELS[node];
-        if (label) onPhase({ key: node, label });
-        if (partial && typeof partial === "object") Object.assign(acc, partial);
-      }
+    if (mode === "values") {
+      lastValues = data as Record<string, unknown>;
     } else if (mode === "messages") {
       const [msg, meta] = data as [{ content?: unknown }, { langgraph_node?: string }];
       // Only the answer node's tokens are the reply; other LLM calls (rewrite,
@@ -128,8 +142,8 @@ export async function runQueryStream(
     }
   }
   return {
-    answer: (acc.answer as string) ?? "",
-    sources: (acc.sources as QuerySource[]) ?? [],
-    title: acc.title as string | undefined,
+    answer: (lastValues.answer as string) ?? "",
+    sources: (lastValues.sources as QuerySource[]) ?? [],
+    title: lastValues.title as string | undefined,
   };
 }
