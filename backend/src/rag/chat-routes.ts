@@ -494,6 +494,7 @@ router.post(
         history,
         isFirstMessage,
         (phase) => send("phase", phase),
+        (text) => send("token", { text }),
       );
     } catch {
       send("error", { message: "The assistant is unavailable right now" });
