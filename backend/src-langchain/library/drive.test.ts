@@ -10,10 +10,7 @@ vi.mock("googleapis", () => ({
   },
 }));
 
-vi.mock("../../src/settings/service.js", () => ({
-  getSetting: (k: string) =>
-    k === "GOOGLE_SERVICE_ACCOUNT_JSON" ? "{}" : k === "DRIVE_FOLDER_ID" ? "folder1" : undefined,
-}));
+const SA = "{}"; // service account JSON (mocked GoogleAuth ignores it)
 
 describe("drive client", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -32,7 +29,7 @@ describe("drive client", () => {
         },
       });
     const { listFolder } = await import("./drive.js");
-    const files = await listFolder("folder1");
+    const files = await listFolder(SA, "folder1");
     expect(files.map((f) => f.id)).toEqual(["a", "b"]);
     expect(list).toHaveBeenCalledTimes(2);
   });
@@ -42,13 +39,13 @@ describe("drive client", () => {
     get.mockResolvedValue({ data: new ArrayBuffer(3) });
     const { downloadFile } = await import("./drive.js");
 
-    const gdoc = await downloadFile({
+    const gdoc = await downloadFile(SA, {
       id: "g", name: "n", mimeType: "application/vnd.google-apps.document", modifiedTime: "t", webUrl: "u",
     });
     expect(gdoc.mimeType).toBe("application/pdf");
     expect(exportFn).toHaveBeenCalled();
 
-    const pdf = await downloadFile({
+    const pdf = await downloadFile(SA, {
       id: "p", name: "n", mimeType: "application/pdf", modifiedTime: "t", webUrl: "u",
     });
     expect(pdf.mimeType).toBe("application/pdf");
