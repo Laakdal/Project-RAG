@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, Select, Spinner, Text, TextField } from '@radix-ui/themes';
 import { SettingsSection, SettingsRow } from '../components';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
@@ -56,6 +56,10 @@ export default function ConnectionsPage() {
   const [busy, setBusy] = useState(false);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  // True once a model list was fetched successfully — flips the retry button to
+  // a checkmark. Reset whenever the base URL / key / platform change (below), so
+  // the checkmark never lingers over credentials it wasn't loaded with.
+  const [modelsLoaded, setModelsLoaded] = useState(false);
   const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
@@ -93,10 +97,12 @@ export default function ConnectionsPage() {
         return;
       }
       setModelsLoading(true);
+      setModelsLoaded(false);
       try {
         const models = await ConnectionsApi.models(baseUrl, apiKey);
         setModelOptions(models);
         if (models.length === 0) addToast({ variant: 'warning', title: 'No models returned by this API' });
+        else setModelsLoaded(true); // success → button becomes a checkmark
       } catch (err) {
         addToast({ variant: 'error', title: 'Failed to fetch models', description: errorMessage(err, '') });
       } finally {
@@ -110,6 +116,7 @@ export default function ConnectionsPage() {
     const base = data?.platforms.find((p) => p.key === 'openrouter')?.baseUrl ?? '';
     setForm({ ...EMPTY, baseUrl: base });
     setModelOptions([]);
+    setModelsLoaded(false);
     setShowKey(false);
     setEditingId('new');
   };
@@ -123,6 +130,7 @@ export default function ConnectionsPage() {
   const onPlatform = (key: string) => {
     const preset = data?.platforms.find((p) => p.key === key);
     setForm((f) => ({ ...f, platform: key, baseUrl: preset && preset.baseUrl ? preset.baseUrl : f.baseUrl }));
+    setModelsLoaded(false);
   };
 
   const save = useCallback(async () => {
@@ -250,7 +258,7 @@ export default function ConnectionsPage() {
             <Box>
               <Text size="1" as="label">API base URL</Text>
               <TextField.Root value={form.baseUrl} placeholder="https://openrouter.ai/api/v1"
-                onChange={(e) => setForm((f) => ({ ...f, baseUrl: e.target.value }))} />
+                onChange={(e) => { setForm((f) => ({ ...f, baseUrl: e.target.value })); setModelsLoaded(false); }} />
             </Box>
             <Box>
               <Text size="1" as="label">API key</Text>
@@ -266,7 +274,7 @@ export default function ConnectionsPage() {
                   data-1p-ignore=""
                   value={form.apiKey}
                   placeholder="sk-or-v1-..."
-                  onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, apiKey: e.target.value })); setModelsLoaded(false); }}
                   style={apiKeyStyle(showKey)}
                 />
                 <button
@@ -296,9 +304,24 @@ export default function ConnectionsPage() {
                     </Select.Content>
                   </Select.Root>
                 </Box>
-                <Button variant="soft" onClick={() => void loadModels(form.baseUrl, form.apiKey)} disabled={modelsLoading}>
-                  {modelsLoading ? 'Loading…' : 'Load models'}
-                </Button>
+                {/* Retry icon that fetches the model list; turns into a check
+                    once models load, and a spinner while loading. */}
+                <IconButton
+                  type="button"
+                  variant="soft"
+                  color={modelsLoaded ? 'green' : undefined}
+                  onClick={() => void loadModels(form.baseUrl, form.apiKey)}
+                  disabled={modelsLoading}
+                  aria-label={modelsLoaded ? 'Models loaded — reload' : 'Load models'}
+                  title={modelsLoaded ? 'Models loaded — click to reload' : 'Load models'}
+                  style={{ cursor: modelsLoading ? 'default' : 'pointer' }}
+                >
+                  {modelsLoading ? (
+                    <Spinner />
+                  ) : (
+                    <MaterialIcon name={modelsLoaded ? 'check' : 'refresh'} size={18} color="currentColor" />
+                  )}
+                </IconButton>
               </Flex>
             </Box>
             <Flex gap="2" mt="2" justify="end">
