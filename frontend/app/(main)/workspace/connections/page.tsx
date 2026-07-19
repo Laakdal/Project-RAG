@@ -119,7 +119,7 @@ export default function ConnectionsPage() {
   if (!isAdmin || !data) return null;
 
   return (
-    <Box style={{ padding: 'var(--space-5)', maxWidth: 820 }}>
+    <Box style={{ padding: 'var(--space-5)', maxWidth: 820, margin: '0 auto' }}>
       <Heading size="6" mb="2">API Connections</Heading>
       <Text size="2" style={{ color: 'var(--gray-10)', display: 'block', marginBottom: 'var(--space-5)' }}>
         Reusable OpenAI-compatible provider endpoints, and which one each part of the RAG pipeline
