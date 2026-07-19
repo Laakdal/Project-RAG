@@ -73,13 +73,15 @@ export async function deleteDriveSource(id: string): Promise<void> {
   await reload();
 }
 
-// Safe view for the admin UI: never returns the client secret or refresh token.
+// Admin view. Returns the client id/secret so the edit form can prefill and the
+// admin can verify them (admin-only route); never returns the refresh token.
 export function driveSourcesView() {
   return cache.map((s) => ({
     id: s.id,
     name: s.name,
     folderId: s.folderId ?? "",
     clientId: s.clientId,
+    clientSecret: s.clientSecret,
     connected: Boolean(s.refreshToken),
   }));
 }
