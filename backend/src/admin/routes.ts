@@ -313,6 +313,50 @@ router.post("/users", requireCsrf, async (req: Request, res: Response) => {
   }
 });
 
+// Edit a user's identity fields (email + display name). Role and disabled state
+// have their own dedicated routes; this is just the account details.
+const updateUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().trim().min(1).max(200).nullable(),
+});
+
+router.patch(
+  "/users/:id",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+      return;
+    }
+    const { email, name } = parsed.data;
+    try {
+      const rows = await db
+        .update(users)
+        .set({ email: email.toLowerCase(), name })
+        .where(eq(users.id, req.params.id))
+        .returning(userColumns);
+      if (!rows[0]) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      res.json(rows[0]);
+    } catch (err) {
+      // 23505 = unique_violation on the email column.
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code?: string }).code === "23505"
+      ) {
+        res.status(409).json({ error: "A user with that email already exists" });
+        return;
+      }
+      throw err;
+    }
+  },
+);
+
 const toggleAdminSchema = z.object({ isAdmin: z.boolean() });
 
 router.patch(
