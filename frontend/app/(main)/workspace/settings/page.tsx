@@ -10,7 +10,7 @@ import { isProcessedError } from '@/lib/api';
 import { SettingsApi, type ManagedSetting } from '@/lib/api/settings';
 import { DriveSourcesApi, type DriveSource, type DriveSourceInput } from '@/lib/api/drive-sources';
 
-const EMPTY_SOURCE: DriveSourceInput = { name: '', folderId: '', serviceAccountJson: '' };
+const EMPTY_SOURCE: DriveSourceInput = { name: '', clientId: '', clientSecret: '', folderId: '' };
 
 function errorMessage(err: unknown, fallback: string): string {
   if (isProcessedError(err)) return err.message;
@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const [sources, setSources] = useState<DriveSource[]>([]);
+  const [redirectUrl, setRedirectUrl] = useState('');
   const [srcEditing, setSrcEditing] = useState<string | 'new' | null>(null);
   const [srcForm, setSrcForm] = useState<DriveSourceInput>(EMPTY_SOURCE);
   const [srcBusy, setSrcBusy] = useState(false);
@@ -64,7 +65,9 @@ export default function SettingsPage() {
 
   const loadSources = useCallback(async () => {
     try {
-      setSources(await DriveSourcesApi.get());
+      const data = await DriveSourcesApi.get();
+      setSources(data.sources);
+      setRedirectUrl(data.redirectUrl);
     } catch (err) {
       addToast({ variant: 'error', title: 'Failed to load Drive sources', description: errorMessage(err, '') });
     }
@@ -77,21 +80,41 @@ export default function SettingsPage() {
     }
   }, [isAdmin, refresh, loadSources]);
 
+  // Toast the result of returning from the Google OAuth flow (?drive=...).
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('drive');
+    if (!status) return;
+    if (status === 'connected') addToast({ variant: 'success', title: 'Google account connected' });
+    else addToast({ variant: 'error', title: 'Google sign-in failed', description: status });
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [addToast]);
+
   const openNewSource = () => {
     setSrcForm(EMPTY_SOURCE);
     setSrcEditing('new');
   };
   const openEditSource = (s: DriveSource) => {
-    setSrcForm({ name: s.name, folderId: s.folderId, serviceAccountJson: '' });
+    setSrcForm({ name: s.name, clientId: s.clientId, clientSecret: '', folderId: s.folderId });
     setSrcEditing(s.id);
   };
 
+  const signIn = useCallback(
+    async (s: DriveSource) => {
+      try {
+        window.location.href = await DriveSourcesApi.authorizeUrl(s.id);
+      } catch (err) {
+        addToast({ variant: 'error', title: 'Could not start sign-in', description: errorMessage(err, '') });
+      }
+    },
+    [addToast],
+  );
+
   const saveSource = useCallback(async () => {
-    if (!srcForm.name || !srcForm.folderId || (srcEditing === 'new' && !srcForm.serviceAccountJson)) {
+    if (!srcForm.name || !srcForm.clientId || (srcEditing === 'new' && !srcForm.clientSecret)) {
       addToast({
         variant: 'warning',
         title: 'Missing fields',
-        description: 'Name, folder ID and (for a new source) the service account JSON are required.',
+        description: 'Name, Client ID and (for a new source) the Client Secret are required.',
       });
       return;
     }
@@ -211,12 +234,12 @@ export default function SettingsPage() {
       <Box mt="4">
         <SettingsSection
           title="Drive Sources"
-          description="Each Google account to search: its service account + the folder shared with it. Drive lookup searches all of them."
+          description="Each Google account to search, connected with Sign in with Google. Drive lookup searches all connected accounts."
           rightAction={<Button onClick={openNewSource} disabled={srcEditing !== null}>+ Add</Button>}
         >
           {sources.length === 0 ? (
             <Text size="2" style={{ color: 'var(--gray-10)' }}>
-              No Drive sources yet. Add one to enable live Drive lookup.
+              No Drive sources yet. Add one, then sign in with Google to connect the account.
             </Text>
           ) : (
             sources.map((s) => (
@@ -224,16 +247,21 @@ export default function SettingsPage() {
                 <Flex align="center" justify="between" gap="3">
                   <Box>
                     <Text size="2" weight="medium">{s.name}</Text>
-                    <Text size="1" style={{ color: 'var(--gray-10)', display: 'block', fontFamily: 'monospace' }}>
-                      folder: {s.folderId}
-                    </Text>
+                    {s.folderId ? (
+                      <Text size="1" style={{ color: 'var(--gray-10)', display: 'block', fontFamily: 'monospace' }}>
+                        folder: {s.folderId}
+                      </Text>
+                    ) : null}
                     <Flex mt="1">
-                      <Badge color={s.hasKey ? 'green' : 'orange'} variant="soft">
-                        {s.hasKey ? 'Key set' : 'No key'}
+                      <Badge color={s.connected ? 'green' : 'orange'} variant="soft">
+                        {s.connected ? 'Connected' : 'Not connected'}
                       </Badge>
                     </Flex>
                   </Box>
                   <Flex gap="2">
+                    <Button variant="soft" color="green" onClick={() => void signIn(s)} disabled={srcEditing !== null}>
+                      {s.connected ? 'Reconnect' : 'Sign in with Google'}
+                    </Button>
                     <Button variant="soft" onClick={() => openEditSource(s)} disabled={srcEditing !== null}>Edit</Button>
                     <Button variant="soft" color="red" onClick={() => void removeSource(s)} disabled={srcBusy}>Delete</Button>
                   </Flex>
@@ -245,7 +273,7 @@ export default function SettingsPage() {
       </Box>
 
       <Dialog.Root open={srcEditing !== null} onOpenChange={(open) => { if (!open) setSrcEditing(null); }}>
-        <Dialog.Content maxWidth="520px">
+        <Dialog.Content maxWidth="560px">
           <Dialog.Title>{srcEditing === 'new' ? 'New Drive source' : 'Edit Drive source'}</Dialog.Title>
           <Flex direction="column" gap="3" mt="2">
             <Box>
@@ -254,19 +282,32 @@ export default function SettingsPage() {
                 onChange={(e) => setSrcForm((f) => ({ ...f, name: e.target.value }))} />
             </Box>
             <Box>
-              <Text size="1" as="label">Drive folder ID</Text>
-              <TextField.Root value={srcForm.folderId} placeholder="1RCQF59..."
-                onChange={(e) => setSrcForm((f) => ({ ...f, folderId: e.target.value }))} />
+              <Text size="1" as="label">OAuth Redirect URL — add this to your Google OAuth client</Text>
+              <TextField.Root readOnly value={redirectUrl} onFocus={(e) => e.currentTarget.select()} />
             </Box>
             <Box>
-              <Text size="1" as="label">Service account JSON</Text>
-              <TextArea
-                style={{ minHeight: 120, fontFamily: 'monospace' }}
-                placeholder={srcEditing !== 'new' ? '•••• (leave blank to keep the stored key)' : 'Paste the service-account key JSON'}
-                value={srcForm.serviceAccountJson ?? ''}
-                onChange={(e) => setSrcForm((f) => ({ ...f, serviceAccountJson: e.target.value }))}
+              <Text size="1" as="label">Client ID</Text>
+              <TextField.Root value={srcForm.clientId} placeholder="….apps.googleusercontent.com"
+                onChange={(e) => setSrcForm((f) => ({ ...f, clientId: e.target.value }))} />
+            </Box>
+            <Box>
+              <Text size="1" as="label">Client Secret</Text>
+              <TextField.Root
+                type="text"
+                autoComplete="off"
+                value={srcForm.clientSecret ?? ''}
+                placeholder={srcEditing !== 'new' ? '•••• (leave blank to keep the stored secret)' : 'GOCSPX-…'}
+                onChange={(e) => setSrcForm((f) => ({ ...f, clientSecret: e.target.value }))}
               />
             </Box>
+            <Box>
+              <Text size="1" as="label">Drive folder ID (optional)</Text>
+              <TextField.Root value={srcForm.folderId ?? ''} placeholder="Leave blank to search the whole account"
+                onChange={(e) => setSrcForm((f) => ({ ...f, folderId: e.target.value }))} />
+            </Box>
+            <Text size="1" style={{ color: 'var(--gray-9)' }}>
+              Save, then click “Sign in with Google” on the source to connect the account.
+            </Text>
             <Flex gap="2" mt="2" justify="end">
               <Button variant="soft" color="gray" onClick={() => setSrcEditing(null)} disabled={srcBusy}>Cancel</Button>
               <Button onClick={() => void saveSource()} disabled={srcBusy}>{srcBusy ? 'Saving…' : 'Save'}</Button>
