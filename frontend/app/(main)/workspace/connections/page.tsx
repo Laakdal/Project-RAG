@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Card, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
+import { SettingsSection, SettingsRow } from '../components';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api';
@@ -126,64 +127,55 @@ export default function ConnectionsPage() {
         uses. Changes take effect immediately.
       </Text>
 
-      {/* Role assignment */}
-      <Heading size="3" mb="3">Model roles</Heading>
-      <Flex direction="column" gap="3" mb="6">
-        {data.roleDefs.map((rd) => (
-          <Flex key={rd.role} align="center" justify="between" gap="3">
-            <Box>
-              <Text size="2" weight="medium">{rd.label}</Text>
-              {rd.note ? (
-                <Text size="1" style={{ color: 'var(--gray-9)', display: 'block' }}>{rd.note}</Text>
-              ) : null}
-            </Box>
-            <Select.Root value={data.roles[rd.role] ?? undefined} onValueChange={(v) => void assign(rd.role, v)}>
-              <Select.Trigger placeholder="Choose a connection" style={{ minWidth: 260 }} />
-              <Select.Content>
-                {data.connections.map((c) => (
-                  <Select.Item key={c.id} value={c.id}>{c.name} · {c.model}</Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-          </Flex>
-        ))}
-      </Flex>
-
-      {/* Connections list */}
-      <Flex align="center" justify="between" mb="3">
-        <Heading size="3">Connections</Heading>
-        <Button onClick={openNew} disabled={editingId !== null}>+ Create</Button>
-      </Flex>
-
-      <Flex direction="column" gap="3">
-        {data.connections.map((c) => (
-          <Card key={c.id}>
-            <Flex align="center" justify="between" gap="3">
-              <Box>
-                <Text size="2" weight="medium">{c.name}</Text>
-                <Text size="1" style={{ color: 'var(--gray-10)', display: 'block', fontFamily: 'monospace' }}>
-                  {c.platform}: {c.model}
-                </Text>
-                <Flex gap="1" mt="1" wrap="wrap">
-                  {(rolesByConn[c.id] ?? []).map((label) => (
-                    <Badge key={label} color="green" variant="soft">{label}</Badge>
+      <Flex direction="column" gap="4">
+        {/* Role assignment */}
+        <SettingsSection title="Model roles" description="Which connection each part of the pipeline uses.">
+          {data.roleDefs.map((rd) => (
+            <SettingsRow key={rd.role} label={rd.label} description={rd.note}>
+              <Select.Root value={data.roles[rd.role] ?? undefined} onValueChange={(v) => void assign(rd.role, v)}>
+                <Select.Trigger placeholder="Choose a connection" style={{ width: '100%' }} />
+                <Select.Content>
+                  {data.connections.map((c) => (
+                    <Select.Item key={c.id} value={c.id}>{c.name} · {c.model}</Select.Item>
                   ))}
-                </Flex>
-              </Box>
-              <Flex gap="2">
-                <Button variant="soft" onClick={() => openEdit(c)} disabled={editingId !== null}>Edit</Button>
-                <Button variant="soft" color="red" onClick={() => void remove(c)} disabled={busy}>Delete</Button>
-              </Flex>
-            </Flex>
-          </Card>
-        ))}
-      </Flex>
+                </Select.Content>
+              </Select.Root>
+            </SettingsRow>
+          ))}
+        </SettingsSection>
 
-      {/* Create / edit form */}
-      {editingId !== null ? (
-        <Card mt="4">
-          <Heading size="3" mb="3">{editingId === 'new' ? 'New connection' : 'Edit connection'}</Heading>
-          <Flex direction="column" gap="3">
+        {/* Connections list */}
+        <SettingsSection
+          title="Connections"
+          rightAction={<Button onClick={openNew} disabled={editingId !== null}>+ Create</Button>}
+        >
+          {data.connections.map((c) => (
+            <Card key={c.id}>
+              <Flex align="center" justify="between" gap="3">
+                <Box>
+                  <Text size="2" weight="medium">{c.name}</Text>
+                  <Text size="1" style={{ color: 'var(--gray-10)', display: 'block', fontFamily: 'monospace' }}>
+                    {c.platform}: {c.model}
+                  </Text>
+                  <Flex gap="1" mt="1" wrap="wrap">
+                    {(rolesByConn[c.id] ?? []).map((label) => (
+                      <Badge key={label} color="green" variant="soft">{label}</Badge>
+                    ))}
+                  </Flex>
+                </Box>
+                <Flex gap="2">
+                  <Button variant="soft" onClick={() => openEdit(c)} disabled={editingId !== null}>Edit</Button>
+                  <Button variant="soft" color="red" onClick={() => void remove(c)} disabled={busy}>Delete</Button>
+                </Flex>
+              </Flex>
+            </Card>
+          ))}
+        </SettingsSection>
+
+        {/* Create / edit form */}
+        {editingId !== null ? (
+          <SettingsSection title={editingId === 'new' ? 'New connection' : 'Edit connection'}>
+            <Flex direction="column" gap="3">
             <Box>
               <Text size="1" as="label">Name</Text>
               <TextField.Root value={form.name} placeholder="e.g. OpenRouter API GLM 4.6"
@@ -220,8 +212,9 @@ export default function ConnectionsPage() {
               <Button variant="soft" color="gray" onClick={() => setEditingId(null)} disabled={busy}>Cancel</Button>
             </Flex>
           </Flex>
-        </Card>
-      ) : null}
+          </SettingsSection>
+        ) : null}
+      </Flex>
     </Box>
   );
 }
