@@ -19,6 +19,7 @@ import {
 } from '@radix-ui/themes';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
+import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { validatePassword } from '@/lib/utils/validators';
 import { isProcessedError } from '@/lib/api';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -56,6 +57,7 @@ export default function AdminUsersPage() {
   const isAdmin = useUserStore(selectIsAdmin);
   const initialized = useUserStore(selectIsProfileInitialized);
   const addToast = useToastStore((s) => s.addToast);
+  const isMobile = useIsMobile();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -154,7 +156,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <Box style={{ padding: '64px 100px' }}>
+    <Box style={{ padding: isMobile ? '20px 16px' : '64px 100px' }}>
       <Flex justify="between" align="center" style={{ marginBottom: 'var(--space-5)' }}>
         <Box>
           <Heading size="5" weight="medium" style={{ color: 'var(--gray-12)' }}>
@@ -172,7 +174,7 @@ export default function AdminUsersPage() {
 
       {/* ── Stats strip ── */}
       {stats && (
-        <Grid columns="4" gap="3" style={{ marginBottom: 'var(--space-6)' }}>
+        <Grid columns={{ initial: '2', sm: '4' }} gap="3" style={{ marginBottom: 'var(--space-6)' }}>
           <StatCard label="Users" value={stats.users} />
           <StatCard label="Admins" value={stats.admins} />
           <StatCard label="Disabled" value={stats.disabledUsers} />
