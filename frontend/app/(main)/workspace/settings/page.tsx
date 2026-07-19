@@ -82,7 +82,7 @@ export default function SettingsPage() {
   if (!isAdmin) return null;
 
   return (
-    <Box style={{ padding: 'var(--space-5)', maxWidth: 760 }}>
+    <Box style={{ padding: 'var(--space-5)', maxWidth: 760, margin: '0 auto' }}>
       <Heading size="6" mb="2">Integrations &amp; Tokens</Heading>
       <Text size="2" style={{ color: 'var(--gray-10)', display: 'block', marginBottom: 'var(--space-5)' }}>
         Google Drive and internal tokens. A value saved here overrides the server environment
