@@ -16,6 +16,7 @@ import { logoutAndRedirect } from "@/lib/store/auth-store"
 import { UploadProgressTracker } from "../components/upload-progress-tracker"
 import { ToastContainer } from "../components/feedback"
 import { UserProfileInitializer } from './components/user-profile-initializer'
+import { usePathname } from "next/navigation"
 import { useMobileSidebarStore } from "@/lib/store/mobile-sidebar-store"
 import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
@@ -93,6 +94,12 @@ function AppLayout({
   const isNavCollapsed = useSidebarWidthStore((s) => s.isNavCollapsed)
   const setNavCollapsed = useSidebarWidthStore((s) => s.setNavCollapsed)
 
+  // The admin/workspace pages have their own sidebar, so hide the chat sidebar
+  // there. This is direct (independent of the @sidebar parallel-slot matching,
+  // which keeps the previous chat sidebar on soft navigation).
+  const pathname = usePathname()
+  const hideChatSidebar = pathname?.startsWith('/workspace') ?? false
+
   return (
     <SWRConfig
       value={{
@@ -126,7 +133,7 @@ function AppLayout({
           key="app-sidebar-slot"
           data-ph-sidebar-slot=""
           style={{
-            maxWidth: (!isMobile && isNavCollapsed)
+            maxWidth: (hideChatSidebar || (!isMobile && isNavCollapsed))
               ? 0
               : `${sidebarWidth + SIDEBAR_SECONDARY_PANEL_EXTRA_PX}px`,
             flexShrink: 0,
@@ -139,7 +146,7 @@ function AppLayout({
             height: '100%',
           }}
         >
-          {sidebar}
+          {!hideChatSidebar && sidebar}
         </Box>
 
         {/* Main content area — zIndex: 0 creates a stacking context so
