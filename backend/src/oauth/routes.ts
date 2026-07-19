@@ -23,7 +23,10 @@ router.get("/google/callback", async (req: Request, res: Response) => {
     if (!refreshToken) return back("norefresh");
     await setRefreshToken(sourceId, refreshToken);
     return back("connected");
-  } catch {
+  } catch (err) {
+    const e = err as { response?: { data?: unknown }; message?: string };
+    // eslint-disable-next-line no-console
+    console.error("[oauth callback] token exchange failed:", JSON.stringify(e.response?.data ?? e.message ?? err));
     return back("error");
   }
 });
