@@ -1,5 +1,10 @@
 import { apiClient } from '@/lib/api';
+import { readCsrfCookie, CSRF_HEADER_NAME } from '@/lib/api/csrf';
 import { useChatStore } from './store';
+
+// Same-origin by default; overridden at build time for split deployments. Mirrors
+// the axios instance / streaming module so the SSE call reaches the same backend.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
 export interface Source {
   filename: string;
@@ -143,6 +148,120 @@ export async function askQuestion(
     throw new AttachmentReadingError();
   }
   return data;
+}
+
+/** One reported pipeline step during a streaming ask (see backend QueryPhase). */
+export interface AskPhase {
+  key: string;
+  label: string;
+}
+
+/**
+ * Ask a question over an SSE stream so the UI can show real pipeline progress
+ * ("searching your documents", "reading Drive", "writing the answer") as the
+ * backend graph runs, then resolve with the final `{ answer, sources }`.
+ *
+ * Auth is the httpOnly session cookie (sent via `credentials: 'include'`), so we
+ * attach the double-submit CSRF header ourselves — native fetch bypasses the
+ * axios interceptor that normally does this. A 403 (expired csrf cookie) is
+ * healed once by re-seeding via GET /auth/csrf, mirroring the axios retry.
+ *
+ * Falls back to the non-streaming `askQuestion` when the stream endpoint is
+ * unavailable (404/405), so the same client works against an older backend.
+ */
+export async function askQuestionStreaming(
+  conversationId: string,
+  question: string,
+  handlers: { onPhase?: (phase: AskPhase) => void; signal?: AbortSignal },
+  useLibrary = false,
+): Promise<{ answer: string; sources: Source[] }> {
+  const url = `${API_BASE_URL}/chat/conversations/${conversationId}/messages/stream`;
+  const body = JSON.stringify(useLibrary ? { question, useLibrary: true } : { question });
+
+  const doFetch = () => {
+    const csrf = readCsrfCookie();
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(csrf ? { [CSRF_HEADER_NAME]: csrf } : {}),
+      },
+      body,
+      signal: handlers.signal,
+    });
+  };
+
+  let response = await doFetch();
+  // Re-seed a stale CSRF cookie once, then retry (matches the axios interceptor).
+  if (response.status === 403) {
+    try {
+      await apiClient.get('/auth/csrf', { suppressErrorToast: true });
+    } catch {
+      // Fall through: retry anyway; the interceptor may have set a cookie.
+    }
+    response = await doFetch();
+  }
+
+  // Older backend without the stream route → use the plain JSON endpoint.
+  if (response.status === 404 || response.status === 405) {
+    return askQuestion(conversationId, question, useLibrary);
+  }
+  if (!response.ok || !response.body) {
+    throw new Error(`Stream request failed: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: { answer: string; sources: Source[] } | null = null;
+  let errorMessage: string | null = null;
+
+  const handleEvent = (event: string, dataStr: string) => {
+    let data: unknown;
+    try {
+      data = JSON.parse(dataStr);
+    } catch {
+      return;
+    }
+    if (event === 'phase') {
+      handlers.onPhase?.(data as AskPhase);
+    } else if (event === 'done') {
+      result = data as { answer: string; sources: Source[] };
+    } else if (event === 'error') {
+      errorMessage = (data as { message?: string }).message ?? 'An error occurred.';
+    }
+  };
+
+  // Parse whole SSE events out of the buffer (events are separated by a blank
+  // line); keep any trailing partial event for the next chunk.
+  const drainBuffer = () => {
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop() ?? '';
+    for (const block of blocks) {
+      let event = 'message';
+      let dataStr = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+      }
+      if (dataStr) handleEvent(event, dataStr);
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    drainBuffer();
+  }
+  buffer += decoder.decode();
+  drainBuffer();
+
+  if (errorMessage) throw new Error(errorMessage);
+  if (!result) throw new Error('The stream ended without an answer.');
+  return result;
 }
 
 /**
