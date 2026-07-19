@@ -63,6 +63,7 @@ export default function AdminUsersPage() {
 
   // Dialog state
   const [createOpen, setCreateOpen] = useState(false);
+  const [editFor, setEditFor] = useState<AdminUser | null>(null);
   const [resetFor, setResetFor] = useState<AdminUser | null>(null);
   const [deleteFor, setDeleteFor] = useState<AdminUser | null>(null);
   const [disableFor, setDisableFor] = useState<AdminUser | null>(null);
@@ -215,6 +216,9 @@ export default function AdminUsersPage() {
                       </IconButton>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content>
+                      <DropdownMenu.Item onSelect={() => setEditFor(u)}>
+                        {'Edit account'}
+                      </DropdownMenu.Item>
                       <DropdownMenu.Item onSelect={() => void toggleAdmin(u)}>
                         {u.isAdmin ? 'Revoke admin' : 'Make admin'}
                       </DropdownMenu.Item>
@@ -249,6 +253,16 @@ export default function AdminUsersPage() {
         onOpenChange={setCreateOpen}
         onCreated={() => {
           setCreateOpen(false);
+          void refresh();
+        }}
+      />
+
+      {/* ── Edit account dialog ── */}
+      <EditUserDialog
+        user={editFor}
+        onClose={() => setEditFor(null)}
+        onDone={() => {
+          setEditFor(null);
           void refresh();
         }}
       />
@@ -374,6 +388,86 @@ function CreateUserDialog({
             <Button variant="soft" color="gray">{'Cancel'}</Button>
           </Dialog.Close>
           <Button disabled={!canSubmit} onClick={() => void submit()}>{'Create'}</Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}
+
+// ── Edit account dialog ────────────────────────────────────────────────────────
+function EditUserDialog({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: AdminUser | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const addToast = useToastStore((s) => s.addToast);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Prefill from the target user each time the dialog opens for a new row.
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email);
+      setName(user.name ?? '');
+    }
+  }, [user]);
+
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canSubmit = emailValid && !busy && user !== null;
+
+  const submit = async () => {
+    if (!user || !canSubmit) return;
+    setBusy(true);
+    try {
+      await AdminApi.updateUser(user.id, {
+        email: email.trim(),
+        name: name.trim() || null,
+      });
+      addToast({ variant: 'success', title: 'Account updated', description: email.trim() });
+      onDone();
+    } catch (err) {
+      addToast({
+        variant: 'error',
+        title: 'Update failed',
+        description: errorMessage(err, 'Could not update the account'),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Dialog.Content style={{ maxWidth: 460 }}>
+        <Dialog.Title>{'Edit account'}</Dialog.Title>
+        <Flex direction="column" gap="3" style={{ marginTop: 'var(--space-3)' }}>
+          <label>
+            <Text size="2" weight="medium">{'Email'}</Text>
+            <TextField.Root
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              color={email && !emailValid ? 'red' : undefined}
+            />
+            {email && !emailValid && (
+              <Text size="1" style={{ color: 'var(--red-a11)' }}>{'Enter a valid email address.'}</Text>
+            )}
+          </label>
+          <label>
+            <Text size="2" weight="medium">{'Name'}</Text>
+            <TextField.Root value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          </label>
+        </Flex>
+        <Flex justify="end" gap="2" style={{ marginTop: 'var(--space-4)' }}>
+          <Dialog.Close>
+            <Button variant="soft" color="gray">{'Cancel'}</Button>
+          </Dialog.Close>
+          <Button disabled={!canSubmit} onClick={() => void submit()}>{'Save'}</Button>
         </Flex>
       </Dialog.Content>
     </Dialog.Root>
