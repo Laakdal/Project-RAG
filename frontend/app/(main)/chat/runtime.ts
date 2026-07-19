@@ -14,7 +14,12 @@ import type { ExternalStoreAdapter } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import { useChatStore } from './store';
 import { cancelStreamForSlot } from './streaming';
-import { askQuestion, ensureSlotConversation, AttachmentReadingError } from './rag-api';
+import {
+  askQuestion,
+  askQuestionStreaming,
+  ensureSlotConversation,
+  AttachmentReadingError,
+} from './rag-api';
 import {
   type AttachmentRef,
   type ChatCollectionAttachment,
@@ -212,12 +217,16 @@ export function buildExternalStoreConfig(
       // first, a rapid second send would slip through and create a SECOND
       // conversation, orphaning this answer.
       const pendingAssistantId = createPendingAssistantId();
+      // Abort controller so the composer's stop button (onCancel →
+      // cancelStreamForSlot) can actually cancel the in-flight SSE stream.
+      const abortController = new AbortController();
       store.updateSlot(targetSlotId, {
         isStreaming: true,
         streamingQuestion: displayQuery,
         streamingContent: '',
         currentStatusMessage: null,
         streamingCitationMaps: null,
+        abortController,
         messages: [
           ...currentSlot.messages,
           {
@@ -264,7 +273,27 @@ export function buildExternalStoreConfig(
         let result!: Awaited<ReturnType<typeof askQuestion>>;
         for (let attempt = 0; ; attempt++) {
           try {
-            result = await askQuestion(convId, apiQuery);
+            // Streaming ask: real pipeline phases (searching / reading / writing)
+            // are pushed into currentStatusMessage as they arrive, replacing the
+            // generic spinner. Falls back to the plain JSON endpoint internally
+            // when the stream route is unavailable.
+            result = await askQuestionStreaming(
+              convId,
+              apiQuery,
+              {
+                signal: abortController.signal,
+                onPhase: (phase) => {
+                  useChatStore.getState().updateSlot(targetSlotId, {
+                    currentStatusMessage: {
+                      id: `phase-${phase.key}`,
+                      status: phase.key,
+                      message: phase.label,
+                      timestamp: '',
+                    },
+                  });
+                },
+              },
+            );
             break;
           } catch (err) {
             if (!(err instanceof AttachmentReadingError)) throw err;
@@ -330,6 +359,20 @@ export function buildExternalStoreConfig(
           resolvedStore.moveConversationToTop(convId);
         }
       } catch (err) {
+        // User pressed stop: the SSE fetch was aborted. cancelStreamForSlot has
+        // already cleared the streaming state, so don't render an error bubble.
+        const aborted =
+          (typeof DOMException !== 'undefined' &&
+            err instanceof DOMException &&
+            err.name === 'AbortError') ||
+          (err instanceof Error &&
+            (err.name === 'AbortError' || err.name === 'CanceledError'));
+        if (aborted) {
+          if (isNewConversation) {
+            useChatStore.getState().clearPendingConversation(targetSlotId);
+          }
+          return;
+        }
         console.error('[rag] askQuestion failed for slot', targetSlotId, err);
         const errText =
           err instanceof Error ? err.message : 'An error occurred. Please try again.';
@@ -351,8 +394,11 @@ export function buildExternalStoreConfig(
           useChatStore.getState().clearPendingConversation(targetSlotId);
         }
       } finally {
-        // Clear the busy flag on every terminal path (success and error).
-        useChatStore.getState().updateSlot(targetSlotId, { isStreaming: false });
+        // Clear the busy flag + drop the abort controller on every terminal
+        // path (success, error, and abort).
+        useChatStore
+          .getState()
+          .updateSlot(targetSlotId, { isStreaming: false, abortController: null });
       }
     },
 
