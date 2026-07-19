@@ -1,5 +1,4 @@
 import { google } from "googleapis";
-import { getSetting } from "../../src/settings/service.js";
 
 export type DriveFile = {
   id: string;
@@ -9,10 +8,11 @@ export type DriveFile = {
   webUrl: string;
 };
 
-function driveClient() {
-  const saJson = getSetting("GOOGLE_SERVICE_ACCOUNT_JSON");
-  if (!saJson) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required");
-  const credentials = JSON.parse(saJson);
+// Build a Drive client for a specific service account (one per Drive source),
+// so lookup can span multiple Google accounts.
+function driveClient(serviceAccountJson: string) {
+  if (!serviceAccountJson) throw new Error("service account JSON required");
+  const credentials = JSON.parse(serviceAccountJson);
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
@@ -20,8 +20,8 @@ function driveClient() {
   return google.drive({ version: "v3", auth });
 }
 
-export async function listFolder(folderId: string): Promise<DriveFile[]> {
-  const drive = driveClient();
+export async function listFolder(serviceAccountJson: string, folderId: string): Promise<DriveFile[]> {
+  const drive = driveClient(serviceAccountJson);
   const out: DriveFile[] = [];
   let pageToken: string | undefined;
   do {
@@ -48,8 +48,8 @@ export async function listFolder(folderId: string): Promise<DriveFile[]> {
 // Full-text / name search across the files the service account can see (the
 // shared PalmCo corpus). Used by the on-demand Drive lookup node for documents
 // that are not in the pre-indexed library. `driveQuery` is a Drive `q` string.
-export async function searchFiles(driveQuery: string, limit = 5): Promise<DriveFile[]> {
-  const drive = driveClient();
+export async function searchFiles(serviceAccountJson: string, driveQuery: string, limit = 5): Promise<DriveFile[]> {
+  const drive = driveClient(serviceAccountJson);
   const res = await drive.files.list({
     q: driveQuery,
     fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
@@ -65,8 +65,8 @@ export async function searchFiles(driveQuery: string, limit = 5): Promise<DriveF
   }));
 }
 
-export async function downloadFile(file: DriveFile): Promise<{ buffer: Buffer; mimeType: string }> {
-  const drive = driveClient();
+export async function downloadFile(serviceAccountJson: string, file: DriveFile): Promise<{ buffer: Buffer; mimeType: string }> {
+  const drive = driveClient(serviceAccountJson);
   if (file.mimeType.startsWith("application/vnd.google-apps")) {
     const res = await drive.files.export(
       { fileId: file.id, mimeType: "application/pdf" },
