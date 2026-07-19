@@ -1,5 +1,5 @@
 import { ingest } from "./ingest/pipeline.js";
-import { runQuery } from "./query/graph.js";
+import { runQuery, runQueryStream } from "./query/graph.js";
 import { requireLanggraphEnv } from "./shared/models.js";
 import type { RagProvider } from "../src/rag/types.js";
 
@@ -11,5 +11,9 @@ export const langgraphProvider: RagProvider = {
   async queryRag(conversationId, question, history, generateTitle) {
     requireLanggraphEnv();
     return runQuery(conversationId, question, history, generateTitle);
+  },
+  async queryRagStream(conversationId, question, history, generateTitle, onPhase) {
+    requireLanggraphEnv();
+    return runQueryStream(conversationId, question, history, generateTitle, onPhase);
   },
 };
