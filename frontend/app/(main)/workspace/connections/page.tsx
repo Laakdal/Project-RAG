@@ -33,7 +33,10 @@ function apiKeyStyle(reveal: boolean): CSSProperties {
     border: '1px solid var(--gray-a7)',
     background: 'var(--color-surface)',
     color: 'var(--gray-12)',
-    fontSize: 14,
+    // Match the radix TextField inputs (font family + size + spacing).
+    fontFamily: 'var(--default-font-family)',
+    fontSize: 'var(--font-size-2)',
+    letterSpacing: 'var(--letter-spacing-2)',
     boxSizing: 'border-box',
     outline: 'none',
     WebkitTextSecurity: reveal ? 'none' : 'disc',
