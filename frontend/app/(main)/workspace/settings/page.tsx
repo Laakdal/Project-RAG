@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Flex, Heading, Text, TextArea, TextField } from '@radix-ui/themes';
+import { SettingsSection } from '../components';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api';
@@ -90,7 +91,10 @@ export default function SettingsPage() {
         set/unset status. LLM providers and models are managed under API Connections.
       </Text>
 
-      <Flex direction="column" gap="5">
+      <SettingsSection
+        title="Google Drive & Tokens"
+        description="Credentials the RAG pipeline uses to reach Google Drive and internal endpoints."
+      >
         {settings.map((s) => (
           <Box key={s.key}>
             <Flex align="center" justify="between" mb="1">
@@ -134,7 +138,7 @@ export default function SettingsPage() {
             </Flex>
           </Box>
         ))}
-      </Flex>
+      </SettingsSection>
     </Box>
   );
 }
