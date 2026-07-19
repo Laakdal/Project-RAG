@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 
-import { Flex } from '@radix-ui/themes';
+import { Flex, Text } from '@radix-ui/themes';
 import { useUserStore, selectIsAdmin } from '@/lib/store/user-store';
 import { SidebarBase } from '@/app/components/sidebar';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
@@ -40,7 +40,15 @@ const ADMIN_ITEMS: NavItem[] = [
  * Uses `SidebarBase` shell (no header, no footer).
  * Active item determined from current pathname.
  */
-export default function WorkspaceSidebar() {
+export default function WorkspaceSidebar({
+  isMobile = false,
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+} = {}) {
   const rawPathname = usePathname();
   const isAdmin = useUserStore(selectIsAdmin) === true;
 
@@ -53,7 +61,22 @@ export default function WorkspaceSidebar() {
     pathname === route || pathname.startsWith(route + '/');
 
   return (
-    <SidebarBase>
+    <SidebarBase
+      isMobile={isMobile}
+      mobileOpen={mobileOpen}
+      onMobileClose={onMobileClose}
+      // A header is required for the mobile drawer to show its × close button;
+      // omit it on desktop so the sidebar looks unchanged there.
+      header={
+        isMobile ? (
+          <Flex align="center" style={{ height: '100%', paddingLeft: 16 }}>
+            <Text size="3" weight="medium" style={{ color: 'var(--gray-12)' }}>
+              {'Settings'}
+            </Text>
+          </Flex>
+        ) : undefined
+      }
+    >
       <Flex direction="column" gap="4">
         {/* ── Back to app ── */}
         <WorkspaceSidebarItem
