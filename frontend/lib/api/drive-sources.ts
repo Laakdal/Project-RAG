@@ -5,6 +5,7 @@ export interface DriveSource {
   name: string;
   folderId: string;
   clientId: string;
+  clientSecret: string;
   /** Whether the account has been signed in (a refresh token is stored). */
   connected: boolean;
 }
