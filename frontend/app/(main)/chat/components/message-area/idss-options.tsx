@@ -1,37 +1,109 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Box, Flex, Text } from '@radix-ui/themes';
-import { useThreadRuntime } from '@assistant-ui/react';
+import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import type { IdssAction, IdssOptionsData } from '../../utils/parse-idss-options';
+import type { IdssAction, IdssOptionsData, IdssOption } from '../../utils/parse-idss-options';
 
 /**
  * Per-action presets for the multi-select button. The LLM picks `data.action`
  * from the question's intent, so the label, icon, and the follow-up turn we send
  * all match what the user asked — instead of always being a comparison.
+ *
+ * The follow-up turn is split into `prefix`/`suffix` rather than a template
+ * function so the same strings both BUILD the prompt and RECOGNISE it later when
+ * scanning the thread (see findResolution). One source of truth — a reworded
+ * prompt can't silently stop matching.
  */
-const ACTION_PRESETS: Record<
+export const ACTION_PRESETS: Record<
   IdssAction,
-  { label: string; icon: string; prompt: (labels: string) => string }
+  { label: string; icon: string; resolvedLabel: string; prefix: string; suffix: string }
 > = {
   compare: {
     label: 'Compare selected',
     icon: 'balance',
-    prompt: (labels) => `Compare these options: ${labels} — which is better?`,
+    resolvedLabel: 'Compared',
+    prefix: 'Compare these options: ',
+    suffix: ' — which is better?',
   },
   prioritize: {
     label: 'Prioritize selected',
     icon: 'low_priority',
-    prompt: (labels) =>
-      `Prioritize these options: ${labels}. Rank them from highest to lowest priority and justify each.`,
+    resolvedLabel: 'Prioritized',
+    prefix: 'Prioritize these options: ',
+    suffix: '. Rank them from highest to lowest priority and justify each.',
   },
   rank: {
     label: 'Rank selected',
     icon: 'sort',
-    prompt: (labels) => `Rank these options: ${labels} from best to worst and explain the ordering.`,
+    resolvedLabel: 'Ranked',
+    prefix: 'Rank these options: ',
+    suffix: ' from best to worst and explain the ordering.',
   },
 };
+
+type ActionPreset = (typeof ACTION_PRESETS)[IdssAction];
+
+const buildPrompt = (preset: ActionPreset, labels: string) =>
+  `${preset.prefix}${labels}${preset.suffix}`;
+
+/** The exact turn a single-select row sends — also used to recognise it later. */
+const singleFollowup = (opt: IdssOption) =>
+  opt.followup && opt.followup.trim() ? opt.followup.trim() : `Tell me more about: ${opt.label}`;
+
+/** Minimal shape we need off a thread message; avoids depending on runtime types. */
+type TextLikeMessage = {
+  role?: string;
+  content?: ReadonlyArray<{ type?: string; text?: string }>;
+};
+
+const messageText = (m: TextLikeMessage): string =>
+  (m.content ?? [])
+    .filter((p) => p?.type === 'text')
+    .map((p) => p?.text ?? '')
+    .join('')
+    .trim();
+
+/**
+ * Recover which options were already chosen by looking for the follow-up turn
+ * this picker would have sent.
+ *
+ * The picker's own `resolved` state is component-local, so it dies on any
+ * remount (a new run appending messages, reopening the conversation) and the
+ * card came back fully interactive after it had already been answered. The
+ * transcript is the only durable record, so we read the answer back out of it
+ * instead of trying to remember it.
+ *
+ * Known limitation: two identical pickers in one conversation share the same
+ * follow-up text, so answering the first also marks the second resolved. Ruling
+ * that out needs this card's own message position, which isn't available here —
+ * the app renders messages itself rather than through MessagePrimitive.
+ */
+export function findResolution(
+  data: IdssOptionsData,
+  preset: ActionPreset,
+  messages: readonly TextLikeMessage[]
+): number[] | null {
+  for (const m of messages) {
+    if (m.role !== 'user') continue;
+    const text = messageText(m);
+    if (!text) continue;
+
+    if (data.multiSelect) {
+      if (!text.startsWith(preset.prefix) || !text.endsWith(preset.suffix)) continue;
+      const inner = text.slice(preset.prefix.length, text.length - preset.suffix.length);
+      const idx = inner.split(', ').map((label) => data.options.findIndex((o) => o.label === label));
+      if (idx.length >= 2 && idx.every((i) => i >= 0)) {
+        return [...idx].sort((a, b) => a - b);
+      }
+    } else {
+      const i = data.options.findIndex((o) => singleFollowup(o) === text);
+      if (i >= 0) return [i];
+    }
+  }
+  return null;
+}
 
 /** Send a user turn and start a run — same primitive as Ask More. */
 function useSendFollowup() {
@@ -61,13 +133,31 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [active, setActive] = useState(0);
-  const [dismissed, setDismissed] = useState(false);
-  /** Once resolved, the picker locks: single-select stores the picked index; */
-  /** multi-select stores the sorted indices that were submitted. */
-  const [resolved, setResolved] = useState<number[] | null>(null);
+  /**
+   * Local echo of the pick so the card locks on click, before the follow-up turn
+   * has landed in the thread. Once it lands, `derived` covers it — and unlike
+   * this, `derived` survives remounts and reloads.
+   */
+  const [justResolved, setJustResolved] = useState<number[] | null>(null);
 
   const preset = ACTION_PRESETS[data.action] ?? ACTION_PRESETS.compare;
+
+  const thread = useThread();
+  const derived = useMemo(
+    () => findResolution(data, preset, (thread.messages ?? []) as readonly TextLikeMessage[]),
+    [data, preset, thread.messages]
+  );
+
+  const resolved = justResolved ?? derived;
   const locked = resolved !== null;
+
+  /**
+   * Collapsed by default once resolved — the answered picker reads as a one-line
+   * summary, expandable to review what was offered. `null` means "follow the
+   * resolved state"; toggling pins it.
+   */
+  const [collapsedOverride, setCollapsedOverride] = useState<boolean | null>(null);
+  const collapsed = collapsedOverride ?? locked;
 
   const toggle = (i: number) => {
     setSelected((prev) => {
@@ -80,17 +170,16 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
 
   const pickSingle = (i: number) => {
     if (locked) return;
-    const opt = data.options[i];
-    setResolved([i]);
-    send(opt.followup && opt.followup.trim() ? opt.followup : `Tell me more about: ${opt.label}`);
+    setJustResolved([i]);
+    send(singleFollowup(data.options[i]));
   };
 
   const submitMulti = () => {
     if (locked) return;
     const idx = [...selected].sort((a, b) => a - b);
     if (idx.length < 2) return;
-    setResolved(idx);
-    send(preset.prompt(idx.map((i) => data.options[i].label).join(', ')));
+    setJustResolved(idx);
+    send(buildPrompt(preset, idx.map((i) => data.options[i].label).join(', ')));
   };
 
   const choose = (i: number) => (data.multiSelect ? toggle(i) : pickSingle(i));
@@ -118,6 +207,12 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
 
   const resolvedSet = resolved ? new Set(resolved) : null;
 
+  const summary = resolved
+    ? data.multiSelect
+      ? `${preset.resolvedLabel}: ${resolved.map((i) => data.options[i].label).join(', ')}`
+      : `You chose: ${data.options[resolved[0]].label}`
+    : null;
+
   return (
     <Box
       style={{
@@ -128,47 +223,70 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
         overflow: 'hidden',
       }}
     >
-      {/* Header: prompt + dismiss */}
+      {/* Header: the question while open; the chosen answer once resolved. */}
       <Flex
         align="center"
         justify="between"
         gap="2"
         style={{
           padding: 'var(--space-3) var(--space-3) var(--space-3) var(--space-4)',
-          borderBottom: '1px solid var(--slate-5)',
+          borderBottom: collapsed ? 'none' : '1px solid var(--slate-5)',
         }}
       >
-        <Text size="2" weight="bold" as="div" style={{ color: 'var(--slate-12)', minWidth: 0 }}>
-          {data.prompt || (data.multiSelect ? 'Select options' : 'Pick a direction to explore')}
-        </Text>
-        {!locked && (
-          <Box
-            role="button"
-            tabIndex={0}
-            aria-label="Dismiss options"
-            onClick={() => setDismissed((d) => !d)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setDismissed((d) => !d);
-              }
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: '2px',
-              borderRadius: 'var(--radius-2)',
-              color: 'var(--slate-9)',
-              flexShrink: 0,
-            }}
-          >
-            <MaterialIcon name={dismissed ? 'expand_more' : 'close'} size={16} color="var(--slate-9)" />
-          </Box>
+        {locked ? (
+          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+            <MaterialIcon name="check_circle" size={16} color="var(--accent-9)" />
+            <Text
+              size="2"
+              as="div"
+              title={summary ?? undefined}
+              style={{
+                color: 'var(--slate-11)',
+                minWidth: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {summary}
+            </Text>
+          </Flex>
+        ) : (
+          <Text size="2" weight="bold" as="div" style={{ color: 'var(--slate-12)', minWidth: 0 }}>
+            {data.prompt || (data.multiSelect ? 'Select options' : 'Pick a direction to explore')}
+          </Text>
         )}
+        <Box
+          role="button"
+          tabIndex={0}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Show options' : locked ? 'Hide options' : 'Dismiss options'}
+          onClick={() => setCollapsedOverride(!collapsed)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setCollapsedOverride(!collapsed);
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            padding: '2px',
+            borderRadius: 'var(--radius-2)',
+            color: 'var(--slate-9)',
+            flexShrink: 0,
+          }}
+        >
+          <MaterialIcon
+            name={collapsed ? 'expand_more' : locked ? 'expand_less' : 'close'}
+            size={16}
+            color="var(--slate-9)"
+          />
+        </Box>
       </Flex>
 
-      {!dismissed && (
+      {!collapsed && (
         <div
           ref={listRef}
           role="listbox"
@@ -271,8 +389,9 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
         </div>
       )}
 
-      {/* Footer: action button (multi) / resolved note / keyboard hint */}
-      {!dismissed && (
+      {/* Footer: only while unanswered — once resolved the header carries the
+          summary, so a second copy of it here would just be noise. */}
+      {!collapsed && !locked && (
         <Flex
           align="center"
           gap="3"
@@ -282,15 +401,7 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
             borderTop: '1px solid var(--slate-5)',
           }}
         >
-          {locked ? (
-            <Text size="1" style={{ color: 'var(--slate-10)' }}>
-              {data.multiSelect
-                ? `${preset.label.replace(' selected', '')}: ${resolved!
-                    .map((i) => data.options[i].label)
-                    .join(', ')}`
-                : `You chose: ${data.options[resolved![0]].label}`}
-            </Text>
-          ) : data.multiSelect ? (
+          {data.multiSelect ? (
             <>
               <button
                 type="button"
