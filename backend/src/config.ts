@@ -58,6 +58,11 @@ const envSchema = z.object({
   // configured; the sync path validates presence at use and errors clearly.
   DRIVE_FOLDER_ID: z.string().min(1).optional(),
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+  // Google OAuth callback for Drive-source sign-in. Must exactly match a redirect
+  // URI registered on the OAuth client in Google Cloud Console.
+  OAUTH_REDIRECT_URL: z.string().url().default("https://api-dev.ariorafa.site/oauth2/google/callback"),
+  // Where the callback sends the browser back to after connecting.
+  OAUTH_SUCCESS_URL: z.string().url().default("https://dev.ariorafa.site/workspace/settings/"),
   QDRANT_COLLECTION_LIBRARY: z.string().min(1).default("project_rag_library"),
   // Shared token authenticating the internal Drive-library backfill endpoints
   // (n8n → backend). Endpoints return 503 until this is set.
