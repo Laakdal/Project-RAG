@@ -8,20 +8,19 @@ export type DriveFile = {
   webUrl: string;
 };
 
-// Build a Drive client for a specific service account (one per Drive source),
-// so lookup can span multiple Google accounts.
-function driveClient(serviceAccountJson: string) {
-  if (!serviceAccountJson) throw new Error("service account JSON required");
-  const credentials = JSON.parse(serviceAccountJson);
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-  });
+export type DriveCreds = { clientId: string; clientSecret: string; refreshToken: string };
+
+// Build a Drive client for a specific OAuth-connected account (one per Drive
+// source). The library auto-refreshes access tokens from the refresh token.
+function driveClient(creds: DriveCreds) {
+  if (!creds.refreshToken) throw new Error("Drive source not connected");
+  const auth = new google.auth.OAuth2(creds.clientId, creds.clientSecret);
+  auth.setCredentials({ refresh_token: creds.refreshToken });
   return google.drive({ version: "v3", auth });
 }
 
-export async function listFolder(serviceAccountJson: string, folderId: string): Promise<DriveFile[]> {
-  const drive = driveClient(serviceAccountJson);
+export async function listFolder(creds: DriveCreds, folderId: string): Promise<DriveFile[]> {
+  const drive = driveClient(creds);
   const out: DriveFile[] = [];
   let pageToken: string | undefined;
   do {
@@ -48,8 +47,8 @@ export async function listFolder(serviceAccountJson: string, folderId: string): 
 // Full-text / name search across the files the service account can see (the
 // shared PalmCo corpus). Used by the on-demand Drive lookup node for documents
 // that are not in the pre-indexed library. `driveQuery` is a Drive `q` string.
-export async function searchFiles(serviceAccountJson: string, driveQuery: string, limit = 5): Promise<DriveFile[]> {
-  const drive = driveClient(serviceAccountJson);
+export async function searchFiles(creds: DriveCreds, driveQuery: string, limit = 5): Promise<DriveFile[]> {
+  const drive = driveClient(creds);
   const res = await drive.files.list({
     q: driveQuery,
     fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
@@ -65,8 +64,8 @@ export async function searchFiles(serviceAccountJson: string, driveQuery: string
   }));
 }
 
-export async function downloadFile(serviceAccountJson: string, file: DriveFile): Promise<{ buffer: Buffer; mimeType: string }> {
-  const drive = driveClient(serviceAccountJson);
+export async function downloadFile(creds: DriveCreds, file: DriveFile): Promise<{ buffer: Buffer; mimeType: string }> {
+  const drive = driveClient(creds);
   if (file.mimeType.startsWith("application/vnd.google-apps")) {
     const res = await drive.files.export(
       { fileId: file.id, mimeType: "application/pdf" },
