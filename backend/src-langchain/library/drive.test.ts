@@ -5,12 +5,12 @@ const get = vi.fn();
 const exportFn = vi.fn();
 vi.mock("googleapis", () => ({
   google: {
-    auth: { GoogleAuth: class { getClient() { return {}; } } },
+    auth: { OAuth2: class { setCredentials() {} } },
     drive: () => ({ files: { list, get, export: exportFn } }),
   },
 }));
 
-const SA = "{}"; // service account JSON (mocked GoogleAuth ignores it)
+const SA = { clientId: "c", clientSecret: "s", refreshToken: "r" }; // OAuth creds (mocked)
 
 describe("drive client", () => {
   beforeEach(() => vi.clearAllMocks());
