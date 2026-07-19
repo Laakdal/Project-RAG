@@ -36,6 +36,7 @@ export async function queryRagStream(
   history: ChatTurn[] = [],
   generateTitle = false,
   onPhase: (phase: QueryPhase) => void = () => {},
+  onToken: (text: string) => void = () => {},
 ): Promise<QueryResult> {
   if (config.RAG_PROVIDER === "langgraph") {
     return (await langgraph()).queryRagStream!(
@@ -44,8 +45,11 @@ export async function queryRagStream(
       history,
       generateTitle,
       onPhase,
+      onToken,
     );
   }
+  // n8n has no in-process token stream; report one generic phase and answer
+  // non-streamed (the client falls back to showing the whole answer at once).
   onPhase({ key: "generate", label: "Menyusun jawaban…" });
   return n8n.queryRag(conversationId, question, history, generateTitle, [], false);
 }
