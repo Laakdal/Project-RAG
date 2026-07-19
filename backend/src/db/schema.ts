@@ -136,3 +136,16 @@ export const modelRoles = pgTable("model_roles", {
 });
 
 export type ModelRole = typeof modelRoles.$inferSelect;
+
+// Google Drive sources for on-demand lookup. Each is a separate Google account:
+// its own service-account key + the folder shared with that service account.
+// Drive lookup searches across every source. Created idempotently at startup.
+export const driveSources = pgTable("drive_sources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  serviceAccountJson: text("service_account_json").notNull(),
+  folderId: text("folder_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type DriveSource = typeof driveSources.$inferSelect;
