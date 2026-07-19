@@ -6,7 +6,9 @@ const geminiRead = vi.fn(async () => "drive doc text");
 vi.mock("../../library/drive.js", () => ({ searchFiles, downloadFile }));
 vi.mock("../../shared/models.js", () => ({ geminiRead }));
 vi.mock("../../../src/settings/drive-sources.js", () => ({
-  listDriveSources: () => [{ id: "s1", name: "Acct A", serviceAccountJson: "{}", folderId: "f1", createdAt: "" }],
+  listDriveSources: () => [
+    { id: "s1", name: "Acct A", clientId: "c", clientSecret: "s", refreshToken: "r", folderId: "f1", createdAt: "" },
+  ],
 }));
 
 describe("driveLookup node", () => {
