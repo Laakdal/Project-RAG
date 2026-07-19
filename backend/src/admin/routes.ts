@@ -21,6 +21,12 @@ import {
   setRole,
   listProviderModels,
 } from "../settings/connections.js";
+import {
+  driveSourcesView,
+  createDriveSource,
+  updateDriveSource,
+  deleteDriveSource,
+} from "../settings/drive-sources.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -129,6 +135,50 @@ router.put("/roles", requireCsrf, async (req: Request, res: Response) => {
   }
   await setRole(parsed.data.role, parsed.data.connectionId);
   res.json(connectionsView());
+});
+
+// --- Google Drive sources (one per Google account) ---
+
+const driveSourceSchema = z.object({
+  name: z.string().min(1),
+  folderId: z.string().min(1),
+  serviceAccountJson: z.string().min(1),
+});
+
+router.get("/drive-sources", async (_req: Request, res: Response) => {
+  res.json({ sources: driveSourcesView() });
+});
+
+router.post("/drive-sources", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = driveSourceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  await createDriveSource(parsed.data);
+  res.json({ sources: driveSourcesView() });
+});
+
+// Update: service-account JSON is optional (blank keeps the stored key).
+const driveSourceUpdateSchema = z.object({
+  name: z.string().min(1),
+  folderId: z.string().min(1),
+  serviceAccountJson: z.string().optional(),
+});
+
+router.put("/drive-sources/:id", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = driveSourceUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  await updateDriveSource(String(req.params.id), parsed.data);
+  res.json({ sources: driveSourcesView() });
+});
+
+router.delete("/drive-sources/:id", requireCsrf, async (req: Request, res: Response) => {
+  await deleteDriveSource(String(req.params.id));
+  res.json({ sources: driveSourcesView() });
 });
 
 // Columns returned for a user row across the admin surface (never the hash).
