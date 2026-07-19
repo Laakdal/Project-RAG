@@ -11,7 +11,7 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, ingestFile } from "./provider.js";
+import { queryRag, queryRagStream, ingestFile } from "./provider.js";
 import { downloadDriveFile } from "./n8n-client.js";
 import type { QueryResult, QuerySource } from "./types.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
@@ -434,6 +434,107 @@ router.post(
     }
 
     res.json({ answer: result.answer, sources: result.sources });
+  },
+);
+
+// Streaming ask: same as POST /messages, but the answer is delivered over an
+// SSE stream so the client can show real pipeline progress ("searching your
+// documents", "reading Drive", "writing the answer") instead of a generic
+// spinner. Phases are emitted as they start; the turn is persisted after the
+// graph finishes and the final answer + sources are sent as a `done` event.
+router.post(
+  "/conversations/:id/messages/stream",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = askSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "A non-empty question is required" });
+      return;
+    }
+    const { question } = parsed.data;
+
+    // Prior turns (oldest→newest), same bounded memory window as the ask route.
+    const priorRows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(eq(messages.conversationId, req.params.id))
+      .orderBy(desc(messages.createdAt))
+      .limit(10);
+    const history = priorRows.reverse();
+    const isFirstMessage = history.length === 0;
+
+    // Open the SSE stream. `X-Accel-Buffering: no` and `no-transform` keep nginx
+    // (and any proxy) from buffering the response, so phases arrive live.
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+
+    let closed = false;
+    res.on("close", () => {
+      closed = true;
+    });
+    const send = (event: string, data: unknown) => {
+      if (closed || res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    let result: QueryResult;
+    try {
+      result = await queryRagStream(
+        req.params.id,
+        question,
+        history,
+        isFirstMessage,
+        (phase) => send("phase", phase),
+      );
+    } catch {
+      send("error", { message: "The assistant is unavailable right now" });
+      res.end();
+      return;
+    }
+
+    // Persist the user message, then the assistant answer with its sources —
+    // only after a successful answer, so a failure leaves no orphaned turn.
+    await db.insert(messages).values({
+      conversationId: req.params.id,
+      role: "user",
+      content: question,
+    });
+    await db.insert(messages).values({
+      conversationId: req.params.id,
+      role: "assistant",
+      content: result.answer,
+      sources: result.sources,
+    });
+
+    // Title a fresh conversation from its first message (same logic as the ask
+    // route), only while the title is still the default.
+    if (isFirstMessage) {
+      const title =
+        result.title?.trim() ||
+        (await summarizeTitle(question, result.answer)) ||
+        titleFromQuestion(question);
+      await db
+        .update(conversations)
+        .set({ title })
+        .where(
+          and(
+            eq(conversations.id, req.params.id),
+            eq(conversations.title, "New chat"),
+          ),
+        );
+    }
+
+    send("done", { answer: result.answer, sources: result.sources });
+    res.end();
   },
 );
 
