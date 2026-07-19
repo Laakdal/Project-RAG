@@ -211,25 +211,27 @@ export default function AdminUsersPage() {
                 <Table.Cell>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
-                      <IconButton variant="ghost" color="gray" disabled={isSelf} style={{ cursor: isSelf ? 'not-allowed' : 'pointer' }}>
+                      <IconButton variant="ghost" color="gray" style={{ cursor: 'pointer' }}>
                         <MaterialIcon name="more_horiz" size={18} color="var(--gray-11)" />
                       </IconButton>
                     </DropdownMenu.Trigger>
+                    {/* Edit account is safe on your own row; the rest could lock
+                        you out (or make no sense for self), so they stay disabled. */}
                     <DropdownMenu.Content>
                       <DropdownMenu.Item onSelect={() => setEditFor(u)}>
                         {'Edit account'}
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onSelect={() => void toggleAdmin(u)}>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => void toggleAdmin(u)}>
                         {u.isAdmin ? 'Revoke admin' : 'Make admin'}
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onSelect={() => setDisableFor(u)}>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => setDisableFor(u)}>
                         {disabled ? 'Enable account' : 'Disable account'}
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onSelect={() => setResetFor(u)}>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => setResetFor(u)}>
                         {'Reset password'}
                       </DropdownMenu.Item>
                       <DropdownMenu.Separator />
-                      <DropdownMenu.Item color="red" onSelect={() => setDeleteFor(u)}>
+                      <DropdownMenu.Item color="red" disabled={isSelf} onSelect={() => setDeleteFor(u)}>
                         {'Delete'}
                       </DropdownMenu.Item>
                     </DropdownMenu.Content>
