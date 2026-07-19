@@ -19,6 +19,7 @@ import {
   updateConnection,
   deleteConnection,
   setRole,
+  listProviderModels,
 } from "../settings/connections.js";
 
 const router = Router();
@@ -67,6 +68,22 @@ const connectionSchema = z.object({
   baseUrl: z.string().min(1),
   apiKey: z.string().min(1),
   model: z.string().min(1),
+});
+
+// List the models a provider offers (for the Model dropdown in the edit form).
+const modelsSchema = z.object({ baseUrl: z.string().min(1), apiKey: z.string().min(1) });
+router.post("/connections/models", requireCsrf, async (req: Request, res: Response) => {
+  const parsed = modelsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
+    return;
+  }
+  try {
+    const models = await listProviderModels(parsed.data.baseUrl, parsed.data.apiKey);
+    res.json({ models });
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : "Failed to fetch models" });
+  }
 });
 
 router.get("/connections", async (_req: Request, res: Response) => {
