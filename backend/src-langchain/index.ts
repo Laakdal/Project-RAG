@@ -12,8 +12,8 @@ export const langgraphProvider: RagProvider = {
     requireLanggraphEnv();
     return runQuery(conversationId, question, history, generateTitle);
   },
-  async queryRagStream(conversationId, question, history, generateTitle, onPhase) {
+  async queryRagStream(conversationId, question, history, generateTitle, onPhase, onToken) {
     requireLanggraphEnv();
-    return runQueryStream(conversationId, question, history, generateTitle, onPhase);
+    return runQueryStream(conversationId, question, history, generateTitle, onPhase, onToken);
   },
 };
