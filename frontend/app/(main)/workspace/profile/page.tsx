@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, Flex, Text, Heading } from '@radix-ui/themes';
+import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { ConfirmationDialog, SettingsSaveBar } from '../components';
 import {
   ChangePasswordDialog,
@@ -38,6 +39,7 @@ export default function ProfilePage() {
     handleAvatarChange,
     handleAvatarDelete,
   } = useProfilePage();
+  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -63,7 +65,7 @@ export default function ProfilePage() {
       />
 
       {/* Page content */}
-      <Box style={{ padding: "64px 100px" }}>
+      <Box style={{ padding: isMobile ? "20px 16px" : "64px 100px" }}>
         {/* ── Page header ── */}
         <Box style={{ marginBottom: 'var(--space-6)' }}>
           <Heading size="5" weight="medium" style={{ color: 'var(--gray-12)' }}>
