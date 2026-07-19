@@ -11,9 +11,10 @@ import { config } from "../config.js";
 // but are not shown in the flat Integrations panel — the LLM keys/models are now
 // managed as API connections instead (see settings/connections.ts).
 export const MANAGED_SETTINGS = [
-  { key: "GOOGLE_SERVICE_ACCOUNT_JSON", label: "Google service account JSON", secret: true, multiline: true, hidden: false },
-  { key: "DRIVE_FOLDER_ID", label: "Drive folder ID", secret: false, multiline: false, hidden: false },
   { key: "LIBRARY_INDEX_TOKEN", label: "Library index token", secret: true, multiline: false, hidden: false },
+  // Managed under Drive Sources now (one service account + folder per account).
+  { key: "GOOGLE_SERVICE_ACCOUNT_JSON", label: "Google service account JSON", secret: true, multiline: true, hidden: true },
+  { key: "DRIVE_FOLDER_ID", label: "Drive folder ID", secret: false, multiline: false, hidden: true },
   { key: "OPENROUTER_API_KEY", label: "OpenRouter API key", secret: true, multiline: false, hidden: true },
   { key: "OPENAI_API_KEY", label: "OpenAI API key", secret: true, multiline: false, hidden: true },
   { key: "ANSWER_MODEL", label: "Answer model", secret: false, multiline: false, hidden: true },
