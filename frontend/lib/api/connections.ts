@@ -58,4 +58,13 @@ export const ConnectionsApi = {
     const { data } = await apiClient.put<ConnectionsData>('/admin/roles', { role, connectionId }, { suppressErrorToast: true });
     return data;
   },
+  /** POST /admin/connections/models — list the models the provider offers. */
+  async models(baseUrl: string, apiKey: string): Promise<string[]> {
+    const { data } = await apiClient.post<{ models: string[] }>(
+      '/admin/connections/models',
+      { baseUrl, apiKey },
+      { suppressErrorToast: true },
+    );
+    return data.models;
+  },
 };
