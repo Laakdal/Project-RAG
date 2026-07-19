@@ -26,7 +26,6 @@ const PERSONAL_ITEMS: NavItem[] = [
 
 const ADMIN_ITEMS: NavItem[] = [
   { icon: 'group', label: 'Users', route: '/workspace/users' },
-  { icon: 'folder', label: 'Library', route: '/workspace/library' },
   { icon: 'hub', label: 'API Connections', route: '/workspace/connections' },
   { icon: 'key', label: 'Integrations', route: '/workspace/settings' },
 ];
