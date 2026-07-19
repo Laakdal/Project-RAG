@@ -86,27 +86,45 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 // Streaming variant of runQuery. Runs the identical graph but observes it with
-// `streamMode: "updates"`, which yields `{ [nodeName]: partialState }` after
-// each node runs. We report the node as a phase and merge its partial state
-// into an accumulator — every channel here is last-write-wins, so replaying the
-// updates in order reconstructs the same final state `invoke` would return.
+// two stream modes at once:
+//   - "updates" yields `{ [nodeName]: partialState }` after each node runs — we
+//     report the node as a phase and merge its partial state into an accumulator
+//     (every channel is last-write-wins, so replaying the updates reconstructs
+//     the same final state `invoke` would return).
+//   - "messages" yields `[messageChunk, metadata]` for every LLM token as it is
+//     produced — we forward only the answer model's tokens (metadata tags them
+//     with the `generate` node) so the client can render the reply as it writes.
 export async function runQueryStream(
   conversationId: string,
   question: string,
   history: ChatTurn[],
   generateTitle: boolean,
   onPhase: (phase: QueryPhase) => void,
+  onToken: (text: string) => void = () => {},
 ): Promise<QueryResult> {
   const acc: Record<string, unknown> = {};
   const stream = await graph.stream(
     { conversationId, question, history, generateTitle },
-    { streamMode: "updates" },
+    { streamMode: ["updates", "messages"] },
   );
-  for await (const update of stream) {
-    for (const [node, partial] of Object.entries(update as Record<string, unknown>)) {
-      const label = PHASE_LABELS[node];
-      if (label) onPhase({ key: node, label });
-      if (partial && typeof partial === "object") Object.assign(acc, partial);
+  for await (const part of stream) {
+    // With an array streamMode each item is a `[mode, data]` tuple; cast through
+    // unknown so this compiles regardless of the exact stream typing.
+    const [mode, data] = part as unknown as [string, unknown];
+    if (mode === "updates") {
+      for (const [node, partial] of Object.entries(data as Record<string, unknown>)) {
+        const label = PHASE_LABELS[node];
+        if (label) onPhase({ key: node, label });
+        if (partial && typeof partial === "object") Object.assign(acc, partial);
+      }
+    } else if (mode === "messages") {
+      const [msg, meta] = data as [{ content?: unknown }, { langgraph_node?: string }];
+      // Only the answer node's tokens are the reply; other LLM calls (rewrite,
+      // intent, grade, title) run in the same graph and must not leak into it.
+      // glm-4.6 reasoning deltas carry empty `content`, so this also drops them.
+      if (meta?.langgraph_node === "generate" && typeof msg?.content === "string" && msg.content) {
+        onToken(msg.content);
+      }
     }
   }
   return {
