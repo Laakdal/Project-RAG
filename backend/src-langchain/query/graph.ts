@@ -7,7 +7,7 @@ import { grade } from "./nodes/grade.js";
 import { generate } from "./nodes/generate.js";
 import { webSearch } from "./nodes/webSearch.js";
 import { title } from "./nodes/title.js";
-import type { ChatTurn, QueryResult, QuerySource } from "../../src/rag/types.js";
+import type { ChatTurn, QueryResult, QuerySource, QueryPhase } from "../../src/rag/types.js";
 
 const State = Annotation.Root({
   conversationId: Annotation<string>(),
@@ -68,5 +68,50 @@ export async function runQuery(
     answer: final.answer ?? "",
     sources: final.sources ?? [],
     title: final.title,
+  };
+}
+
+// Human, display-ready labels for the graph nodes worth surfacing to the user.
+// `titleNode` is intentionally omitted — it runs after the answer is already
+// formed, so there is nothing meaningful to report for it. Indonesian to match
+// the rest of the chat UI.
+const PHASE_LABELS: Record<string, string> = {
+  rewrite: "Memahami pertanyaan…",
+  intentNode: "Menentukan sumber jawaban…",
+  retrieve: "Mencari di dokumen Anda…",
+  grade: "Menilai relevansi dokumen…",
+  driveLookup: "Membaca dari Google Drive…",
+  webSearch: "Menelusuri web…",
+  generate: "Menyusun jawaban…",
+};
+
+// Streaming variant of runQuery. Runs the identical graph but observes it with
+// `streamMode: "updates"`, which yields `{ [nodeName]: partialState }` after
+// each node runs. We report the node as a phase and merge its partial state
+// into an accumulator — every channel here is last-write-wins, so replaying the
+// updates in order reconstructs the same final state `invoke` would return.
+export async function runQueryStream(
+  conversationId: string,
+  question: string,
+  history: ChatTurn[],
+  generateTitle: boolean,
+  onPhase: (phase: QueryPhase) => void,
+): Promise<QueryResult> {
+  const acc: Record<string, unknown> = {};
+  const stream = await graph.stream(
+    { conversationId, question, history, generateTitle },
+    { streamMode: "updates" },
+  );
+  for await (const update of stream) {
+    for (const [node, partial] of Object.entries(update as Record<string, unknown>)) {
+      const label = PHASE_LABELS[node];
+      if (label) onPhase({ key: node, label });
+      if (partial && typeof partial === "object") Object.assign(acc, partial);
+    }
+  }
+  return {
+    answer: (acc.answer as string) ?? "",
+    sources: (acc.sources as QuerySource[]) ?? [],
+    title: acc.title as string | undefined,
   };
 }
