@@ -288,6 +288,40 @@ describe("message route", () => {
     });
   });
 
+  it("streams pipeline phases then a done event, and persists both turns", async () => {
+    dbMock.setResult([{ id: "c1" }]); // ownership + history + inserts
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/stream")
+      .send({ question: "What is the answer?" });
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+
+    // At least one phase is reported, and the final answer + sources arrive as a
+    // `done` event (the n8n provider has no in-process graph, so it reports a
+    // single generic "generate" phase before answering).
+    expect(res.text).toContain("event: phase");
+    expect(res.text).toContain('"key":"generate"');
+    expect(res.text).toContain("event: done");
+    expect(res.text).toContain('"answer":"42"');
+    expect(res.text).toContain("the answer is 42");
+
+    // Both turns were persisted in order, only after the answer succeeded.
+    const valuesSpy = dbMock.db.values as ReturnType<typeof vi.fn>;
+    expect(valuesSpy.mock.calls[0][0]).toEqual({
+      conversationId: "c1",
+      role: "user",
+      content: "What is the answer?",
+    });
+    expect(valuesSpy.mock.calls[1][0]).toEqual({
+      conversationId: "c1",
+      role: "assistant",
+      content: "42",
+      sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
+    });
+  });
+
   it("titles the first message via heuristic when n8n returns no title", async () => {
     dbMock.setResult([{ id: "c1" }]); // ownership + inserts + update
     // The first turn has no prior history. The shared mock returns one row for
