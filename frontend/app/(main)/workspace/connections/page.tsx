@@ -31,6 +31,8 @@ export default function ConnectionsPage() {
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
   const [form, setForm] = useState<ConnectionInput>(EMPTY);
   const [busy, setBusy] = useState(false);
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   useEffect(() => {
     if (initialized && isAdmin === false) router.replace('/chat/');
@@ -59,14 +61,38 @@ export default function ConnectionsPage() {
     return map;
   }, [data]);
 
+  // Fetch the models the provider offers, to populate the Model dropdown.
+  const loadModels = useCallback(
+    async (baseUrl: string, apiKey: string) => {
+      if (!baseUrl || !apiKey) {
+        addToast({ variant: 'warning', title: 'Enter the base URL and API key first' });
+        return;
+      }
+      setModelsLoading(true);
+      try {
+        const models = await ConnectionsApi.models(baseUrl, apiKey);
+        setModelOptions(models);
+        if (models.length === 0) addToast({ variant: 'warning', title: 'No models returned by this API' });
+      } catch (err) {
+        addToast({ variant: 'error', title: 'Failed to fetch models', description: errorMessage(err, '') });
+      } finally {
+        setModelsLoading(false);
+      }
+    },
+    [addToast],
+  );
+
   const openNew = () => {
     const base = data?.platforms.find((p) => p.key === 'openrouter')?.baseUrl ?? '';
     setForm({ ...EMPTY, baseUrl: base });
+    setModelOptions([]);
     setEditingId('new');
   };
   const openEdit = (c: ApiConnection) => {
     setForm({ name: c.name, platform: c.platform, baseUrl: c.baseUrl, apiKey: c.apiKey, model: c.model });
+    setModelOptions([]);
     setEditingId(c.id);
+    void loadModels(c.baseUrl, c.apiKey); // pre-populate the dropdown for edits
   };
   const onPlatform = (key: string) => {
     const preset = data?.platforms.find((p) => p.key === key);
@@ -202,13 +228,36 @@ export default function ConnectionsPage() {
             </Box>
             <Box>
               <Text size="1" as="label">API key</Text>
-              <TextField.Root type="password" value={form.apiKey} placeholder="sk-or-v1-..."
-                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))} />
+              {/* type=text (not password) + autocomplete off so the browser's
+                  "save password?" prompt never fires for this admin field. */}
+              <TextField.Root
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore=""
+                value={form.apiKey}
+                placeholder="sk-or-v1-..."
+                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+              />
             </Box>
             <Box>
               <Text size="1" as="label">Model</Text>
-              <TextField.Root value={form.model} placeholder="z-ai/glm-4.6"
-                onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
+              <Flex gap="2" align="center">
+                <Box style={{ flex: 1 }}>
+                  <Select.Root value={form.model || undefined} onValueChange={(v) => setForm((f) => ({ ...f, model: v }))}>
+                    <Select.Trigger placeholder="Load models, then pick one" style={{ width: '100%' }} />
+                    <Select.Content>
+                      {[...new Set([...modelOptions, form.model].filter(Boolean))].map((m) => (
+                        <Select.Item key={m} value={m}>{m}</Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+                <Button variant="soft" onClick={() => void loadModels(form.baseUrl, form.apiKey)} disabled={modelsLoading}>
+                  {modelsLoading ? 'Loading…' : 'Load models'}
+                </Button>
+              </Flex>
             </Box>
             <Flex gap="2" mt="2" justify="end">
               <Button variant="soft" color="gray" onClick={() => setEditingId(null)} disabled={busy}>Cancel</Button>
