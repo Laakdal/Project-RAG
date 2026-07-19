@@ -16,6 +16,15 @@ export type QueryResult = {
   title?: string;
 };
 
+// A single pipeline step reported to the client during a streaming query, so
+// the UI can show real progress ("searching your documents", "reading Drive",
+// "writing the answer") instead of a generic spinner. `key` is the stable graph
+// node id; `label` is the human, display-ready text.
+export type QueryPhase = {
+  key: string;
+  label: string;
+};
+
 export type IngestResult = {
   status: string;
   chunkCount: number;
@@ -29,6 +38,18 @@ export interface RagProvider {
     question: string,
     history: ChatTurn[],
     generateTitle: boolean,
+  ): Promise<QueryResult>;
+
+  // Optional streaming variant: runs the same query but reports each pipeline
+  // step through `onPhase` as it starts, then resolves with the final answer.
+  // Only the in-process (langgraph) provider implements this; the n8n provider
+  // has no in-process graph to observe, so callers fall back to `queryRag`.
+  queryRagStream?(
+    conversationId: string,
+    question: string,
+    history: ChatTurn[],
+    generateTitle: boolean,
+    onPhase: (phase: QueryPhase) => void,
   ): Promise<QueryResult>;
 
   ingestFile(
