@@ -39,12 +39,14 @@ export async function driveLookup(state: {
 
   const docs: QuerySource[] = [];
   for (const src of sources) {
+    if (!src.refreshToken) continue; // not signed in yet
+    const creds = { clientId: src.clientId, clientSecret: src.clientSecret, refreshToken: src.refreshToken };
     // Best-effort per source: one bad account never blocks the others.
     try {
-      const files = await searchFiles(src.serviceAccountJson, q, 3);
+      const files = await searchFiles(creds, q, 3);
       if (!files.length) continue;
       const top = files[0];
-      const { buffer, mimeType } = await downloadFile(src.serviceAccountJson, top);
+      const { buffer, mimeType } = await downloadFile(creds, top);
       const text = await geminiRead(buffer, mimeType);
       if (text) docs.push({ filename: top.name, chunkIndex: 0, text, webUrl: top.webUrl });
     } catch {
