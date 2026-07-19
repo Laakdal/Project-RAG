@@ -251,6 +251,23 @@ export function buildExternalStoreConfig(
         store.addPendingConversation(targetSlotId);
       }
 
+      // Token accumulator for the live-writing answer. Tokens arrive faster than
+      // React should paint, so coalesce them into a store write at most ~30 fps.
+      // Declared out here so the finally can cancel any pending flush.
+      let streamed = '';
+      let lastFlush = 0;
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const flushStreamed = () => {
+        lastFlush = Date.now();
+        useChatStore.getState().updateSlot(targetSlotId, { streamingContent: streamed });
+      };
+      const cancelFlush = () => {
+        if (flushTimer !== null) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+      };
+
       try {
         // Ensure the conversation id (create if missing). Shared, race-free
         // helper so a concurrent upload + send don't create two conversations.
@@ -292,6 +309,19 @@ export function buildExternalStoreConfig(
                     },
                   });
                 },
+                onToken: (text) => {
+                  streamed += text;
+                  const now = Date.now();
+                  if (now - lastFlush >= 33) {
+                    cancelFlush();
+                    flushStreamed();
+                  } else if (flushTimer === null) {
+                    flushTimer = setTimeout(() => {
+                      flushTimer = null;
+                      flushStreamed();
+                    }, 33 - (now - lastFlush));
+                  }
+                },
               },
             );
             break;
@@ -316,6 +346,9 @@ export function buildExternalStoreConfig(
             await new Promise((r) => setTimeout(r, READING_RETRY_DELAY_MS));
           }
         }
+        // Stop any pending token flush — the authoritative final answer (below)
+        // replaces the streamed content, and streamingContent is cleared next.
+        cancelFlush();
         const { answer, sources } = result;
 
         const latest = useChatStore.getState().slots[targetSlotId];
@@ -359,6 +392,8 @@ export function buildExternalStoreConfig(
           resolvedStore.moveConversationToTop(convId);
         }
       } catch (err) {
+        // Stop any pending token flush on every failure path.
+        cancelFlush();
         // User pressed stop: the SSE fetch was aborted. cancelStreamForSlot has
         // already cleared the streaming state, so don't render an error bubble.
         const aborted =
