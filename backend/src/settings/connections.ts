@@ -21,11 +21,23 @@ export const ROLES: { role: Role; label: string; note?: string }[] = [
 // Platform presets (label + default base URL). All OpenAI-compatible.
 export const PLATFORMS: { key: string; label: string; baseUrl: string }[] = [
   { key: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1" },
-  { key: "openai", label: "GPT (OpenAI)", baseUrl: "https://api.openai.com/v1" },
-  { key: "9router", label: "9router", baseUrl: "http://9router:20128/v1" },
+  { key: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1" },
   { key: "deepseek", label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1" },
   { key: "custom", label: "Custom (OpenAI-compatible)", baseUrl: "" },
 ];
+
+// List the models a provider offers via its OpenAI-compatible /models endpoint,
+// so the admin UI can present a dropdown for the selected connection.
+export async function listProviderModels(baseUrl: string, apiKey: string): Promise<string[]> {
+  const url = `${baseUrl.replace(/\/+$/, "")}/models`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+  if (!res.ok) throw new Error(`models request failed: ${res.status}`);
+  const body = (await res.json()) as { data?: { id?: unknown }[] };
+  const ids = (body.data ?? [])
+    .map((m) => m.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  return [...new Set(ids)].sort();
+}
 
 const ROLE_KEYS = new Set<string>(ROLES.map((r) => r.role));
 export function isRole(r: string): r is Role {
