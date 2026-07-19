@@ -1344,50 +1344,54 @@ export function ChatInput({
 
       {/* Bottom controls */}
       <Flex align="center" justify="between">
-        {/* Left side — agent-strategy switcher (agent chats only); the assistant
-            chat has no mode switcher. Dimmed during regenerate to avoid churn. */}
-        <Box style={isRegenerateMode && !isAgentChat ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-          {isAgentChat && (
-            <AgentStrategyModeSwitcher
-              activeStrategy={settings.agentStrategy}
-              modeColors={agentStrategyToolbarColors}
-              isPanelOpen={isMobile ? isMobileModesOpen : isAgentStrategyPanelOpen}
-              showFullUI={showFullUI}
-              onClick={() => {
-                if (isMobile) {
-                  setIsMobileModesOpen(true);
-                  return;
-                }
-                setIsAgentStrategyPanelOpen((prev) => !prev);
-                setIsCollectionsPanelOpen(false);
-                setIsAgentResourcesPanelOpen(false);
-                setIsModelPanelOpen(false);
-                setShowUploadArea(false);
-              }}
-            />
+        {/* Left side — attach control, then the agent-strategy switcher (agent
+            chats only); the assistant chat has no mode switcher. */}
+        <Flex align="center" gap="2">
+          {/* Attach files. Sits on the left of the composer; in the compact
+              toolbar it moves into the overflow popover instead. */}
+          {!isCompactToolbar && !isSearchMode && settings.queryMode !== 'web-search' && (
+            <Tooltip content={"Attach files"} side="top">
+              <IconButton
+                variant={showUploadArea ? 'soft' : 'ghost'}
+                color="gray"
+                size="2"
+                disabled={isRegenerateMode}
+                onClick={openFilePicker}
+                style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
+              >
+                <MaterialIcon name="add" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
+              </IconButton>
+            </Tooltip>
           )}
-        </Box>
+
+          <Box style={isRegenerateMode && !isAgentChat ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
+            {isAgentChat && (
+              <AgentStrategyModeSwitcher
+                activeStrategy={settings.agentStrategy}
+                modeColors={agentStrategyToolbarColors}
+                isPanelOpen={isMobile ? isMobileModesOpen : isAgentStrategyPanelOpen}
+                showFullUI={showFullUI}
+                onClick={() => {
+                  if (isMobile) {
+                    setIsMobileModesOpen(true);
+                    return;
+                  }
+                  setIsAgentStrategyPanelOpen((prev) => !prev);
+                  setIsCollectionsPanelOpen(false);
+                  setIsAgentResourcesPanelOpen(false);
+                  setIsModelPanelOpen(false);
+                  setShowUploadArea(false);
+                }}
+              />
+            )}
+          </Box>
+        </Flex>
 
         {/* Right side - Controls */}
         <Flex align="center" gap="2">
           {isMobile ? (
-            /* Mobile: attach file only. */
-            <Flex align="center" gap="1">
-              {!isSearchMode && settings.queryMode !== 'web-search' && (
-                <Tooltip content={"Attach files"} side="top">
-                  <IconButton
-                    variant={showUploadArea ? 'soft' : 'ghost'}
-                    color="gray"
-                    size="2"
-                    disabled={isRegenerateMode}
-                    onClick={openFilePicker}
-                    style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
-                  >
-                    <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Flex>
+            /* Mobile: no right-side secondary controls — attach lives on the left. */
+            null
           ) : isCompactToolbar ? (
             /* Compact desktop: overflow popover with all secondary controls */
             <Popover.Root open={isCompactMenuOpen} onOpenChange={setIsCompactMenuOpen}>
@@ -1443,7 +1447,7 @@ export function ChatInput({
                         backgroundColor: showUploadArea ? 'var(--olive-3)' : 'transparent',
                       }}
                     >
-                      <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
+                      <MaterialIcon name="add" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
                       <Text size="2" style={{ color: isRegenerateMode ? 'var(--slate-5)' : 'var(--slate-12)' }}>
                         {"Attach files"}
                       </Text>
@@ -1464,24 +1468,6 @@ export function ChatInput({
                 />
               ) : null}
 
-              {/* Action buttons group */}
-              <Flex align="center" gap="1">
-                {/* Attach file button */}
-                {!isSearchMode && settings.queryMode !== 'web-search' && (
-                  <Tooltip content={"Attach files"} side="top">
-                    <IconButton
-                      variant={showUploadArea ? 'soft' : 'ghost'}
-                      color="gray"
-                      size="2"
-                      disabled={isRegenerateMode}
-                      onClick={openFilePicker}
-                      style={{ margin: 0, cursor: isRegenerateMode ? 'default' : 'pointer', '--accent-a3': modeColors.bg } as React.CSSProperties}
-                    >
-                      <MaterialIcon name="attach_file" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Flex>
             </>
           )}
 
