@@ -77,6 +77,11 @@ export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChu
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
     temperature: 0,
+    // Stream the underlying request so LangGraph's "messages" stream mode can
+    // surface answer tokens as they arrive (the graph's token-by-token path).
+    // `.invoke` still returns the fully aggregated message, so the non-streaming
+    // runQuery path is unaffected.
+    streaming: true,
   });
 }
 
