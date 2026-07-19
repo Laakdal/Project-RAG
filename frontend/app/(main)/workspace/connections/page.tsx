@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge, Box, Button, Card, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
 import { SettingsSection, SettingsRow } from '../components';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
@@ -172,10 +172,13 @@ export default function ConnectionsPage() {
           ))}
         </SettingsSection>
 
-        {/* Create / edit form */}
-        {editingId !== null ? (
-          <SettingsSection title={editingId === 'new' ? 'New connection' : 'Edit connection'}>
-            <Flex direction="column" gap="3">
+      </Flex>
+
+      {/* Create / edit form (modal) */}
+      <Dialog.Root open={editingId !== null} onOpenChange={(open) => { if (!open) setEditingId(null); }}>
+        <Dialog.Content maxWidth="480px">
+          <Dialog.Title>{editingId === 'new' ? 'New connection' : 'Edit connection'}</Dialog.Title>
+          <Flex direction="column" gap="3" mt="2">
             <Box>
               <Text size="1" as="label">Name</Text>
               <TextField.Root value={form.name} placeholder="e.g. OpenRouter API GLM 4.6"
@@ -207,14 +210,13 @@ export default function ConnectionsPage() {
               <TextField.Root value={form.model} placeholder="z-ai/glm-4.6"
                 onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
             </Box>
-            <Flex gap="2">
-              <Button onClick={() => void save()} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button>
+            <Flex gap="2" mt="2" justify="end">
               <Button variant="soft" color="gray" onClick={() => setEditingId(null)} disabled={busy}>Cancel</Button>
+              <Button onClick={() => void save()} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button>
             </Flex>
           </Flex>
-          </SettingsSection>
-        ) : null}
-      </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 }
