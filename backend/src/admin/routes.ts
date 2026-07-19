@@ -26,7 +26,10 @@ import {
   createDriveSource,
   updateDriveSource,
   deleteDriveSource,
+  getDriveSource,
 } from "../settings/drive-sources.js";
+import { buildAuthUrl, signState } from "../oauth/google.js";
+import { config } from "../config.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -141,12 +144,13 @@ router.put("/roles", requireCsrf, async (req: Request, res: Response) => {
 
 const driveSourceSchema = z.object({
   name: z.string().min(1),
-  folderId: z.string().min(1),
-  serviceAccountJson: z.string().min(1),
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+  folderId: z.string().optional(),
 });
 
 router.get("/drive-sources", async (_req: Request, res: Response) => {
-  res.json({ sources: driveSourcesView() });
+  res.json({ sources: driveSourcesView(), redirectUrl: config.OAUTH_REDIRECT_URL });
 });
 
 router.post("/drive-sources", requireCsrf, async (req: Request, res: Response) => {
@@ -159,11 +163,12 @@ router.post("/drive-sources", requireCsrf, async (req: Request, res: Response) =
   res.json({ sources: driveSourcesView() });
 });
 
-// Update: service-account JSON is optional (blank keeps the stored key).
+// Update: client secret is optional (blank keeps the stored secret).
 const driveSourceUpdateSchema = z.object({
   name: z.string().min(1),
-  folderId: z.string().min(1),
-  serviceAccountJson: z.string().optional(),
+  clientId: z.string().min(1),
+  folderId: z.string().optional(),
+  clientSecret: z.string().optional(),
 });
 
 router.put("/drive-sources/:id", requireCsrf, async (req: Request, res: Response) => {
@@ -179,6 +184,16 @@ router.put("/drive-sources/:id", requireCsrf, async (req: Request, res: Response
 router.delete("/drive-sources/:id", requireCsrf, async (req: Request, res: Response) => {
   await deleteDriveSource(String(req.params.id));
   res.json({ sources: driveSourcesView() });
+});
+
+// Build the "Sign in with Google" URL for a source (front end redirects to it).
+router.get("/drive-sources/:id/authorize", async (req: Request, res: Response) => {
+  const source = getDriveSource(String(req.params.id));
+  if (!source || !source.clientId || !source.clientSecret) {
+    res.status(400).json({ error: "Save the source with a Client ID and Secret first" });
+    return;
+  }
+  res.json({ url: buildAuthUrl(source.clientId, source.clientSecret, signState(source.id)) });
 });
 
 // Columns returned for a user row across the admin surface (never the hash).
