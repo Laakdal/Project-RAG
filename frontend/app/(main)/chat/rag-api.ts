@@ -172,7 +172,12 @@ export interface AskPhase {
 export async function askQuestionStreaming(
   conversationId: string,
   question: string,
-  handlers: { onPhase?: (phase: AskPhase) => void; signal?: AbortSignal },
+  handlers: {
+    onPhase?: (phase: AskPhase) => void;
+    /** Called with each answer-token delta as the model writes the reply. */
+    onToken?: (text: string) => void;
+    signal?: AbortSignal;
+  },
   useLibrary = false,
 ): Promise<{ answer: string; sources: Source[] }> {
   const url = `${API_BASE_URL}/chat/conversations/${conversationId}/messages/stream`;
@@ -227,6 +232,9 @@ export async function askQuestionStreaming(
     }
     if (event === 'phase') {
       handlers.onPhase?.(data as AskPhase);
+    } else if (event === 'token') {
+      const text = (data as { text?: string }).text;
+      if (text) handlers.onToken?.(text);
     } else if (event === 'done') {
       result = data as { answer: string; sources: Source[] };
     } else if (event === 'error') {
