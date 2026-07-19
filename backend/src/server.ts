@@ -16,6 +16,7 @@ import { chatRouter } from "./rag/chat-routes.js";
 import { adminRouter } from "./admin/routes.js";
 import { libraryRouter } from "./library/routes.js";
 import { libraryBackfillRouter } from "./library/backfill-routes.js";
+import { oauthRouter } from "./oauth/routes.js";
 import { CSRF_HEADER_NAME } from "./auth/csrf.js";
 import { initSettings } from "./settings/service.js";
 import { initConnections } from "./settings/connections.js";
@@ -74,6 +75,8 @@ app.get("/health", async (_req: Request, res: Response) => {
 
 app.use("/auth", authRoutes);
 app.use("/chat", chatRouter);
+// Public Google OAuth callback (state-authenticated, no session).
+app.use("/oauth2", oauthRouter);
 app.use("/admin", adminRouter);
 // Token-authed backfill endpoints must be matched before the session-guarded
 // library router so n8n can reach them without an admin session.
