@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge, Box, Button, Flex, Heading, Text, TextArea, TextField } from '@radix-ui/themes';
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, Text, TextArea, TextField } from '@radix-ui/themes';
 import { SettingsSection } from '../components';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api';
 import { SettingsApi, type ManagedSetting } from '@/lib/api/settings';
+import { DriveSourcesApi, type DriveSource, type DriveSourceInput } from '@/lib/api/drive-sources';
+
+const EMPTY_SOURCE: DriveSourceInput = { name: '', folderId: '', serviceAccountJson: '' };
 
 function errorMessage(err: unknown, fallback: string): string {
   if (isProcessedError(err)) return err.message;
@@ -29,6 +32,11 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<ManagedSetting[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  const [sources, setSources] = useState<DriveSource[]>([]);
+  const [srcEditing, setSrcEditing] = useState<string | 'new' | null>(null);
+  const [srcForm, setSrcForm] = useState<DriveSourceInput>(EMPTY_SOURCE);
+  const [srcBusy, setSrcBusy] = useState(false);
 
   // Non-secret fields are editable in place; secret fields start blank (the
   // value is never sent to the client — typing a new one replaces it).
@@ -54,9 +62,69 @@ export default function SettingsPage() {
     }
   }, [addToast, seedDrafts]);
 
+  const loadSources = useCallback(async () => {
+    try {
+      setSources(await DriveSourcesApi.get());
+    } catch (err) {
+      addToast({ variant: 'error', title: 'Failed to load Drive sources', description: errorMessage(err, '') });
+    }
+  }, [addToast]);
+
   useEffect(() => {
-    if (isAdmin) void refresh();
-  }, [isAdmin, refresh]);
+    if (isAdmin) {
+      void refresh();
+      void loadSources();
+    }
+  }, [isAdmin, refresh, loadSources]);
+
+  const openNewSource = () => {
+    setSrcForm(EMPTY_SOURCE);
+    setSrcEditing('new');
+  };
+  const openEditSource = (s: DriveSource) => {
+    setSrcForm({ name: s.name, folderId: s.folderId, serviceAccountJson: '' });
+    setSrcEditing(s.id);
+  };
+
+  const saveSource = useCallback(async () => {
+    if (!srcForm.name || !srcForm.folderId || (srcEditing === 'new' && !srcForm.serviceAccountJson)) {
+      addToast({
+        variant: 'warning',
+        title: 'Missing fields',
+        description: 'Name, folder ID and (for a new source) the service account JSON are required.',
+      });
+      return;
+    }
+    setSrcBusy(true);
+    try {
+      const next =
+        srcEditing === 'new'
+          ? await DriveSourcesApi.create(srcForm)
+          : await DriveSourcesApi.update(srcEditing as string, srcForm);
+      setSources(next);
+      setSrcEditing(null);
+      addToast({ variant: 'success', title: 'Drive source saved' });
+    } catch (err) {
+      addToast({ variant: 'error', title: 'Save failed', description: errorMessage(err, 'Please try again.') });
+    } finally {
+      setSrcBusy(false);
+    }
+  }, [srcForm, srcEditing, addToast]);
+
+  const removeSource = useCallback(
+    async (s: DriveSource) => {
+      setSrcBusy(true);
+      try {
+        setSources(await DriveSourcesApi.remove(s.id));
+        addToast({ variant: 'success', title: 'Drive source deleted', description: s.name });
+      } catch (err) {
+        addToast({ variant: 'error', title: 'Delete failed', description: errorMessage(err, '') });
+      } finally {
+        setSrcBusy(false);
+      }
+    },
+    [addToast],
+  );
 
   const onSave = useCallback(
     async (setting: ManagedSetting) => {
@@ -139,6 +207,73 @@ export default function SettingsPage() {
           </Box>
         ))}
       </SettingsSection>
+
+      <Box mt="4">
+        <SettingsSection
+          title="Drive Sources"
+          description="Each Google account to search: its service account + the folder shared with it. Drive lookup searches all of them."
+          rightAction={<Button onClick={openNewSource} disabled={srcEditing !== null}>+ Add</Button>}
+        >
+          {sources.length === 0 ? (
+            <Text size="2" style={{ color: 'var(--gray-10)' }}>
+              No Drive sources yet. Add one to enable live Drive lookup.
+            </Text>
+          ) : (
+            sources.map((s) => (
+              <Card key={s.id}>
+                <Flex align="center" justify="between" gap="3">
+                  <Box>
+                    <Text size="2" weight="medium">{s.name}</Text>
+                    <Text size="1" style={{ color: 'var(--gray-10)', display: 'block', fontFamily: 'monospace' }}>
+                      folder: {s.folderId}
+                    </Text>
+                    <Flex mt="1">
+                      <Badge color={s.hasKey ? 'green' : 'orange'} variant="soft">
+                        {s.hasKey ? 'Key set' : 'No key'}
+                      </Badge>
+                    </Flex>
+                  </Box>
+                  <Flex gap="2">
+                    <Button variant="soft" onClick={() => openEditSource(s)} disabled={srcEditing !== null}>Edit</Button>
+                    <Button variant="soft" color="red" onClick={() => void removeSource(s)} disabled={srcBusy}>Delete</Button>
+                  </Flex>
+                </Flex>
+              </Card>
+            ))
+          )}
+        </SettingsSection>
+      </Box>
+
+      <Dialog.Root open={srcEditing !== null} onOpenChange={(open) => { if (!open) setSrcEditing(null); }}>
+        <Dialog.Content maxWidth="520px">
+          <Dialog.Title>{srcEditing === 'new' ? 'New Drive source' : 'Edit Drive source'}</Dialog.Title>
+          <Flex direction="column" gap="3" mt="2">
+            <Box>
+              <Text size="1" as="label">Name</Text>
+              <TextField.Root value={srcForm.name} placeholder="e.g. PalmCo (main account)"
+                onChange={(e) => setSrcForm((f) => ({ ...f, name: e.target.value }))} />
+            </Box>
+            <Box>
+              <Text size="1" as="label">Drive folder ID</Text>
+              <TextField.Root value={srcForm.folderId} placeholder="1RCQF59..."
+                onChange={(e) => setSrcForm((f) => ({ ...f, folderId: e.target.value }))} />
+            </Box>
+            <Box>
+              <Text size="1" as="label">Service account JSON</Text>
+              <TextArea
+                style={{ minHeight: 120, fontFamily: 'monospace' }}
+                placeholder={srcEditing !== 'new' ? '•••• (leave blank to keep the stored key)' : 'Paste the service-account key JSON'}
+                value={srcForm.serviceAccountJson ?? ''}
+                onChange={(e) => setSrcForm((f) => ({ ...f, serviceAccountJson: e.target.value }))}
+              />
+            </Box>
+            <Flex gap="2" mt="2" justify="end">
+              <Button variant="soft" color="gray" onClick={() => setSrcEditing(null)} disabled={srcBusy}>Cancel</Button>
+              <Button onClick={() => void saveSource()} disabled={srcBusy}>{srcBusy ? 'Saving…' : 'Save'}</Button>
+            </Flex>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 }
