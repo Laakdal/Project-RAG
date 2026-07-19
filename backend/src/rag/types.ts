@@ -50,6 +50,7 @@ export interface RagProvider {
     history: ChatTurn[],
     generateTitle: boolean,
     onPhase: (phase: QueryPhase) => void,
+    onToken?: (text: string) => void,
   ): Promise<QueryResult>;
 
   ingestFile(
