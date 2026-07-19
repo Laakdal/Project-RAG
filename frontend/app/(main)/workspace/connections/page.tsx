@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
 import { SettingsSection, SettingsRow } from '../components';
+import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api';
@@ -21,6 +22,25 @@ function errorMessage(err: unknown, fallback: string): string {
 
 const EMPTY: ConnectionInput = { name: '', platform: 'openrouter', baseUrl: '', apiKey: '', model: '' };
 
+// A text input (so the browser never offers to save it as a password) that is
+// visually masked via -webkit-text-security unless revealed by the eye toggle.
+function apiKeyStyle(reveal: boolean): CSSProperties {
+  const s: Record<string, string | number> = {
+    width: '100%',
+    height: 32,
+    padding: '0 36px 0 10px',
+    borderRadius: 'var(--radius-2)',
+    border: '1px solid var(--gray-a7)',
+    background: 'var(--color-surface)',
+    color: 'var(--gray-12)',
+    fontSize: 14,
+    boxSizing: 'border-box',
+    outline: 'none',
+    WebkitTextSecurity: reveal ? 'none' : 'disc',
+  };
+  return s as unknown as CSSProperties;
+}
+
 export default function ConnectionsPage() {
   const router = useRouter();
   const isAdmin = useUserStore(selectIsAdmin);
@@ -33,6 +53,7 @@ export default function ConnectionsPage() {
   const [busy, setBusy] = useState(false);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     if (initialized && isAdmin === false) router.replace('/chat/');
@@ -86,11 +107,13 @@ export default function ConnectionsPage() {
     const base = data?.platforms.find((p) => p.key === 'openrouter')?.baseUrl ?? '';
     setForm({ ...EMPTY, baseUrl: base });
     setModelOptions([]);
+    setShowKey(false);
     setEditingId('new');
   };
   const openEdit = (c: ApiConnection) => {
     setForm({ name: c.name, platform: c.platform, baseUrl: c.baseUrl, apiKey: c.apiKey, model: c.model });
     setModelOptions([]);
+    setShowKey(false);
     setEditingId(c.id);
     void loadModels(c.baseUrl, c.apiKey); // pre-populate the dropdown for edits
   };
@@ -162,7 +185,7 @@ export default function ConnectionsPage() {
                 <Select.Trigger placeholder="Choose a connection" style={{ width: '100%' }} />
                 <Select.Content>
                   {data.connections.map((c) => (
-                    <Select.Item key={c.id} value={c.id}>{c.name} · {c.model}</Select.Item>
+                    <Select.Item key={c.id} value={c.id}>{c.name}</Select.Item>
                   ))}
                 </Select.Content>
               </Select.Root>
@@ -228,18 +251,34 @@ export default function ConnectionsPage() {
             </Box>
             <Box>
               <Text size="1" as="label">API key</Text>
-              {/* type=text (not password) + autocomplete off so the browser's
-                  "save password?" prompt never fires for this admin field. */}
-              <TextField.Root
-                type="text"
-                autoComplete="off"
-                spellCheck={false}
-                data-lpignore="true"
-                data-1p-ignore=""
-                value={form.apiKey}
-                placeholder="sk-or-v1-..."
-                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
-              />
+              {/* A text input (never type=password) so the browser's "save
+                  password?" prompt never fires; masked via -webkit-text-security
+                  and revealed with the eye toggle. */}
+              <Box style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore=""
+                  value={form.apiKey}
+                  placeholder="sk-or-v1-..."
+                  onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                  style={apiKeyStyle(showKey)}
+                />
+                <button
+                  type="button"
+                  aria-label={showKey ? 'Hide API key' : 'Show API key'}
+                  onClick={() => setShowKey((v) => !v)}
+                  style={{
+                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--gray-10)', display: 'flex', padding: 2,
+                  }}
+                >
+                  <MaterialIcon name={showKey ? 'visibility_off' : 'visibility'} size={18} />
+                </button>
+              </Box>
             </Box>
             <Box>
               <Text size="1" as="label">Model</Text>
