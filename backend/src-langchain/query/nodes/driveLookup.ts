@@ -1,6 +1,6 @@
 import { searchFiles, downloadFile } from "../../library/drive.js";
 import { geminiRead } from "../../shared/models.js";
-import { getSetting } from "../../../src/settings/service.js";
+import { listDriveSources } from "../../../src/settings/drive-sources.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 // Light keyword extraction (EN + ID stopwords) — good enough to build a Drive
@@ -22,27 +22,34 @@ function terms(q: string): string[] {
 
 // On-demand Drive lookup: reached when the intent is a document question but the
 // pre-indexed library / per-chat retrieval found nothing relevant. Searches live
-// Drive, reads the top match with Gemini, and hands it to generate as context.
-// Dormant (returns no docs) until GOOGLE_SERVICE_ACCOUNT_JSON is configured.
+// Drive across EVERY configured Drive source (each its own Google account), reads
+// the top match from each with Gemini, and hands them to generate as context.
+// Dormant (returns no docs) until at least one Drive source is configured.
 export async function driveLookup(state: {
   question: string;
   rewritten?: string;
 }): Promise<{ docs: QuerySource[] }> {
-  if (!getSetting("GOOGLE_SERVICE_ACCOUNT_JSON")) return { docs: [] };
-  try {
-    const kw = terms(state.rewritten ?? state.question);
-    if (!kw.length) return { docs: [] };
-    const esc = (s: string) => s.replace(/'/g, "\\'");
-    const clauses = kw.map((w) => `fullText contains '${esc(w)}' or name contains '${esc(w)}'`).join(" or ");
-    const files = await searchFiles(`trashed = false and (${clauses})`, 3);
-    if (!files.length) return { docs: [] };
+  const sources = listDriveSources();
+  if (!sources.length) return { docs: [] };
+  const kw = terms(state.rewritten ?? state.question);
+  if (!kw.length) return { docs: [] };
+  const esc = (s: string) => s.replace(/'/g, "\\'");
+  const clauses = kw.map((w) => `fullText contains '${esc(w)}' or name contains '${esc(w)}'`).join(" or ");
+  const q = `trashed = false and (${clauses})`;
 
-    const top = files[0];
-    const { buffer, mimeType } = await downloadFile(top);
-    const text = await geminiRead(buffer, mimeType);
-    if (!text) return { docs: [] };
-    return { docs: [{ filename: top.name, chunkIndex: 0, text, webUrl: top.webUrl }] };
-  } catch {
-    return { docs: [] };
+  const docs: QuerySource[] = [];
+  for (const src of sources) {
+    // Best-effort per source: one bad account never blocks the others.
+    try {
+      const files = await searchFiles(src.serviceAccountJson, q, 3);
+      if (!files.length) continue;
+      const top = files[0];
+      const { buffer, mimeType } = await downloadFile(src.serviceAccountJson, top);
+      const text = await geminiRead(buffer, mimeType);
+      if (text) docs.push({ filename: top.name, chunkIndex: 0, text, webUrl: top.webUrl });
+    } catch {
+      /* skip this source */
+    }
   }
+  return { docs };
 }
