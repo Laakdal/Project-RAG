@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Text, TextArea, TextField } from '@radix-ui/themes';
 import { SettingsSection } from '../components';
+import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { useUserStore, selectIsAdmin, selectIsProfileInitialized } from '@/lib/store/user-store';
 import { useToastStore } from '@/lib/store/toast-store';
 import { isProcessedError } from '@/lib/api';
@@ -11,6 +12,27 @@ import { SettingsApi, type ManagedSetting } from '@/lib/api/settings';
 import { DriveSourcesApi, type DriveSource, type DriveSourceInput } from '@/lib/api/drive-sources';
 
 const EMPTY_SOURCE: DriveSourceInput = { name: '', clientId: '', clientSecret: '', folderId: '' };
+
+// A text input (never type=password, so no browser save-password prompt) that is
+// masked via -webkit-text-security unless revealed by the eye toggle.
+function secretStyle(reveal: boolean): CSSProperties {
+  const s: Record<string, string | number> = {
+    width: '100%',
+    height: 32,
+    padding: '0 36px 0 10px',
+    borderRadius: 'var(--radius-2)',
+    border: '1px solid var(--gray-a7)',
+    background: 'var(--color-surface)',
+    color: 'var(--gray-12)',
+    fontFamily: 'var(--default-font-family)',
+    fontSize: 'var(--font-size-2)',
+    letterSpacing: 'var(--letter-spacing-2)',
+    boxSizing: 'border-box',
+    outline: 'none',
+    WebkitTextSecurity: reveal ? 'none' : 'disc',
+  };
+  return s as unknown as CSSProperties;
+}
 
 function errorMessage(err: unknown, fallback: string): string {
   if (isProcessedError(err)) return err.message;
@@ -38,6 +60,7 @@ export default function SettingsPage() {
   const [srcEditing, setSrcEditing] = useState<string | 'new' | null>(null);
   const [srcForm, setSrcForm] = useState<DriveSourceInput>(EMPTY_SOURCE);
   const [srcBusy, setSrcBusy] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   // Non-secret fields are editable in place; secret fields start blank (the
   // value is never sent to the client — typing a new one replaces it).
@@ -91,10 +114,12 @@ export default function SettingsPage() {
 
   const openNewSource = () => {
     setSrcForm(EMPTY_SOURCE);
+    setShowSecret(false);
     setSrcEditing('new');
   };
   const openEditSource = (s: DriveSource) => {
-    setSrcForm({ name: s.name, clientId: s.clientId, clientSecret: '', folderId: s.folderId });
+    setSrcForm({ name: s.name, clientId: s.clientId, clientSecret: s.clientSecret, folderId: s.folderId });
+    setShowSecret(false);
     setSrcEditing(s.id);
   };
 
@@ -292,13 +317,28 @@ export default function SettingsPage() {
             </Box>
             <Box>
               <Text size="1" as="label">Client Secret</Text>
-              <TextField.Root
-                type="text"
-                autoComplete="off"
-                value={srcForm.clientSecret ?? ''}
-                placeholder={srcEditing !== 'new' ? '•••• (leave blank to keep the stored secret)' : 'GOCSPX-…'}
-                onChange={(e) => setSrcForm((f) => ({ ...f, clientSecret: e.target.value }))}
-              />
+              <Box style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={srcForm.clientSecret ?? ''}
+                  placeholder="GOCSPX-…"
+                  onChange={(e) => setSrcForm((f) => ({ ...f, clientSecret: e.target.value }))}
+                  style={secretStyle(showSecret)}
+                />
+                <button
+                  type="button"
+                  aria-label={showSecret ? 'Hide secret' : 'Show secret'}
+                  onClick={() => setShowSecret((v) => !v)}
+                  style={{
+                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--gray-10)', display: 'flex', padding: 2,
+                  }}
+                >
+                  <MaterialIcon name={showSecret ? 'visibility_off' : 'visibility'} size={18} />
+                </button>
+              </Box>
             </Box>
             <Box>
               <Text size="1" as="label">Drive folder ID (optional)</Text>
