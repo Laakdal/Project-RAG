@@ -15,8 +15,17 @@ function forRole(
   fallback: { model: string | undefined; apiKey: string | undefined; baseURL: string },
 ): { model: string | undefined; apiKey: string | undefined; baseURL: string } {
   const c = resolveRole(role);
-  if (!c) return fallback;
-  return { model: c.model, apiKey: c.apiKey, baseURL: c.baseUrl || fallback.baseURL };
+  if (!c) return { ...fallback, baseURL: trimSlash(fallback.baseURL) };
+  return { model: c.model, apiKey: c.apiKey, baseURL: trimSlash(c.baseUrl || fallback.baseURL) };
+}
+
+// Providers list their endpoint with a trailing slash as often as not (Gemini's
+// OpenAI-compatible base is "…/v1beta/openai/"), and callers that build a URL by
+// concatenation would produce "…/openai//chat/completions" — which Google
+// answers with a 404. The SDK normalises this internally, so only the raw-fetch
+// callers were affected; normalising here fixes them all at once.
+function trimSlash(url: string): string {
+  return url.replace(/\/+$/, "");
 }
 
 // Reasoning models reject any temperature other than their default of 1 —
