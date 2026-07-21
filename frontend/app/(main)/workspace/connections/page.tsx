@@ -127,6 +127,25 @@ export default function ConnectionsPage() {
     setEditingId(c.id);
     void loadModels(c.baseUrl, c.apiKey); // pre-populate the dropdown for edits
   };
+  // Clone, then open the copy straight in the edit dialog — the reason to
+  // duplicate is almost always "same account and key, different model", so the
+  // model is the only field left to change. Declared alongside openEdit (rather
+  // than memoised) so it can call it without a stale closure.
+  const duplicate = async (c: ApiConnection) => {
+    setBusy(true);
+    try {
+      const next = await ConnectionsApi.duplicate(c.id);
+      setData(next);
+      const created = next.connections.find((x) => x.id === next.createdId);
+      addToast({ variant: 'success', title: 'Connection duplicated', description: created?.name });
+      if (created) openEdit(created);
+    } catch (err) {
+      addToast({ variant: 'error', title: 'Duplicate failed', description: errorMessage(err, '') });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onPlatform = (key: string) => {
     const preset = data?.platforms.find((p) => p.key === key);
     setForm((f) => ({ ...f, platform: key, baseUrl: preset && preset.baseUrl ? preset.baseUrl : f.baseUrl }));
@@ -225,6 +244,7 @@ export default function ConnectionsPage() {
                 </Box>
                 <Flex gap="2">
                   <Button variant="soft" onClick={() => openEdit(c)} disabled={editingId !== null}>Edit</Button>
+                  <Button variant="soft" onClick={() => void duplicate(c)} disabled={editingId !== null || busy}>Duplicate</Button>
                   <Button variant="soft" color="red" onClick={() => void remove(c)} disabled={busy}>Delete</Button>
                 </Flex>
               </Flex>
