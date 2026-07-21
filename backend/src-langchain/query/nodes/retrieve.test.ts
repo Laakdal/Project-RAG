@@ -62,14 +62,15 @@ describe("retrieve node", () => {
     expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf"]);
   });
 
-  it("uses the library when the per-chat upload is not relevant", async () => {
-    chatSearch.mockResolvedValueOnce([[chatDoc, 0.2]]); // below the floor
+  it("keeps a low-scoring per-chat upload alongside a strong library hit", async () => {
+    // A deictic question ("gambar apa ini") scores ~0.25 against its own
+    // attachment, so gating uploads by score hid the very file the user just
+    // attached. Uploads are conversation-scoped and deliberate — always context.
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.2]]);
     librarySearch.mockResolvedValueOnce([[libDoc, 0.6]]);
     const { retrieve } = await import("./retrieve.js");
     const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
-    expect(out.docs).toEqual([
-      { filename: "lib.pdf", chunkIndex: 0, text: "library text", webUrl: "http://drive/x" },
-    ]);
+    expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf", "lib.pdf"]);
   });
 
   it("keeps library docs that are more relevant than the upload", async () => {
@@ -80,8 +81,16 @@ describe("retrieve node", () => {
     expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf", "lib.pdf"]);
   });
 
-  it("drops matches below the floor from both sources", async () => {
+  it("applies the floor to library noise but not to per-chat uploads", async () => {
     chatSearch.mockResolvedValueOnce([[chatDoc, 0.3]]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.3]]); // library noise -> dropped
+    const { retrieve } = await import("./retrieve.js");
+    const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf"]);
+  });
+
+  it("returns nothing when the conversation has no upload and the library is noise", async () => {
+    chatSearch.mockResolvedValueOnce([]);
     librarySearch.mockResolvedValueOnce([[libDoc, 0.3]]);
     const { retrieve } = await import("./retrieve.js");
     const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
