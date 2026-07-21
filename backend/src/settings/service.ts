@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { settings as settingsTable } from "../db/schema.js";
 import { config } from "../config.js";
+import { encryptSecret, decryptSecret } from "./crypto.js";
 
 // Keys manageable from the admin Settings panel. A DB value overrides the env
 // default of the same name. `secret` values are never returned to the client
@@ -28,6 +29,12 @@ export type ManagedKey = (typeof MANAGED_SETTINGS)[number]["key"];
 
 const MANAGED_KEYS = new Set<string>(MANAGED_SETTINGS.map((m) => m.key));
 
+// Only the secret-flagged keys are encrypted at rest; model names and folder ids
+// are not credentials and stay readable in the DB.
+const SECRET_KEYS = new Set<string>(
+  MANAGED_SETTINGS.filter((m) => m.secret).map((m) => m.key),
+);
+
 // In-memory cache of the DB overrides, loaded at startup and updated on write so
 // hot-path callers (the model factories) can read synchronously.
 const overrides = new Map<string, string>();
@@ -42,7 +49,11 @@ export async function initSettings(): Promise<void> {
   )`);
   const rows = await db.select().from(settingsTable);
   overrides.clear();
-  for (const r of rows) if (r.value) overrides.set(r.key, r.value);
+  // The cache holds usable plaintext; only the DB column is encrypted.
+  for (const r of rows) {
+    if (!r.value) continue;
+    overrides.set(r.key, SECRET_KEYS.has(r.key) ? decryptSecret(r.value) : r.value);
+  }
 }
 
 // Effective value for a managed key: DB override, else the env/config default.
@@ -54,10 +65,14 @@ export function getSetting(key: ManagedKey): string | undefined {
 }
 
 export async function setSetting(key: ManagedKey, value: string): Promise<void> {
+  const stored = SECRET_KEYS.has(key) ? encryptSecret(value) : value;
   await db
     .insert(settingsTable)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: settingsTable.key, set: { value, updatedAt: new Date() } });
+    .values({ key, value: stored })
+    .onConflictDoUpdate({
+      target: settingsTable.key,
+      set: { value: stored, updatedAt: new Date() },
+    });
   overrides.set(key, value);
 }
 
