@@ -1,6 +1,7 @@
 import { sql, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { driveSources, type DriveSource } from "../db/schema.js";
+import { encryptSecret, decryptSecret } from "./crypto.js";
 
 // In-memory cache for synchronous access from the Drive lookup node.
 let cache: DriveSource[] = [];
@@ -21,7 +22,15 @@ export async function initDriveSources(): Promise<void> {
 }
 
 async function reload(): Promise<void> {
-  cache = await db.select().from(driveSources).orderBy(driveSources.createdAt);
+  const rows = await db.select().from(driveSources).orderBy(driveSources.createdAt);
+  // The cache holds usable plaintext; only the DB columns are encrypted. The
+  // refresh token grants ongoing access to the connected account, so it matters
+  // at least as much as the client secret.
+  cache = rows.map((r) => ({
+    ...r,
+    clientSecret: decryptSecret(r.clientSecret),
+    refreshToken: r.refreshToken ? decryptSecret(r.refreshToken) : r.refreshToken,
+  }));
 }
 
 // Synchronous list for the Drive lookup node (searches every connected source).
@@ -42,7 +51,7 @@ export async function createDriveSource(data: {
   await db.insert(driveSources).values({
     name: data.name,
     clientId: data.clientId,
-    clientSecret: data.clientSecret,
+    clientSecret: encryptSecret(data.clientSecret),
     folderId: data.folderId || null,
   });
   await reload();
@@ -58,13 +67,16 @@ export async function updateDriveSource(
     clientId: data.clientId,
     folderId: data.folderId || null,
   };
-  if (data.clientSecret) set.clientSecret = data.clientSecret;
+  if (data.clientSecret) set.clientSecret = encryptSecret(data.clientSecret);
   await db.update(driveSources).set(set).where(eq(driveSources.id, id));
   await reload();
 }
 
 export async function setRefreshToken(id: string, refreshToken: string): Promise<void> {
-  await db.update(driveSources).set({ refreshToken }).where(eq(driveSources.id, id));
+  await db
+    .update(driveSources)
+    .set({ refreshToken: encryptSecret(refreshToken) })
+    .where(eq(driveSources.id, id));
   await reload();
 }
 
