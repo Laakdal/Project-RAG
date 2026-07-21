@@ -2,6 +2,7 @@ import { sql, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { apiConnections, modelRoles, type ApiConnection } from "../db/schema.js";
 import { getSetting } from "./service.js";
+import { encryptSecret, decryptSecret } from "./crypto.js";
 
 export type Role = "answer" | "intent" | "utility" | "reader" | "embedding";
 
@@ -62,7 +63,9 @@ export async function initConnections(): Promise<void> {
 }
 
 async function reload(): Promise<void> {
-  connCache = await db.select().from(apiConnections).orderBy(apiConnections.createdAt);
+  const rows = await db.select().from(apiConnections).orderBy(apiConnections.createdAt);
+  // The cache holds usable plaintext keys; only the DB column is encrypted.
+  connCache = rows.map((r) => ({ ...r, apiKey: decryptSecret(r.apiKey) }));
   roleCache.clear();
   for (const r of await db.select().from(modelRoles)) roleCache.set(r.role as Role, r.connectionId);
 }
@@ -83,7 +86,13 @@ async function seedFromEnv(): Promise<void> {
   for (const s of seed) {
     const [ins] = await db
       .insert(apiConnections)
-      .values({ name: s.name, platform: s.platform, baseUrl: s.baseUrl, apiKey: s.apiKey, model: s.model })
+      .values({
+        name: s.name,
+        platform: s.platform,
+        baseUrl: s.baseUrl,
+        apiKey: encryptSecret(s.apiKey),
+        model: s.model,
+      })
       .returning();
     for (const role of s.roles) {
       await db
@@ -118,7 +127,7 @@ export async function createConnection(data: {
   apiKey: string;
   model: string;
 }): Promise<void> {
-  await db.insert(apiConnections).values(data);
+  await db.insert(apiConnections).values({ ...data, apiKey: encryptSecret(data.apiKey) });
   await reload();
 }
 
@@ -126,7 +135,10 @@ export async function updateConnection(
   id: string,
   data: { name: string; platform: string; baseUrl: string; apiKey: string; model: string },
 ): Promise<void> {
-  await db.update(apiConnections).set(data).where(eq(apiConnections.id, id));
+  await db
+    .update(apiConnections)
+    .set({ ...data, apiKey: encryptSecret(data.apiKey) })
+    .where(eq(apiConnections.id, id));
   await reload();
 }
 
