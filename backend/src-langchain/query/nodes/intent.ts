@@ -1,6 +1,7 @@
 import { makeIntentModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
 import { logNodeError } from "../../shared/log.js";
+import { conversationHasAttachments } from "../../shared/attachments.js";
 import type { ChatTurn, QuerySource } from "../../../src/rag/types.js";
 
 // Ported from the live n8n "Intent Check" node. Routes the query: useDrive =
@@ -16,9 +17,15 @@ Examples (question -> useDrive,webSearch): 'apa itu css' -> false,true; 'apa itu
 
 export async function intent(state: {
   question: string;
+  conversationId?: string;
   history?: ChatTurn[];
   docs?: QuerySource[];
-}): Promise<{ useDrive: boolean; needsWeb: boolean }> {
+}): Promise<{ useDrive: boolean; needsWeb: boolean; hasAttachments: boolean }> {
+  // Runs alongside the classifier rather than after it — a cheap indexed count
+  // that costs nothing next to the LLM round trip it shares a step with.
+  const attachedPromise = state.conversationId
+    ? conversationHasAttachments(state.conversationId)
+    : Promise.resolve(false);
   try {
     const attached = (state.docs ?? [])
       .map((d) => `${d.filename}: ${d.text}`)
@@ -43,11 +50,15 @@ export async function intent(state: {
     const a = text.indexOf("{");
     const b = text.lastIndexOf("}");
     const parsed = a >= 0 && b > a ? JSON.parse(text.slice(a, b + 1)) : {};
-    return { useDrive: parsed.useDrive === true, needsWeb: parsed.webSearch === true };
+    return {
+      useDrive: parsed.useDrive === true,
+      needsWeb: parsed.webSearch === true,
+      hasAttachments: await attachedPromise,
+    };
   } catch (error) {
     // On any failure, prefer the user's own documents — a web search cannot see
     // internal files (matches the n8n "when in doubt, useDrive" guidance).
     logNodeError("intent", error);
-    return { useDrive: true, needsWeb: false };
+    return { useDrive: true, needsWeb: false, hasAttachments: await attachedPromise };
   }
 }
