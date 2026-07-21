@@ -39,6 +39,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-secret-key-change-me}
     command: ["node", "dist/src/db/migrate.js"]
     networks:
       - appnet
@@ -53,6 +54,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-secret-key-change-me}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
@@ -74,6 +76,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-project_rag}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-secret-key-change-me}
       NODE_ENV: production
       PORT: "4000"
       COOKIE_SECURE: "false"
