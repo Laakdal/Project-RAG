@@ -47,7 +47,14 @@ export async function retrieve(state: {
       }),
   ])) as [Scored[], Scored[]];
 
-  const chatKept = chatHits.filter(([, s]) => s >= FLOOR);
+  // Per-chat uploads are NOT score-gated. They are already filtered to this
+  // conversation, and the user attached them deliberately — they are context by
+  // intent, not by similarity. Deictic questions ("gambar apa ini", "jelaskan
+  // ini") share no content words with the document, so they score ~0.25 against
+  // their own attachment and the FLOOR silently dropped them. The floor exists
+  // to keep noise out of the shared library of many documents; it does not
+  // belong on a conversation holding a file the user just uploaded.
+  const chatKept = chatHits;
   const topChat = chatKept.reduce((max, [, s]) => Math.max(max, s), 0);
   // If the uploaded doc clearly answers the question, keep only library docs
   // that are at least as relevant as it; otherwise keep all above the floor.
