@@ -50,7 +50,7 @@ export async function queryRagStream(
   }
   // n8n has no in-process token stream; report one generic phase and answer
   // non-streamed (the client falls back to showing the whole answer at once).
-  onPhase({ key: "generate", label: "Menyusun jawaban…" });
+  onPhase({ key: "generate", label: "Writing the answer…" });
   return n8n.queryRag(conversationId, question, history, generateTitle, [], false);
 }
 
