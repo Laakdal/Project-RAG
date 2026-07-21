@@ -1,5 +1,6 @@
 import { makeChatModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 import type { ChatTurn } from "../../../src/rag/types.js";
 
 export async function rewrite(state: {
@@ -19,7 +20,8 @@ export async function rewrite(state: {
     ]);
     const text = extractText(res.content);
     return { rewritten: text.trim() || state.question };
-  } catch {
+  } catch (error) {
+    logNodeError("rewrite", error);
     return { rewritten: state.question };
   }
 }
