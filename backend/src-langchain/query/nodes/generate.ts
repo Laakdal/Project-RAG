@@ -1,5 +1,6 @@
 import { makeAnswerModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 import type { QuerySource, ChatTurn } from "../../../src/rag/types.js";
 
 export const FALLBACK_ANSWER =
@@ -103,7 +104,11 @@ export async function generate(state: {
     const res = await makeAnswerModel().invoke([{ role: "user", content: prompt }]);
     const answer = extractText(res.content);
     return { answer, sources: docs };
-  } catch {
+  } catch (error) {
+    // Log before falling back. Swallowing this silently made a hard 400 from the
+    // provider ("temperature does not support 0 with this model") look like an
+    // empty answer, with nothing in the container logs to explain it.
+    logNodeError("generate", error);
     return { answer: FALLBACK_ANSWER, sources: [] };
   }
 }
