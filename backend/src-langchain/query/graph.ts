@@ -17,6 +17,7 @@ const State = Annotation.Root({
   rewritten: Annotation<string>(),
   useDrive: Annotation<boolean>(),
   needsWeb: Annotation<boolean>(),
+  hasAttachments: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
   confident: Annotation<boolean>(),
   relevant: Annotation<boolean>(),
@@ -83,8 +84,14 @@ const graph = new StateGraph(State)
   // otherwise (creative/build/small talk) -> generate from general knowledge
   // with no retrieval or web search (this is what stops creative asks from
   // web-searching and citing a spurious "Web search" source).
+  //
+  // `hasAttachments` overrides the classifier: questions about an upload ("gambar
+  // apa ini") are classified false/false, which was right in n8n where the file's
+  // text was already inline, but here it would skip the only node that loads it.
+  // Retrieval is conversation-scoped, so if nothing matches, the grade edge below
+  // still falls through to Drive or the web exactly as intent asked.
   .addConditionalEdges("route", (s) =>
-    s.useDrive ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
+    s.useDrive || s.hasAttachments ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
   )
   // A retrieval hit at or above the STRONG score needs no second opinion, so
   // skip the grade LLM call and answer from it directly.
