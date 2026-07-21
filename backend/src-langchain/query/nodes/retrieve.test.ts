@@ -3,8 +3,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const chatSearch = vi.fn();
 const librarySearch = vi.fn();
 vi.mock("../../shared/qdrant.js", () => ({
-  getVectorStore: vi.fn(async () => ({ similaritySearchWithScore: chatSearch })),
-  getLibraryVectorStore: vi.fn(async () => ({ similaritySearchWithScore: librarySearch })),
+  getVectorStore: vi.fn(async () => ({ similaritySearchVectorWithScore: chatSearch })),
+  getLibraryVectorStore: vi.fn(async () => ({ similaritySearchVectorWithScore: librarySearch })),
+}));
+
+// retrieve embeds the query itself now (once, for both searches) instead of
+// letting each store embed for itself.
+const embedQuery = vi.fn(async () => [0.1, 0.2, 0.3]);
+vi.mock("../../shared/models.js", () => ({
+  makeEmbeddings: vi.fn(() => ({ embedQuery })),
 }));
 
 const chatDoc = { pageContent: "chunk text", metadata: { filename: "doc.pdf", chunkIndex: 2 } };
@@ -18,9 +25,33 @@ describe("retrieve node", () => {
     librarySearch.mockResolvedValueOnce([]);
     const { retrieve } = await import("./retrieve.js");
     await retrieve({ rewritten: "q", conversationId: "c1" } as never);
-    const [, k, filter] = chatSearch.mock.calls[0] as unknown as [string, number, unknown];
+    const [, k, filter] = chatSearch.mock.calls[0] as unknown as [number[], number, unknown];
     expect(k).toBe(5);
     expect(JSON.stringify(filter)).toContain("c1");
+  });
+
+  it("embeds the query once and reuses the vector for both collections", async () => {
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.6]]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.6]]);
+    const { retrieve } = await import("./retrieve.js");
+    await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(embedQuery).toHaveBeenCalledTimes(1);
+    const [chatVector] = chatSearch.mock.calls[0] as unknown as [number[]];
+    const [libVector] = librarySearch.mock.calls[0] as unknown as [number[]];
+    expect(chatVector).toEqual([0.1, 0.2, 0.3]);
+    expect(libVector).toEqual(chatVector);
+  });
+
+  it("reports confidence only when a hit reaches the STRONG score", async () => {
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.55]]);
+    librarySearch.mockResolvedValueOnce([]);
+    const { retrieve } = await import("./retrieve.js");
+    expect((await retrieve({ rewritten: "q", conversationId: "c1" } as never)).confident).toBe(true);
+
+    vi.clearAllMocks();
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.4]]); // above floor, below strong
+    librarySearch.mockResolvedValueOnce([]);
+    expect((await retrieve({ rewritten: "q", conversationId: "c1" } as never)).confident).toBe(false);
   });
 
   it("keeps a strongly-relevant upload and drops off-topic library noise", async () => {
