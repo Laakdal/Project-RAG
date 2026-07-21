@@ -102,6 +102,30 @@ describe("makeChatModel", () => {
   });
 });
 
+describe("base URL normalisation", () => {
+  it("does not double the slash when the connection's base URL ends with one", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "text" } }] }),
+    });
+    vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: () => ({
+        model: "gemini-3.1-pro-preview",
+        apiKey: "k",
+        // Exactly how Google publishes its OpenAI-compatible endpoint.
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      }),
+    }));
+    const { geminiRead } = await import("./models.js");
+    await geminiRead(Buffer.from("x"), "image/png");
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(String(url)).toBe("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
+    expect(String(url)).not.toContain("//chat");
+  });
+});
+
 describe("geminiRead", () => {
   it("posts the file to OpenRouter and returns the extracted text", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
