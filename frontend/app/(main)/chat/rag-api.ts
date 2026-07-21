@@ -47,6 +47,30 @@ export async function listAttachments(
   return data;
 }
 
+/**
+ * Page of an attached PDF that a cited chunk came from, so a `[n]` badge can
+ * open the preview there. Resolves to null when the chunk can't be placed (an
+ * OCR'd page, a non-PDF, or an older backend without the route) — the caller
+ * then just opens at page 1.
+ */
+export async function locateAttachmentPage(
+  conversationId: string,
+  attachmentId: string,
+  snippet: string,
+): Promise<number | null> {
+  try {
+    const { data } = await apiClient.get<{ page: number | null }>(
+      `/chat/conversations/${conversationId}/attachments/${attachmentId}/locate`,
+      // Only the opening of the chunk is needed to place it, and a short query
+      // keeps the URL well inside any proxy limit.
+      { params: { q: snippet.slice(0, 400) }, suppressErrorToast: true },
+    );
+    return typeof data?.page === 'number' ? data.page : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createConversation(): Promise<Conversation> {
   const { data } = await apiClient.post<Conversation>('/chat/conversations', {});
   return data;
