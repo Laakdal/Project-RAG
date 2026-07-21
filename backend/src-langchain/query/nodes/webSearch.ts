@@ -1,5 +1,6 @@
 import { makeChatModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 // Web-search fallback. Reached when retrieval found nothing relevant. Rather
@@ -23,7 +24,8 @@ export async function webSearch(state: {
     // (the prompt covers empty context), which is what creative asks like
     // "buatkan flowchart" need.
     return { docs: text ? [{ filename: "Web search", chunkIndex: 0, text }] : [] };
-  } catch {
+  } catch (error) {
+    logNodeError("webSearch", error);
     return { docs: [] };
   }
 }
