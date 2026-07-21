@@ -1,5 +1,6 @@
 import { makeChatModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 
 export async function title(state: {
   question: string;
@@ -13,7 +14,8 @@ export async function title(state: {
     ]);
     const text = extractText(res.content).trim();
     return text ? { title: text } : {};
-  } catch {
+  } catch (error) {
+    logNodeError("title", error);
     return {};
   }
 }
