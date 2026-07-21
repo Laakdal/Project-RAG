@@ -288,3 +288,15 @@ describe("DELETE /admin/users/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /admin/connections/:id/duplicate", () => {
+  // The connection cache is only populated by initConnections(), which this
+  // harness never runs, so the happy path is exercised against the live stack
+  // rather than here. What is worth pinning is the guard: an unknown id must
+  // 404 instead of silently creating an empty connection.
+  it("returns 404 when the source connection does not exist", async () => {
+    const res = await request(app()).post("/admin/connections/does-not-exist/duplicate");
+    expect(res.status).toBe(404);
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
+  });
+});
