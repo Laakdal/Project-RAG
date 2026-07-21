@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "create-admin": "tsx scripts/create-admin.ts",
+    "encrypt-credentials": "tsx scripts/encrypt-credentials.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
