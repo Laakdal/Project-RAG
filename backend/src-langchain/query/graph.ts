@@ -27,19 +27,20 @@ const State = Annotation.Root({
 
 // Human, display-ready labels for the graph nodes worth surfacing to the user.
 // `titleNode` is intentionally omitted — it runs after the answer is already
-// formed, so there is nothing meaningful to report for it. Indonesian to match
-// the rest of the chat UI.
+// formed, so there is nothing meaningful to report for it. These are UI chrome
+// and stay in English regardless of the question's language; the ANSWER itself
+// still follows the user's language (see the writing rules in generate.ts).
 const PHASE_LABELS: Record<string, string> = {
   // rewrite and intentNode run concurrently, so both fire at the same instant
   // and the UI would flicker between two labels. They share one label describing
   // what that combined step actually does.
-  rewrite: "Memahami pertanyaan…",
-  intentNode: "Memahami pertanyaan…",
-  retrieve: "Mencari di dokumen Anda…",
-  grade: "Menilai relevansi dokumen…",
-  driveLookup: "Membaca dari Google Drive…",
-  webSearch: "Menelusuri web…",
-  generate: "Menyusun jawaban…",
+  rewrite: "Understanding your question…",
+  intentNode: "Understanding your question…",
+  retrieve: "Searching your documents…",
+  grade: "Checking how relevant they are…",
+  driveLookup: "Reading from Google Drive…",
+  webSearch: "Searching the web…",
+  generate: "Writing the answer…",
 };
 
 // Wrap a node so it announces its phase the moment it STARTS, via the per-run
