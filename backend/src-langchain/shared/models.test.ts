@@ -51,6 +51,9 @@ describe("makeChatModel", () => {
       model: "gpt-test",
       apiKey: "test-key",
       configuration: { baseURL: "https://api.openai.com/v1" },
+      // Rewrite and grade must be deterministic — they run upstream of the
+      // answer model, so sampling here changes the retrieved context.
+      temperature: 0,
       useResponsesApi: false,
     });
     expect(typeof result.invoke).toBe("function");
@@ -91,8 +94,15 @@ describe("geminiRead", () => {
     expect(text).toBe("extracted text");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(String(url)).toContain("openrouter");
-    const body = JSON.parse(init.body as string) as { model: string };
+    const body = JSON.parse(init.body as string) as {
+      model: string;
+      temperature: number;
+      max_tokens: number;
+    };
     expect(body.model).toBe(MOCK_CONFIG.config.GEMINI_READ_MODEL);
+    // Verbatim transcription, and a cap high enough not to truncate long docs.
+    expect(body.temperature).toBe(0);
+    expect(body.max_tokens).toBe(16384);
     const headers = init.headers as Record<string, string>;
     expect(headers["Authorization"]).toMatch(/^Bearer .+/);
   });
