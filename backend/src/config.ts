@@ -10,6 +10,11 @@ const booleanFromString = z
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
+  // Encrypts the credentials held in the database (API connection keys, Drive
+  // client secrets and refresh tokens, secret settings). Deliberately separate
+  // from SESSION_SECRET: rotating session signing is routine, and it must not
+  // render stored credentials undecryptable. Generate with `openssl rand -hex 32`.
+  SECRET_KEY: z.string().min(16, "SECRET_KEY must be at least 16 characters"),
   PORT: z.coerce.number().int().positive().default(4000),
   NODE_ENV: z
     .enum(["development", "production", "test"])
