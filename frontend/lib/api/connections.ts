@@ -50,6 +50,15 @@ export const ConnectionsApi = {
     const { data } = await apiClient.put<ConnectionsData>(`/admin/connections/${id}`, input, { suppressErrorToast: true });
     return data;
   },
+  /** Clone a connection server-side; `createdId` is the new row, ready to edit. */
+  async duplicate(id: string): Promise<ConnectionsData & { createdId: string }> {
+    const { data } = await apiClient.post<ConnectionsData & { createdId: string }>(
+      `/admin/connections/${id}/duplicate`,
+      {},
+      { suppressErrorToast: true },
+    );
+    return data;
+  },
   async remove(id: string): Promise<ConnectionsData> {
     const { data } = await apiClient.delete<ConnectionsData>(`/admin/connections/${id}`, { suppressErrorToast: true });
     return data;
