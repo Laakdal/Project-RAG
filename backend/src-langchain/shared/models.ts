@@ -55,6 +55,12 @@ export function makeChatModel(
     model: c.model,
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
+    // Rewrite and grade are near-binary judgements, and they run UPSTREAM of the
+    // answer model: a chunk graded relevant on one run and dropped on the next
+    // changes the context, so the answer changes even though the generator is
+    // pinned. Leaving this unset inherits the provider default (~1.0) and makes
+    // runs unreproducible.
+    temperature: 0,
     // Web search uses OpenAI's Responses API; only enable it for that path so a
     // non-OpenAI utility connection still works for plain rewrite/grade calls.
     useResponsesApi: Boolean(opts.webSearch),
@@ -117,6 +123,12 @@ export async function geminiRead(file: Buffer, mimeType: string): Promise<string
     },
     body: JSON.stringify({
       model: c.model,
+      // Transcription, not generation: temperature 0 keeps the model copying the
+      // page verbatim instead of paraphrasing it. Without an explicit max_tokens
+      // the provider's default output cap truncates long documents mid-way.
+      // Both match what the n8n Read PDF / Read Image nodes send.
+      temperature: 0,
+      max_tokens: 16384,
       messages: [
         {
           role: "user",
