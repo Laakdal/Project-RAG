@@ -1,5 +1,6 @@
 import { makeChatModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 export async function grade(state: {
@@ -19,7 +20,8 @@ export async function grade(state: {
     ]);
     const text = extractText(res.content).toLowerCase();
     return { relevant: text.includes("yes") };
-  } catch {
+  } catch (error) {
+    logNodeError("grade", error);
     return { relevant: false };
   }
 }
