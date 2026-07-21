@@ -1,6 +1,7 @@
 import { searchFiles, downloadFile } from "../../library/drive.js";
 import { geminiRead } from "../../shared/models.js";
 import { listDriveSources } from "../../../src/settings/drive-sources.js";
+import { logNodeError } from "../../shared/log.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 // Light keyword extraction (EN + ID stopwords) — good enough to build a Drive
@@ -49,8 +50,9 @@ export async function driveLookup(state: {
       const { buffer, mimeType } = await downloadFile(creds, top);
       const text = await geminiRead(buffer, mimeType);
       if (text) docs.push({ filename: top.name, chunkIndex: 0, text, webUrl: top.webUrl });
-    } catch {
-      /* skip this source */
+    } catch (error) {
+      // Skip this source; one bad account never blocks the others.
+      logNodeError(`driveLookup (${src.name})`, error);
     }
   }
   return { docs };
