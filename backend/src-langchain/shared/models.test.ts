@@ -31,6 +31,28 @@ const SETTING_VALUES: Record<string, string> = {
 };
 const MOCK_SETTINGS = { getSetting: (k: string) => SETTING_VALUES[k] };
 
+describe("supportsTemperature", () => {
+  it("allows temperature on ordinary chat models", async () => {
+    const { supportsTemperature } = await import("./models.js");
+    for (const m of [
+      "gpt-4o-mini",
+      "z-ai/glm-4.6",
+      "models/gemini-2.5-pro",
+      "anthropic/claude-sonnet-4-6",
+      undefined,
+    ]) {
+      expect(supportsTemperature(m)).toBe(true);
+    }
+  });
+
+  it("rejects temperature on reasoning models, which 400 on any non-default value", async () => {
+    const { supportsTemperature } = await import("./models.js");
+    for (const m of ["gpt-5", "gpt-5-mini", "openai/gpt-5", "o1", "o3-mini", "o4-mini"]) {
+      expect(supportsTemperature(m)).toBe(false);
+    }
+  });
+});
+
 describe("makeChatModel", () => {
   it("constructs ChatOpenAI with the config values and returns an invokable", async () => {
     const bindToolsMock = vi.fn().mockReturnValue({ invoke: vi.fn() });
