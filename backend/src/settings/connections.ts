@@ -142,6 +142,30 @@ export async function updateConnection(
   await reload();
 }
 
+// Copy an existing connection, so adding a second model on the same account
+// does not mean re-entering (and re-pasting) its API key. Server-side rather
+// than a client-side prefill so the key never leaves the backend — the list
+// endpoint is expected to stop returning it.
+// Returns the new row's id, or undefined when `id` matches nothing.
+export async function duplicateConnection(id: string): Promise<string | undefined> {
+  const existing = connCache.find((c) => c.id === id);
+  if (!existing) return undefined;
+  // connCache holds the DECRYPTED key, so it has to be re-encrypted on the way
+  // back into the column.
+  const [inserted] = await db
+    .insert(apiConnections)
+    .values({
+      name: `${existing.name} (copy)`,
+      platform: existing.platform,
+      baseUrl: existing.baseUrl,
+      apiKey: encryptSecret(existing.apiKey),
+      model: existing.model,
+    })
+    .returning();
+  await reload();
+  return inserted?.id;
+}
+
 export async function deleteConnection(id: string): Promise<void> {
   await db.delete(modelRoles).where(eq(modelRoles.connectionId, id));
   await db.delete(apiConnections).where(eq(apiConnections.id, id));
