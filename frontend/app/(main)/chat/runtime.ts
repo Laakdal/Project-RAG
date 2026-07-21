@@ -339,7 +339,7 @@ export function buildExternalStoreConfig(
               currentStatusMessage: {
                 id: 'reading-file',
                 status: 'reading',
-                message: 'Membaca file yang dilampirkan…',
+                message: 'Reading the attached file…',
                 timestamp: '',
               },
             });
