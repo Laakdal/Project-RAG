@@ -1,4 +1,5 @@
 import { getVectorStore, getLibraryVectorStore } from "../../shared/qdrant.js";
+import { logNodeError } from "../../shared/log.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
 type Hit = { pageContent: string; metadata?: Record<string, unknown> };
@@ -37,7 +38,8 @@ export async function retrieve(state: {
   try {
     const library = await getLibraryVectorStore();
     libHits = (await library.similaritySearchWithScore(state.rewritten, 5)) as Scored[];
-  } catch {
+  } catch (error) {
+    logNodeError("retrieve (library)", error);
     libHits = [];
   }
 
