@@ -20,6 +20,8 @@ interface PdfPreviewDialogProps {
   url: string | null;
   /** Original filename, shown in the header. */
   filename: string;
+  /** Page to open on (1-based). Defaults to the first page. */
+  initialPage?: number;
   /** Called when the dialog requests to close. */
   onClose: () => void;
 }
@@ -34,11 +36,16 @@ interface PdfPreviewDialogProps {
  * viewer loads them regardless of the response's `Content-Security-Policy:
  * sandbox`, and are never interpreted as anything scriptable.
  */
-export function PdfPreviewDialog({ url, filename, onClose }: PdfPreviewDialogProps) {
+export function PdfPreviewDialog({
+  url,
+  filename,
+  initialPage = 1,
+  onClose,
+}: PdfPreviewDialogProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState<number | null>(null);
   const { pdfScale, handlePdfZoomIn, handlePdfZoomOut } = usePdfZoom(filename, objectUrl ?? '');
 
@@ -52,7 +59,8 @@ export function PdfPreviewDialog({ url, filename, onClose }: PdfPreviewDialogPro
     let created: string | null = null;
     setObjectUrl(null);
     setFailed(false);
-    setCurrentPage(1);
+    // Re-opening for a different citation lands on that citation's page.
+    setCurrentPage(initialPage);
     setTotalPages(null);
     fetch(url, { credentials: 'same-origin' })
       .then((res) => {
@@ -75,7 +83,14 @@ export function PdfPreviewDialog({ url, filename, onClose }: PdfPreviewDialogPro
       cancelled = true;
       if (created) URL.revokeObjectURL(created);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- opening a new file resets the page; a later initialPage change is handled below
   }, [url]);
+
+  // The citation's page is resolved server-side and can land after the dialog
+  // has already opened, so follow it when it changes.
+  useEffect(() => {
+    setCurrentPage(initialPage);
+  }, [initialPage]);
 
   const name = cleanFilename(filename);
 
