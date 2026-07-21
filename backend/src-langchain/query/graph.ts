@@ -18,6 +18,7 @@ const State = Annotation.Root({
   useDrive: Annotation<boolean>(),
   needsWeb: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
+  confident: Annotation<boolean>(),
   relevant: Annotation<boolean>(),
   answer: Annotation<string>(),
   sources: Annotation<QuerySource[]>(),
@@ -29,8 +30,11 @@ const State = Annotation.Root({
 // formed, so there is nothing meaningful to report for it. Indonesian to match
 // the rest of the chat UI.
 const PHASE_LABELS: Record<string, string> = {
+  // rewrite and intentNode run concurrently, so both fire at the same instant
+  // and the UI would flicker between two labels. They share one label describing
+  // what that combined step actually does.
   rewrite: "Memahami pertanyaan…",
-  intentNode: "Menentukan sumber jawaban…",
+  intentNode: "Memahami pertanyaan…",
   retrieve: "Mencari di dokumen Anda…",
   grade: "Menilai relevansi dokumen…",
   driveLookup: "Membaca dari Google Drive…",
@@ -64,16 +68,26 @@ const graph = new StateGraph(State)
   .addNode("generate", phaseNode("generate", generate))
   .addNode("webSearch", phaseNode("webSearch", webSearch))
   .addNode("titleNode", phaseNode("titleNode", title))
+  // `route` is an empty join node: LangGraph runs a node once ALL its inbound
+  // edges have completed, so this is what makes rewrite and intentNode a
+  // concurrent pair rather than a chain. They are independent — intent reads
+  // question/history/docs and never touches `rewritten` — so running them in
+  // sequence just added a whole LLM round trip to every query.
+  .addNode("route", () => ({}))
   .addEdge(START, "rewrite")
-  .addEdge("rewrite", "intentNode")
+  .addEdge(START, "intentNode")
+  .addEdge("rewrite", "route")
+  .addEdge("intentNode", "route")
   // Route on intent: own documents -> retrieve; public question -> web search;
   // otherwise (creative/build/small talk) -> generate from general knowledge
   // with no retrieval or web search (this is what stops creative asks from
   // web-searching and citing a spurious "Web search" source).
-  .addConditionalEdges("intentNode", (s) =>
+  .addConditionalEdges("route", (s) =>
     s.useDrive ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
   )
-  .addEdge("retrieve", "grade")
+  // A retrieval hit at or above the STRONG score needs no second opinion, so
+  // skip the grade LLM call and answer from it directly.
+  .addConditionalEdges("retrieve", (s) => (s.confident ? "generate" : "grade"))
   // Docs relevant -> answer from them. Not relevant: for a document question,
   // try a live Drive lookup; for a public question, the web; otherwise generate
   // (empty context -> the prompt says plainly it couldn't find it in their files).
