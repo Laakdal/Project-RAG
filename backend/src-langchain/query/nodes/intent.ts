@@ -1,5 +1,6 @@
 import { makeIntentModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
+import { logNodeError } from "../../shared/log.js";
 import type { ChatTurn, QuerySource } from "../../../src/rag/types.js";
 
 // Ported from the live n8n "Intent Check" node. Routes the query: useDrive =
@@ -43,9 +44,10 @@ export async function intent(state: {
     const b = text.lastIndexOf("}");
     const parsed = a >= 0 && b > a ? JSON.parse(text.slice(a, b + 1)) : {};
     return { useDrive: parsed.useDrive === true, needsWeb: parsed.webSearch === true };
-  } catch {
+  } catch (error) {
     // On any failure, prefer the user's own documents — a web search cannot see
     // internal files (matches the n8n "when in doubt, useDrive" guidance).
+    logNodeError("intent", error);
     return { useDrive: true, needsWeb: false };
   }
 }
