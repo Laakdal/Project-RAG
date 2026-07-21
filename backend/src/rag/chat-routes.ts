@@ -16,6 +16,7 @@ import { downloadDriveFile } from "./n8n-client.js";
 import type { QueryResult, QuerySource } from "./types.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
+import { locateChunkPage } from "./pdf-locate.js";
 import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
 
@@ -224,6 +225,60 @@ router.get(
     );
     res.setHeader("Content-Length", String(row.data.length));
     res.send(row.data);
+  },
+);
+
+// Which page of an attached PDF a cited chunk came from, so clicking its [n]
+// badge opens the preview on that page instead of page 1. The chunk text is a
+// verbatim slice of the document's pdftotext output, so we re-extract and search
+// (see pdf-locate.ts). Answers `{ page: null }` — not an error — when the chunk
+// can't be placed (OCR'd page, non-PDF); the client then opens at page 1.
+router.get(
+  "/conversations/:id/attachments/:attachmentId/locate",
+  async (
+    req: Request<{ id: string; attachmentId: string }>,
+    res: Response,
+  ) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const snippet = typeof req.query.q === "string" ? req.query.q : "";
+    if (!snippet.trim()) {
+      res.status(400).json({ error: "q is required" });
+      return;
+    }
+    const rows = await db
+      .select({ data: attachments.data, mimeType: attachments.mimeType })
+      .from(attachments)
+      // Scoped to this conversation, like the file route above.
+      .where(
+        and(
+          eq(attachments.id, req.params.attachmentId),
+          eq(attachments.conversationId, req.params.id),
+          sql`${attachments.status} <> 'failed'`,
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (!row || !row.data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (row.mimeType !== "application/pdf") {
+      res.json({ page: null });
+      return;
+    }
+    try {
+      const page = await locateChunkPage(req.params.attachmentId, row.data, snippet);
+      res.json({ page });
+    } catch (err) {
+      // Locating is a convenience; a poppler failure must not break the preview.
+      console.error("[chat] failed to locate chunk page", err);
+      res.json({ page: null });
+    }
   },
 );
 
