@@ -1,4 +1,5 @@
 import { getVectorStore, getLibraryVectorStore } from "../../shared/qdrant.js";
+import { makeEmbeddings } from "../../shared/models.js";
 import { logNodeError } from "../../shared/log.js";
 import type { QuerySource } from "../../../src/rag/types.js";
 
@@ -26,22 +27,25 @@ function toSource(h: Hit): QuerySource {
 export async function retrieve(state: {
   rewritten: string;
   conversationId: string;
-}): Promise<{ docs: QuerySource[] }> {
-  // Per-chat uploads (scoped to this conversation).
-  const store = await getVectorStore();
+}): Promise<{ docs: QuerySource[]; confident: boolean }> {
+  // Embed the query ONCE and reuse the vector for both collections. The two
+  // stores share an embedding model and the query is identical, so letting each
+  // search embed for itself paid the same ~2s proxied round trip twice.
+  const vector = await makeEmbeddings().embedQuery(state.rewritten);
   const filter = { must: [{ key: "metadata.conversationId", match: { value: state.conversationId } }] };
-  const chatHits = (await store.similaritySearchWithScore(state.rewritten, 5, filter)) as Scored[];
 
-  // Shared document library (PalmCo corpus). Best-effort: the collection may be
-  // empty or absent, so never let a library failure break per-chat retrieval.
-  let libHits: Scored[] = [];
-  try {
-    const library = await getLibraryVectorStore();
-    libHits = (await library.similaritySearchWithScore(state.rewritten, 5)) as Scored[];
-  } catch (error) {
-    logNodeError("retrieve (library)", error);
-    libHits = [];
-  }
+  // Both searches run concurrently — they hit different collections and neither
+  // needs the other's result. The library is best-effort: the collection may be
+  // empty or absent, so its failure must never break per-chat retrieval.
+  const [chatHits, libHits] = (await Promise.all([
+    getVectorStore().then((s) => s.similaritySearchVectorWithScore(vector, 5, filter)),
+    getLibraryVectorStore()
+      .then((s) => s.similaritySearchVectorWithScore(vector, 5))
+      .catch((error: unknown) => {
+        logNodeError("retrieve (library)", error);
+        return [];
+      }),
+  ])) as [Scored[], Scored[]];
 
   const chatKept = chatHits.filter(([, s]) => s >= FLOOR);
   const topChat = chatKept.reduce((max, [, s]) => Math.max(max, s), 0);
@@ -49,5 +53,11 @@ export async function retrieve(state: {
   // that are at least as relevant as it; otherwise keep all above the floor.
   const libKept = libHits.filter(([, s]) => s >= FLOOR && (topChat < STRONG || s >= topChat));
 
-  return { docs: [...chatKept, ...libKept].map(([h]) => toSource(h)) };
+  const kept = [...chatKept, ...libKept];
+  // A hit at or above STRONG is already a confident match, so the graph can skip
+  // the LLM relevance grade and answer straight away — one less round trip on
+  // the common path. Below that, grade still arbitrates.
+  const confident = kept.some(([, s]) => s >= STRONG);
+
+  return { docs: kept.map(([h]) => toSource(h)), confident };
 }
