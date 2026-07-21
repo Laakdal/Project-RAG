@@ -19,6 +19,24 @@ function forRole(
   return { model: c.model, apiKey: c.apiKey, baseURL: c.baseUrl || fallback.baseURL };
 }
 
+// Reasoning models reject any temperature other than their default of 1 —
+// OpenAI returns a hard 400 ("Unsupported value: 'temperature' does not support
+// 0 with this model"), not a warning, so a pinned 0 breaks every call. Detection
+// is by model name because api_connections has no per-model capability flag; a
+// future reasoning model under a different naming scheme will need adding here.
+const REASONING_MODEL = /(?:^|\/)(?:gpt-5|o1|o3|o4)(?:[-.]|$)/;
+
+export function supportsTemperature(model: string | undefined): boolean {
+  if (!model) return true;
+  return !REASONING_MODEL.test(model.toLowerCase());
+}
+
+// Spread into a ChatOpenAI constructor: pins the temperature where the model
+// accepts one, and omits the field entirely where it does not.
+function temperatureOption(model: string | undefined, value: number): { temperature?: number } {
+  return supportsTemperature(model) ? { temperature: value } : {};
+}
+
 export function requireLanggraphEnv(): void {
   const missing = [
     !forRole("answer", { model: undefined, apiKey: getSetting("OPENROUTER_API_KEY"), baseURL: "" }).apiKey && "an 'answer' API connection",
@@ -60,7 +78,7 @@ export function makeChatModel(
     // changes the context, so the answer changes even though the generator is
     // pinned. Leaving this unset inherits the provider default (~1.0) and makes
     // runs unreproducible.
-    temperature: 0,
+    ...temperatureOption(c.model, 0),
     // Web search uses OpenAI's Responses API; only enable it for that path so a
     // non-OpenAI utility connection still works for plain rewrite/grade calls.
     useResponsesApi: Boolean(opts.webSearch),
@@ -71,7 +89,8 @@ export function makeChatModel(
 }
 
 // Answer generator (glm-4.6 via OpenRouter by default). Temperature 0 so it
-// reliably follows the strict formatting rules (Mermaid fences, no headings).
+// reliably follows the strict formatting rules (Mermaid fences, no headings) —
+// unless the bound model is a reasoning model, which rejects it outright.
 export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   const c = forRole("answer", {
     model: getSetting("ANSWER_MODEL"),
@@ -82,7 +101,7 @@ export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChu
     model: c.model,
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
-    temperature: 0,
+    ...temperatureOption(c.model, 0),
     // Stream the underlying request so LangGraph's "messages" stream mode can
     // surface answer tokens as they arrive (the graph's token-by-token path).
     // `.invoke` still returns the fully aggregated message, so the non-streaming
@@ -102,7 +121,7 @@ export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChu
     model: c.model,
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
-    temperature: 0,
+    ...temperatureOption(c.model, 0),
   });
 }
 
