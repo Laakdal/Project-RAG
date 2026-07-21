@@ -17,6 +17,7 @@ import {
   roleBindings,
   createConnection,
   updateConnection,
+  duplicateConnection,
   deleteConnection,
   setRole,
   listProviderModels,
@@ -117,6 +118,18 @@ router.put("/connections/:id", requireCsrf, async (req: Request, res: Response) 
   }
   await updateConnection(String(req.params.id), parsed.data);
   res.json(connectionsView());
+});
+
+// Clone a connection (same platform/base URL/key/model, name suffixed "(copy)").
+// `createdId` lets the UI open the copy for editing straight away, which is the
+// point: duplicate, change the model, save.
+router.post("/connections/:id/duplicate", requireCsrf, async (req: Request, res: Response) => {
+  const createdId = await duplicateConnection(String(req.params.id));
+  if (!createdId) {
+    res.status(404).json({ error: "Connection not found" });
+    return;
+  }
+  res.json({ ...connectionsView(), createdId });
 });
 
 router.delete("/connections/:id", requireCsrf, async (req: Request, res: Response) => {
