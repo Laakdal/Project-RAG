@@ -45,9 +45,11 @@ interface SourceGroup {
   isWeb: boolean;
   /** Origin of the source ("This chat" = a file uploaded to this conversation). */
   origin?: string;
-  /** The `[N]` number this source carries, so the footer aligns with the
-   *  inline citation badges in the answer text. */
-  label: string;
+  /** Every `[N]` number pointing at this source, so the footer accounts for all
+   *  the inline citation badges in the answer text. A long document is
+   *  retrieved as several chunks, each cited under its own number, so one file
+   *  can legitimately carry `[1] [2] [3]`. */
+  labels: string[];
 }
 
 /**
@@ -85,25 +87,33 @@ export function MessageSources({ sources }: MessageSourcesProps) {
 
   // The same document usually matches several chunks, which would otherwise
   // repeat the filename once per chunk. Group by name so each source is a
-  // single card.
+  // single card, but keep every chunk's `[N]` on that card — otherwise an
+  // answer citing [1] [2] [3] from one file shows a lone [1] in the footer.
   const groups: SourceGroup[] = [];
   const byName = new Map<string, SourceGroup>();
   sources.forEach((source, idx) => {
     const key = cleanFilename(source.title);
-    if (byName.has(key)) return;
+    // Prefer the source's own `[N]` label so the footer numbers match the
+    // inline citation badges; fall back to position if it's missing.
+    const label = source.citationLabel ?? String(idx + 1);
+    const existing = byName.get(key);
+    if (existing) {
+      if (!existing.labels.includes(label)) existing.labels.push(label);
+      return;
+    }
     const url = safeHttpUrl(source.url);
     const group: SourceGroup = {
       title: source.title,
       url,
       isWeb: isWebSource(source.title, url),
       origin: source.origin,
-      // Prefer the source's own `[N]` label so the footer number matches the
-      // inline citation badge; fall back to position if it's missing.
-      label: source.citationLabel ?? String(idx + 1),
+      labels: [label],
     };
     byName.set(key, group);
     groups.push(group);
   });
+  // Numeric order, so a card reads [1] [2] [3] rather than retrieval order.
+  for (const group of groups) group.labels.sort((a, b) => Number(a) - Number(b));
 
   return (
     <Flex direction="column" gap="2" style={{ marginTop: 'var(--space-4)', width: '100%' }}>
@@ -165,7 +175,12 @@ export function MessageSources({ sources }: MessageSourcesProps) {
               }}
             >
               <Flex gap="2" align="center">
-                <SourceNumberCircle label={group.label} />
+                {/* One badge per `[N]` the answer used for this file. */}
+                <Flex gap="1" align="center" style={{ flexShrink: 0 }}>
+                  {group.labels.map((label) => (
+                    <SourceNumberCircle key={label} label={label} />
+                  ))}
+                </Flex>
                 {/* Type marker: globe for web-search results, file for documents. */}
                 <MaterialIcon
                   name={group.isWeb ? 'public' : 'description'}
