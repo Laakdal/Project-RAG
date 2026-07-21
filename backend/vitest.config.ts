@@ -11,6 +11,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: "postgres://test:test@localhost:5432/test",
       SESSION_SECRET: "test-session-secret",
+      SECRET_KEY: "test-secret-key-at-least-16-chars",
       NODE_ENV: "test",
       GOTENBERG_URL: "http://localhost:3001",
     },
