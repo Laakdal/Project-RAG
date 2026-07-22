@@ -300,12 +300,19 @@ interface ChatState {
   isSearching: boolean;
   searchError: string | null;
 
-  // ── Composer uploads + files panel (global) ──
+  // ── Composer uploads + files panel ──
   /** Mirror of the active composer's in-flight uploads, surfaced in the right files panel. */
   composerUploads: Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>;
+  /** Conversation those uploads belong to. The panel renders them only for THAT
+   *  conversation — an upload posts to the chat it was dropped into, so without
+   *  this a chip that never resolves shows up in every chat's files panel. */
+  composerUploadsConvId: string | null;
   /** Bumped whenever a conversation's persisted attachments change (upload/delete) so the files panel refetches. */
   attachmentsVersion: number;
-  setComposerUploads: (list: Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>) => void;
+  setComposerUploads: (
+    convId: string | null,
+    list: Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>,
+  ) => void;
   bumpAttachmentsVersion: () => void;
 
   // ── Slot actions ──
@@ -549,6 +556,7 @@ const initialState = {
   searchError: null as string | null,
 
   composerUploads: [] as Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>,
+  composerUploadsConvId: null as string | null,
   attachmentsVersion: 0,
 };
 
@@ -979,7 +987,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   bumpConversationsVersion: () =>
     set((state) => ({ conversationsVersion: state.conversationsVersion + 1 })),
 
-  setComposerUploads: (list) => set({ composerUploads: list }),
+  setComposerUploads: (convId, list) =>
+    set({ composerUploads: list, composerUploadsConvId: convId }),
   bumpAttachmentsVersion: () =>
     set((state) => ({ attachmentsVersion: state.attachmentsVersion + 1 })),
 
