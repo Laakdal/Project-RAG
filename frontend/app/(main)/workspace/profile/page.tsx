@@ -52,7 +52,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <Box style={{ height: "100%", overflowY: "auto", position: "relative", isolation: "isolate" }}>
+    // `no-scrollbar`: inside the settings dialog this pane is the scroller, and
+    // the platform's chunky scrollbar sitting against the dialog's rounded edge
+    // looks broken.
+    <Box
+      className="no-scrollbar"
+      style={{ height: "100%", overflowY: "auto", position: "relative", isolation: "isolate" }}
+    >
       {/* Hidden avatar file input */}
       <input
         ref={avatarInputRef}
@@ -62,11 +68,12 @@ export default function ProfilePage() {
         onChange={handleAvatarChange}
       />
 
-      {/* Page content */}
-      <Box style={{ padding: "64px 100px" }}>
+      {/* Page content — a readable column rather than the full dialog width, so
+          a label and its control never end up far apart on a wide screen. */}
+      <Box style={{ padding: "40px 40px 0", maxWidth: 720 }}>
         {/* ── Page header ── */}
-        <Box style={{ marginBottom: 'var(--space-6)' }}>
-          <Heading size="5" weight="medium" style={{ color: 'var(--gray-12)' }}>
+        <Box style={{ marginBottom: 'var(--space-5)' }}>
+          <Heading size="5" weight="bold" style={{ color: 'var(--gray-12)' }}>
             {"Profile"}
           </Heading>
           <Text size="2" style={{ color: 'var(--gray-10)', marginTop: 'var(--space-1)', display: 'block' }}>
@@ -75,7 +82,7 @@ export default function ProfilePage() {
         </Box>
 
         {/* ── General section ── */}
-        <Box style={{ marginBottom: 'var(--space-5)' }}>
+        <Box style={{ marginBottom: 'var(--space-6)' }}>
           <GeneralSection
             avatarUrl={avatarUrl}
             avatarInitial={avatarInitial}
