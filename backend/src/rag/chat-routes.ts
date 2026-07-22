@@ -154,12 +154,15 @@ router.get(
         createdAt: attachments.createdAt,
       })
       .from(attachments)
-      // Hide failed ingests, including any legacy "failed" rows already in the
-      // table from before the upload handler stopped persisting them.
+      // Failed reads ARE returned, so the UI can say the file couldn't be read
+      // instead of leaving its chip spinning forever on a file that is never
+      // coming. Legacy "failed" rows from before the upload handler stored bytes
+      // stay hidden — they have no file behind them and nothing to offer the
+      // user, so surfacing them now would just be noise in old conversations.
       .where(
         and(
           eq(attachments.conversationId, req.params.id),
-          sql`${attachments.status} <> 'failed'`,
+          sql`(${attachments.status} <> 'failed' or ${attachments.data} is not null)`,
         ),
       )
       .orderBy(attachments.createdAt);
