@@ -21,6 +21,10 @@ type FileRow =
   // populates extractedText). The upload POST returns instantly with
   // status:"processing"; this row stays until the read flips it to ready/failed.
   | { key: string; name: string; kind: 'processing' }
+  // The server-side read finished without usable text (an unreadable scan, or
+  // the reader itself being unavailable). Shown rather than hidden: silently
+  // dropping the file leaves the user waiting on something already dead.
+  | { key: string; name: string; kind: 'failed'; attachmentId: string }
   | {
       key: string;
       name: string;
@@ -51,6 +55,7 @@ export function ConversationFilesPanel({
   onCollapse,
 }: ConversationFilesPanelProps) {
   const composerUploads = useChatStore((s) => s.composerUploads);
+  const composerUploadsConvId = useChatStore((s) => s.composerUploadsConvId);
   const attachmentsVersion = useChatStore((s) => s.attachmentsVersion);
   const bumpAttachmentsVersion = useChatStore((s) => s.bumpAttachmentsVersion);
 
@@ -73,12 +78,15 @@ export function ConversationFilesPanel({
     };
   }, [conversationId, attachmentsVersion]);
 
-  // Persisted, non-failed files. Split into `ready` (read finished) and still
-  // `processing` (background read in flight). The backend excludes failed rows.
-  const persisted = attachments.filter((att) => att.status !== 'failed');
-  // Anything not yet `ready` is still being read (status is `processing`, or the
-  // legacy `indexing` default). Poll while any such row exists.
-  const hasProcessing = persisted.some((att) => att.status !== 'ready');
+  // Every persisted file, including failed reads — a failure is a state worth
+  // showing, not a reason to make the file disappear.
+  const persisted = attachments;
+  // Still being read (status is `processing`, or the legacy `indexing` default).
+  // Poll while any such row exists; `failed` is terminal, so it must not keep
+  // the poll alive forever.
+  const hasProcessing = persisted.some(
+    (att) => att.status !== 'ready' && att.status !== 'failed',
+  );
 
   // While any file is still being read server-side, poll for its status by
   // bumping the version counter (which re-runs the refetch effect above). Stops
@@ -100,9 +108,16 @@ export function ConversationFilesPanel({
 
   // In-flight uploads from the composer that aren't yet persisted — deduped by
   // base name so a just-finished upload doesn't show twice — skipping failures.
-  const uploading = composerUploads.filter(
-    (u) => u.status !== 'error' && !persistedBaseNames.has(stripExt(u.name)),
-  );
+  // Scoped to this conversation: the mirror is a single global list, so without
+  // the id check a chip that never resolves would render in every chat. Because
+  // `persisted` now includes failed rows, a failed read also retires its chip
+  // instead of leaving it spinning on "Uploading…" forever.
+  const uploading =
+    composerUploadsConvId === conversationId
+      ? composerUploads.filter(
+          (u) => u.status !== 'error' && !persistedBaseNames.has(stripExt(u.name)),
+        )
+      : [];
 
   const rows: FileRow[] = [
     ...uploading.map((u) => ({
@@ -110,18 +125,27 @@ export function ConversationFilesPanel({
       name: u.name,
       kind: 'uploading' as const,
     })),
-    ...persisted.map((att): FileRow =>
-      att.status === 'ready'
-        ? {
-            key: `at-${att.id}`,
-            name: att.filename,
-            kind: 'ready' as const,
-            attachmentId: att.id,
-            chunkCount: att.chunkCount,
-            hasFile: att.hasFile ?? false,
-          }
-        : { key: `at-${att.id}`, name: att.filename, kind: 'processing' as const },
-    ),
+    ...persisted.map((att): FileRow => {
+      if (att.status === 'ready') {
+        return {
+          key: `at-${att.id}`,
+          name: att.filename,
+          kind: 'ready' as const,
+          attachmentId: att.id,
+          chunkCount: att.chunkCount,
+          hasFile: att.hasFile ?? false,
+        };
+      }
+      if (att.status === 'failed') {
+        return {
+          key: `at-${att.id}`,
+          name: att.filename,
+          kind: 'failed' as const,
+          attachmentId: att.id,
+        };
+      }
+      return { key: `at-${att.id}`, name: att.filename, kind: 'processing' as const };
+    }),
   ];
 
   const handleDelete = async (attachmentId: string) => {
@@ -206,7 +230,7 @@ export function ConversationFilesPanel({
                 >
                   {cleanFilename(row.name)}
                 </Text>
-                {row.kind === 'ready' ? (
+                {row.kind === 'ready' || row.kind === 'failed' ? (
                   <IconButton
                     variant="ghost"
                     size="1"
@@ -225,15 +249,26 @@ export function ConversationFilesPanel({
                 )}
               </Flex>
 
-              {/* Subtitle: chunk count (or upload state). */}
-              <Text size="1" style={{ color: 'var(--slate-10)', display: 'block', marginTop: 4 }}>
+              {/* Subtitle: chunk count (or upload state). A failed read says so
+                  in the app's accent-red rather than the muted grey the other
+                  states use, so it isn't mistaken for another progress step. */}
+              <Text
+                size="1"
+                style={{
+                  color: row.kind === 'failed' ? 'var(--red-a11)' : 'var(--slate-10)',
+                  display: 'block',
+                  marginTop: 4,
+                }}
+              >
                 {row.kind === 'uploading'
                   ? 'Uploading…'
                   : row.kind === 'processing'
                     ? 'Processing…'
-                    : row.chunkCount != null
-                      ? `${row.chunkCount} chunk${row.chunkCount === 1 ? '' : 's'}`
-                      : 'Attached'}
+                    : row.kind === 'failed'
+                      ? "Couldn't read this file"
+                      : row.chunkCount != null
+                        ? `${row.chunkCount} chunk${row.chunkCount === 1 ? '' : 's'}`
+                        : 'Attached'}
               </Text>
 
               {/* Format badge. */}

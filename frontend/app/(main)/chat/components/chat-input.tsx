@@ -228,6 +228,12 @@ export function ChatInput({
   // Active slot ID for regenerate/edit flows
   const activeSlotId = useChatStore((s) => s.activeSlotId);
 
+  // Conversation the composer is currently attached to. An upload posts to this
+  // conversation immediately, so its chip belongs to this chat and no other.
+  const activeConvId = useChatStore((s) =>
+    s.activeSlotId ? (s.slots[s.activeSlotId]?.convId ?? null) : null,
+  );
+
   // Is the active slot currently streaming?
   const isStreaming = useChatStore((s) =>
     s.activeSlotId ? (s.slots[s.activeSlotId]?.isStreaming ?? false) : false
@@ -915,9 +921,17 @@ export function ChatInput({
   // shows its own file-chip block.
   useEffect(() => {
     setComposerUploads(
+      activeConvId,
       uploadedFiles.map((f) => ({ id: f.id, name: f.name, status: f.status })),
     );
-  }, [uploadedFiles, setComposerUploads]);
+  }, [uploadedFiles, activeConvId, setComposerUploads]);
+
+  // Leaving a conversation drops its pending chips: the files already posted to
+  // that chat, so they belong to its own files panel (served by the attachments
+  // API), not to the composer we're carrying into the next chat.
+  useEffect(() => {
+    setUploadedFiles([]);
+  }, [activeConvId]);
 
   // Close panels on outside click
   useEffect(() => {
