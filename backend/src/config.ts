@@ -67,11 +67,17 @@ const envSchema = z.object({
   // docs, inject the whole text (no retrieval miss on a short doc); above it,
   // retrieve only the top-k relevant chunks so a big book fits the context window.
   CHAT_WHOLE_DOC_MAX_CHARS: z.coerce.number().int().positive().default(24000),
-  // Relevance gate: if the top per-chat chunk's similarity score is below this,
-  // the attached file is treated as NOT about the question, so the chat falls
-  // through to the shared library / Drive search instead of answering from the
-  // (irrelevant) attachment. Cosine-ish score in ~[0,1]; tune against real docs.
+  // Score at or above which the attached file is taken as obviously on-topic,
+  // without weighing it against the library. Below it the question may still be
+  // answered from the attachment — see CHAT_ATTACHMENT_FLOOR and the demonstrative
+  // / just-uploaded signals in rag/attachment-intent.ts, which outrank the score.
+  // Cosine-ish score in ~[0,1]; tune against real docs.
   CHAT_RELEVANCE_THRESHOLD: z.coerce.number().default(0.35),
+  // Absolute floor for winning on score alone. A file that beats the library but
+  // sits under this is noise for both, so let the library answer. Deliberately
+  // low: keyword-dense extracts (diagrams, spreadsheets, code) score ~0.2 even
+  // when the question is squarely about them.
+  CHAT_ATTACHMENT_FLOOR: z.coerce.number().default(0.1),
 
   // Shared secret for the internal Drive-backfill endpoints (n8n -> backend).
   // The bulk indexer authenticates with this token via the x-index-token header

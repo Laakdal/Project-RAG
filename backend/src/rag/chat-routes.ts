@@ -15,9 +15,10 @@ import { randomUUID } from "node:crypto";
 import { queryRag, downloadDriveFile, type QueryResult, type QuerySource } from "./n8n-client.js";
 import { subscribeProgress } from "./progress-bus.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
+import { selectContext } from "./context-selection.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
 import { startBackgroundRead } from "./attachment-reader.js";
-import { retrieveAttachmentChunks, deleteAttachmentVectors } from "./attachment-vectors.js";
+import { deleteAttachmentVectors } from "./attachment-vectors.js";
 import { locateChunkPage } from "./pdf-locate.js";
 import { config } from "../config.js";
 import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
@@ -425,12 +426,18 @@ router.post(
     // isn't persisted yet, so this is purely the PRIOR conversation. Capped so
     // the prompt stays bounded.
     const priorRows = await db
-      .select({ role: messages.role, content: messages.content })
+      .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
       .from(messages)
       .where(eq(messages.conversationId, req.params.id))
       .orderBy(desc(messages.createdAt))
       .limit(10);
-    const history = priorRows.reverse();
+    // Newest first here — the most recent turn dates the conversation, which is
+    // what tells us whether an attachment was added for the question being asked.
+    const lastTurnAt = priorRows[0]?.createdAt ?? null;
+    const history = priorRows
+      .slice()
+      .reverse()
+      .map(({ role, content }) => ({ role, content }));
 
     // The first message titles the conversation. Ask the workflow to summarize
     // a title only on that first turn (no prior history yet).
@@ -448,6 +455,7 @@ router.post(
           filename: attachments.filename,
           status: attachments.status,
           extractedText: attachments.extractedText,
+          createdAt: attachments.createdAt,
         })
         .from(attachments)
         .where(eq(attachments.conversationId, req.params.id));
@@ -486,59 +494,15 @@ router.post(
       return;
     }
 
-    // Per-chat uploaded docs, relevance-gated (like a hosted project assistant):
-    // score how relevant the attached file(s) are to THIS question via the
-    // per-chat vector store. If relevant, answer from them — whole for a short
-    // doc, retrieved chunks for a big book (~4MB would blow the context window).
-    // If NOT relevant (the question is about something else, e.g. a Drive file),
-    // leave docs empty so the shared library / live Drive search below runs.
-    let docs: { filename: string; text: string }[] = [];
-    if (readyDocs.length > 0) {
-      const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
-      let hits: { filename: string; text: string; score: number }[] = [];
-      let attRelevant = true; // if we can't score (retrieval error), stay scoped
-      try {
-        hits = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
-        attRelevant = hits.length > 0 && (hits[0].score ?? 0) >= config.CHAT_RELEVANCE_THRESHOLD;
-      } catch (err) {
-        console.error("[chat] per-chat retrieval failed; scoping to attached docs", err);
-      }
-      if (attRelevant) {
-        if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
-          docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
-        } else {
-          docs =
-            hits.length > 0
-              ? hits.map((h) => ({ filename: h.filename, text: h.text }))
-              : readyDocs.map((a) => ({
-                  filename: a.filename,
-                  text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
-                }));
-        }
-      }
-      // else: the attached file isn't about this question → docs stays [], and the
-      // library/Drive search below answers instead.
-    }
-
-    // Search the shared library + live Drive when the chat has no relevant
-    // attached docs — i.e. no attachment at all, or an attachment that isn't
-    // about this question (relevance gate above left docs empty). When the
-    // attachment IS relevant, docs is non-empty and we stay scoped to it.
-    let libraryDocs: QuerySource[] = [];
-    let skipDrive = false;
-    if (docs.length === 0) {
-      try {
-        if (await shouldSearchLibrary(question)) {
-          libraryDocs = await searchLibrary(question);
-          // Skip the slow live Drive read only when the library provably answers
-          // the question; on any doubt, fall through to the live read.
-          skipDrive = await librarySufficient(question, libraryDocs);
-        }
-      } catch {
-        libraryDocs = [];
-        skipDrive = false;
-      }
-    }
+    // Attachment vs shared library/Drive. Shared with the streaming route so
+    // the two can never drift apart; see rag/context-selection.ts for why a
+    // fixed similarity threshold cannot make this call.
+    const { docs, libraryDocs, skipDrive } = await selectContext({
+      conversationId: req.params.id,
+      question,
+      readyDocs,
+      lastTurnAt,
+    });
 
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
@@ -659,12 +623,18 @@ router.post(
       status("Understanding your question…", "understanding");
 
       const priorRows = await db
-        .select({ role: messages.role, content: messages.content })
+        .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
         .from(messages)
         .where(eq(messages.conversationId, req.params.id))
         .orderBy(desc(messages.createdAt))
         .limit(10);
-      const history = priorRows.reverse();
+      // Newest first here — dates the conversation, so we can tell whether an
+      // attachment was added for the question being asked.
+      const lastTurnAt = priorRows[0]?.createdAt ?? null;
+      const history = priorRows
+        .slice()
+        .reverse()
+        .map(({ role, content }) => ({ role, content }));
       const isFirstMessage = history.length === 0;
 
       // Attachment reading: unlike the JSON route (7s grace then 202 for the client
@@ -724,49 +694,15 @@ router.post(
         return;
       }
 
-      // Per-chat relevance gate (mirror JSON route).
-      let docs: { filename: string; text: string }[] = [];
-      if (readyDocs.length > 0) {
-        status("Reading your attached file…", "reading");
-        const totalChars = readyDocs.reduce((n, a) => n + (a.extractedText as string).length, 0);
-        let hits: { filename: string; text: string; score: number }[] = [];
-        let attRelevant = true;
-        try {
-          hits = await retrieveAttachmentChunks(req.params.id, question, config.CHAT_RETRIEVE_TOP_K);
-          attRelevant = hits.length > 0 && (hits[0].score ?? 0) >= config.CHAT_RELEVANCE_THRESHOLD;
-        } catch (err) {
-          console.error("[chat] per-chat retrieval failed; scoping to attached docs", err);
-        }
-        if (attRelevant) {
-          if (totalChars <= config.CHAT_WHOLE_DOC_MAX_CHARS) {
-            docs = readyDocs.map((a) => ({ filename: a.filename, text: a.extractedText as string }));
-          } else {
-            docs =
-              hits.length > 0
-                ? hits.map((h) => ({ filename: h.filename, text: h.text }))
-                : readyDocs.map((a) => ({
-                    filename: a.filename,
-                    text: (a.extractedText as string).slice(0, config.CHAT_WHOLE_DOC_MAX_CHARS),
-                  }));
-          }
-        }
-      }
-
-      // Shared library + live Drive gate (mirror JSON route).
-      let libraryDocs: QuerySource[] = [];
-      let skipDrive = false;
-      if (docs.length === 0) {
-        status("Searching your documents…", "searching_docs");
-        try {
-          if (await shouldSearchLibrary(question)) {
-            libraryDocs = await searchLibrary(question);
-            skipDrive = await librarySufficient(question, libraryDocs);
-          }
-        } catch {
-          libraryDocs = [];
-          skipDrive = false;
-        }
-      }
+      // Attachment vs shared library/Drive — the same decision the JSON route
+      // makes, sharing its progress reporting through onStatus.
+      const { docs, libraryDocs, skipDrive } = await selectContext({
+        conversationId: req.params.id,
+        question,
+        readyDocs,
+        lastTurnAt,
+        onStatus: status,
+      });
 
       if (closed) {
         cleanup();

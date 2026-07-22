@@ -7,10 +7,25 @@ import type { QuerySource } from "../rag/n8n-client.js";
 export const LIBRARY_SCORE_THRESHOLD = 0.2;
 
 export async function searchLibrary(question: string, k = 8): Promise<QuerySource[]> {
+  return (await searchLibraryScored(question, k)).docs;
+}
+
+/**
+ * As {@link searchLibrary}, plus the best score seen. The caller uses that score
+ * to weigh the library against a per-chat attachment: both are embedded with the
+ * same model, so their scores are comparable even though neither is meaningful
+ * against a fixed threshold across document types.
+ */
+export async function searchLibraryScored(
+  question: string,
+  k = 8,
+): Promise<{ docs: QuerySource[]; topScore: number }> {
   const hits = await search(question, k);
-  return hits
-    .filter((h) => h.score >= LIBRARY_SCORE_THRESHOLD)
-    .map((h) => ({ filename: h.filename, chunkIndex: h.chunkIndex, text: h.text }));
+  const kept = hits.filter((h) => h.score >= LIBRARY_SCORE_THRESHOLD);
+  return {
+    docs: kept.map((h) => ({ filename: h.filename, chunkIndex: h.chunkIndex, text: h.text })),
+    topScore: kept.length > 0 ? kept[0].score : 0,
+  };
 }
 
 const SUFFICIENCY_SYSTEM =

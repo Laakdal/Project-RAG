@@ -27,6 +27,9 @@ vi.mock("./attachment-reader.js", () => ({
 
 vi.mock("../library/retrieve.js", () => ({
   searchLibrary: vi.fn(async () => []),
+  // The chat routes reach the library through selectContext, which needs the
+  // scored variant so it can weigh the library against a per-chat attachment.
+  searchLibraryScored: vi.fn(async () => ({ docs: [], topScore: 0 })),
   shouldSearchLibrary: vi.fn(async () => false),
   librarySufficient: vi.fn(async () => false),
 }));
@@ -46,7 +49,12 @@ vi.mock("./title-generator.js", async (importOriginal) => ({
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
 import { queryRag, downloadDriveFile } from "./n8n-client.js";
 import { startBackgroundRead } from "./attachment-reader.js";
-import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
+import {
+  searchLibrary,
+  searchLibraryScored,
+  shouldSearchLibrary,
+  librarySufficient,
+} from "../library/retrieve.js";
 import { summarizeTitle } from "./title-generator.js";
 
 // Imported after mocks are registered.
@@ -429,7 +437,7 @@ describe("message route", () => {
     dbMock.queueResult([]);              // attachments query (no per-chat docs)
     const libDoc = { filename: "lib.pdf", chunkIndex: 0, text: "library content" };
     vi.mocked(shouldSearchLibrary).mockResolvedValueOnce(true);
-    vi.mocked(searchLibrary).mockResolvedValueOnce([libDoc]);
+    vi.mocked(searchLibraryScored).mockResolvedValueOnce({ docs: [libDoc], topScore: 0.5 });
     vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
 
     await request(app()).post("/chat/conversations/c1/messages").send({ question: "What is in the SOP?" });
@@ -443,9 +451,10 @@ describe("message route", () => {
     dbMock.queueResult([]);              // history
     dbMock.queueResult([]);              // attachments
     vi.mocked(shouldSearchLibrary).mockResolvedValueOnce(true);
-    vi.mocked(searchLibrary).mockResolvedValueOnce([
-      { filename: "lib.pdf", chunkIndex: 0, text: "the answer" },
-    ]);
+    vi.mocked(searchLibraryScored).mockResolvedValueOnce({
+      docs: [{ filename: "lib.pdf", chunkIndex: 0, text: "the answer" }],
+      topScore: 0.5,
+    });
     vi.mocked(librarySufficient).mockResolvedValueOnce(true);
     vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
 
