@@ -77,26 +77,29 @@ function SettingsNavButton({ item, isActive, onClick }: SettingsNavButtonProps) 
         alignItems: 'center',
         gap: 'var(--space-2)',
         width: '100%',
-        height: 36,
-        padding: '0 12px',
+        height: 34,
+        padding: '0 10px',
         boxSizing: 'border-box',
         flexShrink: 0,
-        borderRadius: 'var(--radius-1)',
-        backgroundColor: highlighted ? 'var(--olive-3)' : 'transparent',
-        border: highlighted ? '1px solid var(--olive-4)' : '1px solid transparent',
+        // A soft filled pill for the active/hovered item — no outline, which
+        // would read as a second frame inside the dialog's own border.
+        borderRadius: 'var(--radius-3)',
+        backgroundColor: highlighted ? 'var(--slate-a3)' : 'transparent',
+        border: 'none',
+        transition: 'background-color 120ms ease',
         cursor: 'pointer',
       }}
     >
       <MaterialIcon
         name={item.icon}
-        size={18}
+        size={17}
         color={isActive ? 'var(--slate-12)' : 'var(--slate-11)'}
       />
       <span
         style={{
           flex: 1,
           fontSize: 14,
-          fontWeight: 400,
+          fontWeight: isActive ? 500 : 400,
           lineHeight: '20px',
           color: isActive ? 'var(--slate-12)' : 'var(--slate-11)',
           textAlign: 'left',
@@ -163,17 +166,24 @@ function WorkspaceSettingsModal({ open, onOpenChange }: WorkspaceSettingsModalPr
             direction="column"
             gap="1"
             style={{
-              width: 220,
+              width: 212,
               flexShrink: 0,
-              padding: 'var(--space-4) var(--space-3)',
+              padding: 'var(--space-4) var(--space-2)',
               borderRight: '1px solid var(--olive-a3)',
               background: 'var(--slate-1)',
             }}
           >
+            {/* Group label, not a dialog title — the pane's own heading names
+                the section, so this just labels the list below it. */}
             <Text
-              size="3"
+              size="1"
               weight="medium"
-              style={{ color: 'var(--slate-12)', padding: '0 12px', marginBottom: 'var(--space-3)' }}
+              style={{
+                color: 'var(--slate-11)',
+                padding: '0 10px',
+                marginBottom: 'var(--space-2)',
+                letterSpacing: '0.02em',
+              }}
             >
               {"Settings"}
             </Text>

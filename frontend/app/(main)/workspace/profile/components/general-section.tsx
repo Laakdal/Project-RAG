@@ -42,6 +42,7 @@ export function GeneralSection({
       <SettingsRow
         label={"Your Display Picture"}
         description={"Recommended size is 256px by 256px"}
+        control="end"
       >
         <AvatarUploadWidget
           src={avatarUrl}
