@@ -155,29 +155,35 @@ describe("conversation routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("excludes failed attachments from the list", async () => {
+  it("lists failed attachments that still have a file, but not legacy ones", async () => {
+    // A failed read must reach the UI — otherwise its chip spins forever on a
+    // file that is never coming. Legacy failed rows (no stored bytes, from
+    // before the upload handler persisted them) stay hidden.
+    //
     // The db mock returns whatever setResult holds, so the route's SQL filter
-    // isn't executed in-process. Assert instead that the attachments query is
-    // built with a WHERE clause that excludes status 'failed', so legacy failed
-    // rows can never reach the response.
-    const readyRow = {
+    // isn't executed in-process; assert on the WHERE clause the route builds.
+    const failedRow = {
       id: "att1",
-      filename: "doc.pdf",
-      status: "ready",
-      chunkCount: 3,
+      filename: "scan.png",
+      status: "failed",
+      chunkCount: null,
       createdAt: "t",
     };
-    dbMock.setResult([readyRow]); // ownership lookup + attachments query
+    dbMock.setResult([failedRow]); // ownership lookup + attachments query
     const whereSpy = dbMock.db.where as ReturnType<typeof vi.fn>;
     const res = await request(app()).get("/chat/conversations/c1/attachments");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([readyRow]);
+    // The route no longer strips failed rows out of the response.
+    expect(res.body).toEqual([failedRow]);
 
-    // The last WHERE built (the attachments select) carries the failed filter.
-    // Drizzle stores raw SQL text in StringChunk nodes; collect those literals
-    // (the table-column chunks are circular, so we can't JSON.stringify them).
-    const lastWhere = whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0];
-    expect(sqlLiterals(lastWhere).join(" ")).toContain("<> 'failed'");
+    // The last WHERE built (the attachments select) keeps failed rows only when
+    // the file itself is still stored. Drizzle keeps raw SQL text in StringChunk
+    // nodes; collect those literals (column chunks are circular, so we can't
+    // JSON.stringify them).
+    const clause = sqlLiterals(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]).join(" ");
+    expect(clause).toContain("<> 'failed'");
+    expect(clause).toContain("or");
+    expect(clause).toContain("is not null");
   });
 });
 
