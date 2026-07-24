@@ -30,8 +30,8 @@ const State = Annotation.Root({
 });
 
 // Human, display-ready labels for the graph nodes worth surfacing to the user.
-// `titleNode` is intentionally omitted — it runs after the answer is already
-// formed, so there is nothing meaningful to report for it. These are UI chrome
+// `titleNode` is intentionally omitted — it runs on its own branch alongside the
+// answer, so it is not a step the user is waiting on. These are UI chrome
 // and stay in English regardless of the question's language; the ANSWER itself
 // still follows the user's language (see the writing rules in generate.ts).
 const PHASE_LABELS: Record<string, string> = {
@@ -164,12 +164,21 @@ const graph = new StateGraph(State)
       ? "noMatch"
       : "generate",
   )
+  // Title generation depends only on the question, never on the answer, so it
+  // runs as its own branch off `prepare` — concurrently with the answer instead
+  // of after it. Measured: it costs ~2.5s, and as a tail step that was pure dead
+  // time on every new chat (the answer had finished streaming, but the run could
+  // not complete, so sources/citations could not render). Run alongside generate
+  // it hides completely. It writes only `title`, so it never contends with the
+  // answer branch's channels.
+  .addEdge("prepare", "titleNode")
   // Web search only gathers context; generate is the single terminal answer
   // node, so every generated reply is formatted by the ported prompt.
   .addEdge("webSearch", "generate")
-  .addEdge("generate", "titleNode")
-  // The refusal still flows through titleNode so a first message is titled.
-  .addEdge("noMatch", "titleNode")
+  .addEdge("generate", END)
+  // A refusal is still a first message worth titling — the parallel title branch
+  // covers it without the refusal having to pass through it.
+  .addEdge("noMatch", END)
   .addEdge("titleNode", END)
   .compile();
 
