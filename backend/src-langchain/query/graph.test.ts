@@ -25,7 +25,7 @@ describe("runQuery graph", () => {
   });
 
   it("useDrive: retrieves and answers from docs when relevant", async () => {
-    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false });
+    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: false });
     grade.mockResolvedValueOnce({ relevant: true });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "q", [], true);
@@ -83,7 +83,7 @@ describe("runQuery graph", () => {
   });
 
   it("public question routes straight to web search, skipping retrieve", async () => {
-    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true });
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: false });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "apa itu css", [], false);
     expect(retrieve).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe("runQuery graph", () => {
   });
 
   it("creative task generates directly, skipping retrieve and web search", async () => {
-    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: false });
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: false, needsReasoning: false, hasAttachments: false });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "buatkan flowchart", [], false);
     expect(retrieve).not.toHaveBeenCalled();

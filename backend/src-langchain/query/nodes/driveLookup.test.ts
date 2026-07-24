@@ -20,7 +20,9 @@ vi.mock("../../library/drive.js", () => ({ searchFiles, downloadFile }));
 const listDriveSources = vi.fn();
 vi.mock("../../../src/settings/drive-sources.js", () => ({ listDriveSources }));
 
-const getDriveReadCache = vi.fn(async () => undefined);
+const getDriveReadCache = vi.fn(
+  async (): Promise<{ markdown: string; modifiedTime: string } | undefined> => undefined,
+);
 const upsertDriveReadCache = vi.fn(async () => {});
 vi.mock("../../../src/settings/drive-cache.js", () => ({ getDriveReadCache, upsertDriveReadCache }));
 
