@@ -8,6 +8,7 @@ import { generate } from "./nodes/generate.js";
 import { webSearch } from "./nodes/webSearch.js";
 import { noMatch } from "./nodes/noMatch.js";
 import { title } from "./nodes/title.js";
+import { logNodeError } from "../shared/log.js";
 import type { ChatTurn, QueryResult, QuerySource, QueryPhase } from "../../src/rag/types.js";
 
 const State = Annotation.Root({
@@ -34,12 +35,9 @@ const State = Annotation.Root({
 // and stay in English regardless of the question's language; the ANSWER itself
 // still follows the user's language (see the writing rules in generate.ts).
 const PHASE_LABELS: Record<string, string> = {
-  // rewrite and intentNode run concurrently, so both fire at the same instant
-  // and the UI would flicker between two labels. They share one label describing
-  // what that combined step actually does.
-  rewrite: "Understanding your question…",
-  intentNode: "Understanding your question…",
-  retrieve: "Searching your documents…",
+  // `prepare` classifies intent while it searches, so one label covers the whole
+  // combined step rather than flickering between three.
+  prepare: "Understanding your question…",
   grade: "Checking how relevant they are…",
   driveLookup: "Reading from Google Drive…",
   webSearch: "Searching the web…",
@@ -63,10 +61,61 @@ function phaseNode<S, R>(key: string, fn: (state: S, config?: any) => R) {
   };
 }
 
+type PrepareState = {
+  question: string;
+  conversationId: string;
+  history?: ChatTurn[];
+};
+
+// Classify intent WHILE searching, instead of one after the other.
+//
+// Measured on dev: the intent classifier costs ~3s and retrieval ~2s, and they
+// used to run in sequence — ~5s of dead air before the answer model was even
+// called. They are independent (intent reads question/history and never touches
+// `rewritten`/`docs`), so the retrieval is started speculatively and the two are
+// awaited together: the pre-content gap becomes max(3s, 2s) instead of 3s + 2s.
+//
+// This is composed inside ONE node rather than as parallel graph edges on
+// purpose. A rewrite -> retrieve branch is two hops while intent is one, so as
+// separate nodes the join fires at different super-steps and both branches write
+// `docs` in the same step — LangGraph rejects that ("LastValue can only receive
+// one value per step"). Doing it here is deterministic and keeps rewrite feeding
+// retrieve, which matters: rewrite turns "dan tanggalnya?" into a standalone
+// query, and retrieving on the raw follow-up instead would find much less.
+//
+// Because retrieval is speculative, the docs are dropped when the classifier
+// says this is not a document question — otherwise a greeting or "draw me a
+// flowchart" would carry library chunks into generate, which the prompt would
+// then be tempted to cite. That is exactly the fabricated-citation failure the
+// Grounded? guard exists to prevent.
+async function prepare(state: PrepareState) {
+  const intentPromise = intent(state);
+  const retrievalPromise = (async () => {
+    const { rewritten } = await rewrite({
+      question: state.question,
+      history: state.history ?? [],
+    });
+    const found = await retrieve({ rewritten, conversationId: state.conversationId });
+    return { rewritten, ...found };
+  })().catch((error: unknown) => {
+    // Retrieval must never fail the whole query — a greeting used to skip these
+    // nodes entirely and must not start breaking when they run on every turn.
+    logNodeError("prepare (retrieval)", error);
+    return { rewritten: state.question, docs: [], confident: false };
+  });
+
+  const [classified, retrieved] = await Promise.all([intentPromise, retrievalPromise]);
+  const useDocs = classified.useDrive || classified.hasAttachments;
+  return {
+    ...classified,
+    rewritten: retrieved.rewritten,
+    docs: useDocs ? retrieved.docs : [],
+    confident: useDocs ? retrieved.confident : false,
+  };
+}
+
 const graph = new StateGraph(State)
-  .addNode("rewrite", phaseNode("rewrite", rewrite))
-  .addNode("intentNode", phaseNode("intentNode", intent))
-  .addNode("retrieve", phaseNode("retrieve", retrieve))
+  .addNode("prepare", phaseNode("prepare", prepare))
   .addNode("grade", phaseNode("grade", grade))
   .addNode("driveLookup", phaseNode("driveLookup", driveLookup))
   .addNode("generate", phaseNode("generate", generate))
@@ -74,32 +123,28 @@ const graph = new StateGraph(State)
   // No phase label (like titleNode): it is a terminal refusal, nothing to report.
   .addNode("noMatch", phaseNode("noMatch", noMatch))
   .addNode("titleNode", phaseNode("titleNode", title))
-  // `route` is an empty join node: LangGraph runs a node once ALL its inbound
-  // edges have completed, so this is what makes rewrite and intentNode a
-  // concurrent pair rather than a chain. They are independent — intent reads
-  // question/history/docs and never touches `rewritten` — so running them in
-  // sequence just added a whole LLM round trip to every query.
-  .addNode("route", () => ({}))
-  .addEdge(START, "rewrite")
-  .addEdge(START, "intentNode")
-  .addEdge("rewrite", "route")
-  .addEdge("intentNode", "route")
-  // Route on intent: own documents -> retrieve; public question -> web search;
-  // otherwise (creative/build/small talk) -> generate from general knowledge
-  // with no retrieval or web search (this is what stops creative asks from
-  // web-searching and citing a spurious "Web search" source).
+  .addEdge(START, "prepare")
+  // Route on intent. Document question -> use what retrieval already found (a hit
+  // at or above the STRONG score needs no second opinion, so skip the grade LLM
+  // call and answer from it directly). Public question -> web search. Otherwise
+  // (creative/build/small talk) -> generate from general knowledge, with the
+  // speculative docs already cleared in `prepare` — this is what stops creative
+  // asks from citing a library chunk or a spurious "Web search" source.
   //
   // `hasAttachments` overrides the classifier: questions about an upload ("gambar
   // apa ini") are classified false/false, which was right in n8n where the file's
-  // text was already inline, but here it would skip the only node that loads it.
+  // text was already inline, but here it would discard the only docs that hold it.
   // Retrieval is conversation-scoped, so if nothing matches, the grade edge below
   // still falls through to Drive or the web exactly as intent asked.
-  .addConditionalEdges("route", (s) =>
-    s.useDrive || s.hasAttachments ? "retrieve" : s.needsWeb ? "webSearch" : "generate",
+  .addConditionalEdges("prepare", (s) =>
+    s.useDrive || s.hasAttachments
+      ? s.confident
+        ? "generate"
+        : "grade"
+      : s.needsWeb
+        ? "webSearch"
+        : "generate",
   )
-  // A retrieval hit at or above the STRONG score needs no second opinion, so
-  // skip the grade LLM call and answer from it directly.
-  .addConditionalEdges("retrieve", (s) => (s.confident ? "generate" : "grade"))
   // Docs relevant -> answer from them. Not relevant: for a document question,
   // try a live Drive lookup; for a public question, the web; otherwise generate
   // (empty context -> the prompt says plainly it couldn't find it in their files).

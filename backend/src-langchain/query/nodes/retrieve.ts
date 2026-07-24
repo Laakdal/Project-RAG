@@ -28,6 +28,23 @@ export async function retrieve(state: {
   rewritten: string;
   conversationId: string;
 }): Promise<{ docs: QuerySource[]; confident: boolean }> {
+  try {
+    return await search(state);
+  } catch (error) {
+    // Retrieval now runs speculatively on EVERY query (concurrently with the
+    // intent classifier), so it must never be able to fail the whole graph. A
+    // greeting used to skip this node entirely; an embedding or Qdrant outage
+    // must not start breaking those. Empty docs simply routes on as "found
+    // nothing" — grade falls through to Drive/web exactly as intent asked.
+    logNodeError("retrieve", error);
+    return { docs: [], confident: false };
+  }
+}
+
+async function search(state: {
+  rewritten: string;
+  conversationId: string;
+}): Promise<{ docs: QuerySource[]; confident: boolean }> {
   // Embed the query ONCE and reuse the vector for both collections. The two
   // stores share an embedding model and the query is identical, so letting each
   // search embed for itself paid the same ~2s proxied round trip twice.

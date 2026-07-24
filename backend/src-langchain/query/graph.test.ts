@@ -82,22 +82,48 @@ describe("runQuery graph", () => {
     expect(state.needsReasoning).toBe(true);
   });
 
-  it("public question routes straight to web search, skipping retrieve", async () => {
+  it("public question routes to web search", async () => {
     intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: false });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "apa itu css", [], false);
-    expect(retrieve).not.toHaveBeenCalled();
     expect(webSearch).toHaveBeenCalled();
     expect(r.answer).toBe("from-docs");
   });
 
-  it("creative task generates directly, skipping retrieve and web search", async () => {
+  it("creative task generates directly, without web search", async () => {
     intent.mockResolvedValueOnce({ useDrive: false, needsWeb: false, needsReasoning: false, hasAttachments: false });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "buatkan flowchart", [], false);
-    expect(retrieve).not.toHaveBeenCalled();
     expect(webSearch).not.toHaveBeenCalled();
     expect(generate).toHaveBeenCalled();
     expect(r.answer).toBe("from-docs");
+  });
+
+  it("runs retrieval speculatively, concurrently with the intent classifier", async () => {
+    // Retrieval no longer waits for intent: it runs on every query so its ~2s
+    // hides under the classifier's ~3s instead of stacking after it.
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: false, needsReasoning: false, hasAttachments: false });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "buatkan flowchart", [], false);
+    expect(retrieve).toHaveBeenCalled();
+  });
+
+  it("discards speculative docs when the question is not about documents", async () => {
+    // The library chunks retrieval happened to find must NOT reach generate for
+    // a creative ask, or the prompt would be tempted to cite them.
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: false, needsReasoning: false, hasAttachments: false });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "buatkan flowchart login", [], false);
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
+    expect(state.docs).toEqual([]);
+  });
+
+  it("keeps the retrieved docs when the question IS about documents", async () => {
+    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: false });
+    grade.mockResolvedValueOnce({ relevant: true });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "apa isi SOP IT", [], false);
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
+    expect(state.docs).toHaveLength(1);
   });
 });
