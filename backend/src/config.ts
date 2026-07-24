@@ -61,10 +61,6 @@ const envSchema = z.object({
   // Intent classifier (useDrive / webSearch routing), gemini-2.5-flash via
   // OpenRouter to match the live n8n Intent Check node.
   INTENT_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
-  // Drive-lookup keyword extractor. glm-4.6 via OpenRouter to match the live n8n
-  // "Extract Terms" node (it returns a phrases/terms JSON object used to build
-  // the Drive search query). Resolves via the OpenRouter `answer` connection.
-  DRIVE_TERMS_MODEL: z.string().min(1).default("z-ai/glm-4.6"),
 
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.

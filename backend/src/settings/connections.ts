@@ -4,11 +4,16 @@ import { apiConnections, modelRoles, type ApiConnection } from "../db/schema.js"
 import { getSetting } from "./service.js";
 import { encryptSecret, decryptSecret } from "./crypto.js";
 
-export type Role = "answer" | "intent" | "utility" | "reader" | "embedding";
+export type Role = "answer" | "answer_reasoning" | "intent" | "utility" | "reader" | "embedding";
 
 // Pipeline roles a connection can be bound to (shown in the admin UI).
 export const ROLES: { role: Role; label: string; note?: string }[] = [
   { role: "answer", label: "Chat / Answer generation" },
+  {
+    role: "answer_reasoning",
+    label: "Chat / Answer (reasoning)",
+    note: "Used for comparison / decision-support questions. Falls back to the answer connection when unset.",
+  },
   { role: "intent", label: "Intent classifier" },
   {
     role: "utility",

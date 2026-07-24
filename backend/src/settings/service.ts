@@ -21,7 +21,6 @@ export const MANAGED_SETTINGS = [
   { key: "ANSWER_MODEL", label: "Answer model", secret: false, multiline: false, hidden: true },
   { key: "ANSWER_MODEL_REASONING", label: "Answer model (reasoning)", secret: false, multiline: false, hidden: true },
   { key: "INTENT_MODEL", label: "Intent classifier model", secret: false, multiline: false, hidden: true },
-  { key: "DRIVE_TERMS_MODEL", label: "Drive keyword extractor model", secret: false, multiline: false, hidden: true },
   { key: "GENERATE_MODEL", label: "Utility model", secret: false, multiline: false, hidden: true },
   { key: "EMBED_MODEL", label: "Embedding model", secret: false, multiline: false, hidden: true },
   { key: "GEMINI_READ_MODEL", label: "Document reader model", secret: false, multiline: false, hidden: true },

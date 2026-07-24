@@ -6,7 +6,7 @@ const termsInvoke = vi.fn(async () => ({
 }));
 const geminiRead = vi.fn(async () => "read document text");
 vi.mock("../../shared/models.js", () => ({
-  makeTermsModel: () => ({ invoke: termsInvoke }),
+  makeIntentModel: () => ({ invoke: termsInvoke }),
   geminiRead,
 }));
 

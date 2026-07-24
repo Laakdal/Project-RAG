@@ -1,5 +1,5 @@
 import { searchFiles, downloadFile, type DriveFile, type DriveCreds } from "../../library/drive.js";
-import { geminiRead, makeTermsModel } from "../../shared/models.js";
+import { geminiRead, makeIntentModel } from "../../shared/models.js";
 import { extractText } from "../../shared/content.js";
 import { listDriveSources } from "../../../src/settings/drive-sources.js";
 import { getDriveReadCache, upsertDriveReadCache } from "../../../src/settings/drive-cache.js";
@@ -10,8 +10,11 @@ import type { QuerySource } from "../../../src/rag/types.js";
 // reader's token budget. Matches the n8n Pick Files SIZE_CAP.
 const SIZE_CAP = 20 * 1024 * 1024;
 
-// Verbatim from the live n8n "Extract Terms" node (Drive Lookup subflow). The
-// question is appended after it.
+// The keyword-extraction prompt from the live n8n "Extract Terms" node (Drive
+// Lookup subflow). n8n runs it on glm-4.6; we run it on the intent model, which
+// is the bound, provider-correct utility classifier in this deployment (glm via
+// the answer connection would 404 on a non-OpenRouter provider). The question is
+// appended after it.
 const EXTRACT_TERMS_PROMPT = `You extract Google Drive search keywords from a question about the user's company documents (usually Indonesian). Reply with ONLY a raw JSON object with two fields, both string arrays: phrases and terms.
 phrases = 1 to 3 exact multi-word strings likely to appear verbatim in the target file or its filename (a key phrase like perjalanan dinas, a date like 23 juni 2025, or a document type).
 terms = 5 to 10 individual important words, INCLUDING every date part, number, and proper name, plus useful synonyms or abbreviations (for example sppd for surat perintah perjalanan dinas). All lowercase, keep the Indonesian words. EXCLUDE filler and generic words such as database, file, dokumen, data.
@@ -40,7 +43,7 @@ function heuristicTerms(q: string): string[] {
 // order of preference.
 async function extractTerms(question: string): Promise<{ phrases: string[]; terms: string[] }> {
   try {
-    const res = await makeTermsModel().invoke([{ role: "user", content: EXTRACT_TERMS_PROMPT + question }]);
+    const res = await makeIntentModel().invoke([{ role: "user", content: EXTRACT_TERMS_PROMPT + question }]);
     const text = extractText(res.content);
     const a = text.indexOf("{");
     const b = text.lastIndexOf("}");

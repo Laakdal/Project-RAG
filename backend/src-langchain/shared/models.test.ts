@@ -29,7 +29,6 @@ const SETTING_VALUES: Record<string, string> = {
   ANSWER_MODEL: "answer-flash-test",
   ANSWER_MODEL_REASONING: "answer-pro-test",
   INTENT_MODEL: "intent-test",
-  DRIVE_TERMS_MODEL: "terms-test",
 };
 const MOCK_SETTINGS = { getSetting: (k: string) => SETTING_VALUES[k] };
 
@@ -115,7 +114,7 @@ describe("makeAnswerModel", () => {
     return ChatOpenAIMock;
   }
 
-  it("routes to the flash model when needsReasoning is false", async () => {
+  it("uses the env flash model when needsReasoning is false and no connection is bound", async () => {
     const ChatOpenAIMock = mockChatOpenAI();
     vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
     const { makeAnswerModel } = await import("./models.js");
@@ -129,7 +128,7 @@ describe("makeAnswerModel", () => {
     });
   });
 
-  it("routes to the reasoning (pro) model when needsReasoning is true", async () => {
+  it("falls back to the env reasoning model when needsReasoning is true but no reasoning connection is bound", async () => {
     const ChatOpenAIMock = mockChatOpenAI();
     vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
     const { makeAnswerModel } = await import("./models.js");
@@ -139,17 +138,52 @@ describe("makeAnswerModel", () => {
     );
   });
 
-  it("the routed model wins over a model bound on the answer connection", async () => {
+  it("uses the bound answer connection's own model for the normal (flash) path", async () => {
     const ChatOpenAIMock = mockChatOpenAI();
-    // The bound connection supplies the key + base URL, but its model must NOT
-    // override the needsReasoning-selected model.
+    // The connection carries the provider-correct model slug; it must win over
+    // the env default so we never force a slug the provider 404s on.
     vi.doMock("../../src/settings/connections.js", () => ({
-      resolveRole: () => ({ model: "bound-glm", apiKey: "conn-key", baseUrl: "https://openrouter.ai/api/v1" }),
+      resolveRole: (role: string) =>
+        role === "answer"
+          ? { model: "models/gemini-3.5-flash", apiKey: "goog-key", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/" }
+          : undefined,
+    }));
+    const { makeAnswerModel } = await import("./models.js");
+    makeAnswerModel(false);
+    expect(ChatOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "models/gemini-3.5-flash", apiKey: "goog-key" }),
+    );
+  });
+
+  it("uses the answer_reasoning connection (its own model + key) for reasoning questions when bound", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: (role: string) =>
+        role === "answer_reasoning"
+          ? { model: "models/gemini-2.5-pro", apiKey: "pro-key", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/" }
+          : { model: "models/gemini-3.5-flash", apiKey: "flash-key", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/" },
     }));
     const { makeAnswerModel } = await import("./models.js");
     makeAnswerModel(true);
     expect(ChatOpenAIMock).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "answer-pro-test", apiKey: "conn-key" }),
+      expect.objectContaining({ model: "models/gemini-2.5-pro", apiKey: "pro-key" }),
+    );
+  });
+
+  it("falls back to the answer connection for reasoning when answer_reasoning is unbound", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    // Only 'answer' is bound: a reasoning question must still work (no 404),
+    // using the answer connection's model rather than the env pro slug.
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: (role: string) =>
+        role === "answer"
+          ? { model: "models/gemini-3.5-flash", apiKey: "flash-key", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/" }
+          : undefined,
+    }));
+    const { makeAnswerModel } = await import("./models.js");
+    makeAnswerModel(true);
+    expect(ChatOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "models/gemini-3.5-flash", apiKey: "flash-key" }),
     );
   });
 });
