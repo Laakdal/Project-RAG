@@ -188,6 +188,41 @@ describe("makeAnswerModel", () => {
   });
 });
 
+describe("makeIntentModel", () => {
+  function mockChatOpenAI() {
+    const ChatOpenAIMock = vi.fn(function (this: Record<string, unknown>) {
+      this.invoke = vi.fn();
+    });
+    vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
+    vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    return ChatOpenAIMock;
+  }
+
+  it("disables thinking on Gemini models (pure classification, ~800ms cheaper)", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: () => ({ model: "gemini-2.5-flash", apiKey: "k", baseUrl: "https://example/v1" }),
+    }));
+    const { makeIntentModel } = await import("./models.js");
+    makeIntentModel();
+    expect(ChatOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({ modelKwargs: { reasoning_effort: "none" } }),
+    );
+  });
+
+  it("does not send the parameter to non-Gemini providers, which reject it", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: () => ({ model: "gpt-4o-mini", apiKey: "k", baseUrl: "https://api.openai.com/v1" }),
+    }));
+    const { makeIntentModel } = await import("./models.js");
+    makeIntentModel();
+    const args = (ChatOpenAIMock.mock.calls[0] as unknown[])[0] as Record<string, unknown>;
+    expect(args.modelKwargs).toBeUndefined();
+  });
+});
+
 describe("base URL normalisation", () => {
   it("does not double the slash when the connection's base URL ends with one", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({

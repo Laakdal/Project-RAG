@@ -136,18 +136,35 @@ export function makeAnswerModel(
   });
 }
 
-// Intent classifier (gemini-2.5-flash via OpenRouter by default), temperature 0.
+// Gemini 2.5+ "thinks" before answering by default. That is wasted latency on a
+// pure classification: measured on dev, the intent call drops from ~2.2s to
+// ~1.4s with thinking off and returns the SAME flags on every routing case. It
+// sits on the critical path of every query, so this is ~800ms off each one.
+// Gated by model name because api_connections carries no capability flag (same
+// reasoning as supportsTemperature) — providers that don't know the parameter
+// reject it, so only send it where it is understood.
+const THINKING_MODEL = /gemini/i;
+
+// Intent classifier (gemini-2.5-flash by default), temperature 0. Also used for
+// Drive keyword extraction — likewise pure extraction, no thinking needed.
 export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
   const c = forRole("intent", {
     model: getSetting("INTENT_MODEL"),
     apiKey: getSetting("OPENROUTER_API_KEY"),
     baseURL: config.OPENROUTER_BASE_URL,
   });
+  // NB: deliberately NOT applied to the answer models — for the reasoning route
+  // the thinking is the entire point.
+  const noThinking =
+    c.model && THINKING_MODEL.test(c.model)
+      ? { modelKwargs: { reasoning_effort: "none" } }
+      : {};
   return new ChatOpenAI({
     model: c.model,
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
     ...temperatureOption(c.model, 0),
+    ...noThinking,
   });
 }
 
