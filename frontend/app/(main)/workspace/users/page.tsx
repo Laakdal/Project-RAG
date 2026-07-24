@@ -488,10 +488,22 @@ function ResetPasswordDialog({
 }) {
   const addToast = useToastStore((s) => s.addToast);
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pwError = password ? validatePassword(password) : null;
-  const canSubmit = password !== '' && pwError === null && !busy && user !== null;
+  const confirmError = confirm && confirm !== password ? "This doesn't match the new password" : null;
+  const canSubmit =
+    password !== '' && confirm !== '' && pwError === null && confirmError === null && !busy && user !== null;
+
+  const reset = () => {
+    setPassword('');
+    setConfirm('');
+    setShowPassword(false);
+    setShowConfirm(false);
+  };
 
   const submit = async () => {
     if (!user || !canSubmit) return;
@@ -499,7 +511,7 @@ function ResetPasswordDialog({
     try {
       await AdminApi.resetPassword(user.id, password);
       addToast({ variant: 'success', title: 'Password reset', description: user.email });
-      setPassword('');
+      reset();
       onDone();
     } catch (err) {
       addToast({
@@ -513,17 +525,62 @@ function ResetPasswordDialog({
   };
 
   return (
-    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) { setPassword(''); onClose(); } }}>
+    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
       <Dialog.Content style={{ maxWidth: 460 }}>
         <Dialog.Title>{'Reset password'}</Dialog.Title>
         <Text size="2" style={{ color: 'var(--gray-10)' }}>{user?.email}</Text>
-        <Box style={{ marginTop: 'var(--space-3)' }}>
-          <Text size="2" weight="medium">{'New password'}</Text>
-          <TextField.Root type="password" value={password} onChange={(e) => setPassword(e.target.value)} color={pwError ? 'red' : undefined} />
-          <Text size="1" style={{ color: pwError ? 'var(--red-a11)' : 'var(--gray-10)' }}>
-            {pwError ?? 'At least 8 characters: lowercase, uppercase, number, symbol.'}
-          </Text>
-        </Box>
+        <Flex direction="column" gap="3" style={{ marginTop: 'var(--space-3)' }}>
+          <Box>
+            <Text size="2" weight="medium">{'New password'}</Text>
+            <TextField.Root
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              color={pwError ? 'red' : undefined}
+            >
+              <TextField.Slot side="right">
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="1"
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <MaterialIcon name={showPassword ? 'visibility' : 'visibility_off'} size={16} color="var(--gray-9)" />
+                </IconButton>
+              </TextField.Slot>
+            </TextField.Root>
+            <Text size="1" style={{ color: pwError ? 'var(--red-a11)' : 'var(--gray-10)' }}>
+              {pwError ?? 'At least 8 characters: lowercase, uppercase, number, symbol.'}
+            </Text>
+          </Box>
+          <Box>
+            <Text size="2" weight="medium">{'Confirm new password'}</Text>
+            <TextField.Root
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              color={confirmError ? 'red' : undefined}
+            >
+              <TextField.Slot side="right">
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="1"
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <MaterialIcon name={showConfirm ? 'visibility' : 'visibility_off'} size={16} color="var(--gray-9)" />
+                </IconButton>
+              </TextField.Slot>
+            </TextField.Root>
+            {confirmError && (
+              <Text size="1" style={{ color: 'var(--red-a11)' }}>{confirmError}</Text>
+            )}
+          </Box>
+        </Flex>
         <Flex justify="end" gap="2" style={{ marginTop: 'var(--space-4)' }}>
           <Dialog.Close>
             <Button variant="soft" color="gray">{'Cancel'}</Button>
