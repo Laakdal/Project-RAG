@@ -97,20 +97,31 @@ export function makeChatModel(
     : model;
 }
 
-// Answer generator (glm-4.6 via OpenRouter by default). Temperature 0 so it
-// reliably follows the strict formatting rules (Mermaid fences, no headings) —
-// unless the bound model is a reasoning model, which rejects it outright.
-export function makeAnswerModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
+// Answer generator (gemini-2.5-flash/pro via OpenRouter by default). The live
+// n8n workflow routes the answer model off the intent classifier's
+// needsReasoning flag — pro for genuine analysis/decision support, flash
+// otherwise — so this mirrors that. The routed model wins over any model bound
+// on the `answer` connection (the connection still supplies the key + base URL).
+// Temperature 0 so it reliably follows the strict formatting rules (Mermaid
+// fences, no headings) — unless the bound model is a reasoning model, which
+// rejects it outright.
+export function makeAnswerModel(
+  needsReasoning = false,
+): Runnable<BaseLanguageModelInput, AIMessageChunk> {
+  const routedModel = needsReasoning
+    ? getSetting("ANSWER_MODEL_REASONING")
+    : getSetting("ANSWER_MODEL");
   const c = forRole("answer", {
-    model: getSetting("ANSWER_MODEL"),
+    model: routedModel,
     apiKey: getSetting("OPENROUTER_API_KEY"),
     baseURL: config.OPENROUTER_BASE_URL,
   });
+  const model = routedModel ?? c.model;
   return new ChatOpenAI({
-    model: c.model,
+    model,
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
-    ...temperatureOption(c.model, 0),
+    ...temperatureOption(model, 0),
     // Stream the underlying request so LangGraph's "messages" stream mode can
     // surface answer tokens as they arrive (the graph's token-by-token path).
     // `.invoke` still returns the fully aggregated message, so the non-streaming
@@ -131,6 +142,27 @@ export function makeIntentModel(): Runnable<BaseLanguageModelInput, AIMessageChu
     apiKey: c.apiKey,
     configuration: { baseURL: c.baseURL },
     ...temperatureOption(c.model, 0),
+  });
+}
+
+// Drive-lookup keyword extractor (glm-4.6 via OpenRouter by default), temp 0.
+// Reuses the OpenRouter `answer` connection for its key + base URL but pins the
+// model to DRIVE_TERMS_MODEL, matching the live n8n "Extract Terms" node. Not
+// bound to json_object response format: providers differ in support and the
+// caller parses the first {...} out of the reply, exactly as the n8n code does.
+export function makeTermsModel(): Runnable<BaseLanguageModelInput, AIMessageChunk> {
+  const model = getSetting("DRIVE_TERMS_MODEL");
+  const c = forRole("answer", {
+    model,
+    apiKey: getSetting("OPENROUTER_API_KEY"),
+    baseURL: config.OPENROUTER_BASE_URL,
+  });
+  const resolved = model ?? c.model;
+  return new ChatOpenAI({
+    model: resolved,
+    apiKey: c.apiKey,
+    configuration: { baseURL: c.baseURL },
+    ...temperatureOption(resolved, 0),
   });
 }
 

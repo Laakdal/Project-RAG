@@ -152,3 +152,18 @@ export const driveSources = pgTable("drive_sources", {
 });
 
 export type DriveSource = typeof driveSources.$inferSelect;
+
+// Read-through cache for on-demand Drive lookups: the extracted Markdown text of
+// a Drive file, keyed by its file id. A row is a hit only while its modifiedTime
+// still matches the live file, so an edited doc is re-read. Mirrors the n8n
+// `drive_read_cache` data table. Created idempotently at startup; see
+// src/settings/drive-cache.ts.
+export const driveReadCache = pgTable("drive_read_cache", {
+  driveFileId: text("drive_file_id").primaryKey(),
+  modifiedTime: text("modified_time").notNull(),
+  filename: text("filename").notNull(),
+  markdown: text("markdown").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type DriveReadCache = typeof driveReadCache.$inferSelect;

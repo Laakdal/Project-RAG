@@ -50,14 +50,21 @@ const envSchema = z.object({
   // Used by the OpenAI-backed graph nodes (rewrite, grade, web search). The web
   // search branch needs OpenAI's Responses API, so this stays an OpenAI model.
   GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
-  // Answer generation runs on glm-4.6 via OpenRouter to match the live n8n
-  // "Generate Answer" node — gpt-4o-mini does not honour the strict Mermaid /
-  // no-headings formatting rules the ported prompt relies on.
-  ANSWER_MODEL: z.string().min(1).default("z-ai/glm-4.6"),
+  // Answer generation, routed by the intent classifier's needsReasoning flag to
+  // match the live n8n "Generate Answer" node (its OpenAI Chat Model picks
+  // gemini-2.5-pro for reasoning questions, gemini-2.5-flash otherwise). Both
+  // resolve via the OpenRouter `answer` role; the routed model wins over any
+  // model bound on that connection (see makeAnswerModel).
+  ANSWER_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
+  ANSWER_MODEL_REASONING: z.string().min(1).default("google/gemini-2.5-pro"),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
   // Intent classifier (useDrive / webSearch routing), gemini-2.5-flash via
   // OpenRouter to match the live n8n Intent Check node.
   INTENT_MODEL: z.string().min(1).default("google/gemini-2.5-flash"),
+  // Drive-lookup keyword extractor. glm-4.6 via OpenRouter to match the live n8n
+  // "Extract Terms" node (it returns a phrases/terms JSON object used to build
+  // the Drive search query). Resolves via the OpenRouter `answer` connection.
+  DRIVE_TERMS_MODEL: z.string().min(1).default("z-ai/glm-4.6"),
 
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.

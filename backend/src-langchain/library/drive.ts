@@ -6,6 +6,9 @@ export type DriveFile = {
   mimeType: string;
   modifiedTime: string;
   webUrl: string;
+  // Bytes, as a numeric string, when Drive reports it (native files). Google
+  // Docs/Sheets/Slides have no size and leave this undefined.
+  size?: string;
 };
 
 export type DriveCreds = { clientId: string; clientSecret: string; refreshToken: string };
@@ -51,7 +54,7 @@ export async function searchFiles(creds: DriveCreds, driveQuery: string, limit =
   const drive = driveClient(creds);
   const res = await drive.files.list({
     q: driveQuery,
-    fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
+    fields: "files(id, name, mimeType, modifiedTime, webViewLink, size)",
     pageSize: limit,
     orderBy: "modifiedTime desc",
   });
@@ -61,6 +64,7 @@ export async function searchFiles(creds: DriveCreds, driveQuery: string, limit =
     mimeType: f.mimeType!,
     modifiedTime: f.modifiedTime!,
     webUrl: f.webViewLink ?? "",
+    size: f.size ?? undefined,
   }));
 }
 

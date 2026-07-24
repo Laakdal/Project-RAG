@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const invoke = vi.fn(async () => ({ content: "The answer is 42." }));
-vi.mock("../../shared/models.js", () => ({ makeAnswerModel: () => ({ invoke }) }));
+const makeAnswerModel = vi.fn(() => ({ invoke }));
+vi.mock("../../shared/models.js", () => ({ makeAnswerModel }));
 
 describe("generate node", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -70,6 +71,15 @@ describe("generate node", () => {
     expect(system!.content).toMatch(/brainstorm/i);
     expect(system!.content).toMatch(/idss-options/);
     expect(system!.content).toMatch(/multiSelect/);
+  });
+
+  it("selects the answer model by needsReasoning (routes pro vs flash downstream)", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "compare A and B", docs, needsReasoning: true } as never);
+    expect(makeAnswerModel).toHaveBeenLastCalledWith(true);
+    await generate({ question: "what is x", docs, needsReasoning: false } as never);
+    expect(makeAnswerModel).toHaveBeenLastCalledWith(false);
   });
 
   it("returns FALLBACK_ANSWER and empty sources when the LLM errors", async () => {

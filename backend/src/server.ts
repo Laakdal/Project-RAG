@@ -21,6 +21,7 @@ import { CSRF_HEADER_NAME } from "./auth/csrf.js";
 import { initSettings } from "./settings/service.js";
 import { initConnections } from "./settings/connections.js";
 import { initDriveSources } from "./settings/drive-sources.js";
+import { initDriveReadCache } from "./settings/drive-cache.js";
 
 const app = express();
 
@@ -108,6 +109,7 @@ try {
   await initSettings();
   await initConnections();
   await initDriveSources();
+  await initDriveReadCache();
 } catch (err) {
   // eslint-disable-next-line no-console
   console.warn("Settings init failed; using env config only:", err instanceof Error ? err.message : err);

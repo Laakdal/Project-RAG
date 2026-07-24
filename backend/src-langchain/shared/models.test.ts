@@ -26,8 +26,10 @@ const SETTING_VALUES: Record<string, string> = {
   OPENROUTER_API_KEY: "or-key",
   EMBED_MODEL: "embed-test",
   GEMINI_READ_MODEL: "gemini-test",
-  ANSWER_MODEL: "answer-test",
+  ANSWER_MODEL: "answer-flash-test",
+  ANSWER_MODEL_REASONING: "answer-pro-test",
   INTENT_MODEL: "intent-test",
+  DRIVE_TERMS_MODEL: "terms-test",
 };
 const MOCK_SETTINGS = { getSetting: (k: string) => SETTING_VALUES[k] };
 
@@ -99,6 +101,56 @@ describe("makeChatModel", () => {
 
     expect(bindToolsMock).toHaveBeenCalledWith([{ type: "web_search_preview" }]);
     expect(typeof result.invoke).toBe("function");
+  });
+});
+
+describe("makeAnswerModel", () => {
+  function mockChatOpenAI() {
+    const ChatOpenAIMock = vi.fn(function (this: Record<string, unknown>) {
+      this.invoke = vi.fn();
+    });
+    vi.doMock("@langchain/openai", () => ({ ChatOpenAI: ChatOpenAIMock, OpenAIEmbeddings: vi.fn() }));
+    vi.doMock("../../src/config.js", () => MOCK_CONFIG);
+    vi.doMock("../../src/settings/service.js", () => MOCK_SETTINGS);
+    return ChatOpenAIMock;
+  }
+
+  it("routes to the flash model when needsReasoning is false", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
+    const { makeAnswerModel } = await import("./models.js");
+    makeAnswerModel(false);
+    expect(ChatOpenAIMock).toHaveBeenCalledWith({
+      model: "answer-flash-test",
+      apiKey: "or-key",
+      configuration: { baseURL: "https://openrouter.ai/api/v1" },
+      temperature: 0,
+      streaming: true,
+    });
+  });
+
+  it("routes to the reasoning (pro) model when needsReasoning is true", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    vi.doMock("../../src/settings/connections.js", () => ({ resolveRole: () => undefined }));
+    const { makeAnswerModel } = await import("./models.js");
+    makeAnswerModel(true);
+    expect(ChatOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "answer-pro-test", streaming: true }),
+    );
+  });
+
+  it("the routed model wins over a model bound on the answer connection", async () => {
+    const ChatOpenAIMock = mockChatOpenAI();
+    // The bound connection supplies the key + base URL, but its model must NOT
+    // override the needsReasoning-selected model.
+    vi.doMock("../../src/settings/connections.js", () => ({
+      resolveRole: () => ({ model: "bound-glm", apiKey: "conn-key", baseUrl: "https://openrouter.ai/api/v1" }),
+    }));
+    const { makeAnswerModel } = await import("./models.js");
+    makeAnswerModel(true);
+    expect(ChatOpenAIMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "answer-pro-test", apiKey: "conn-key" }),
+    );
   });
 });
 

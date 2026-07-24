@@ -85,6 +85,7 @@ export async function generate(state: {
   question: string;
   docs?: QuerySource[];
   history?: ChatTurn[];
+  needsReasoning?: boolean;
 }): Promise<{ answer: string; sources: QuerySource[] }> {
   try {
     // The creative/general path reaches generate without retrieve or web search
@@ -101,7 +102,9 @@ export async function generate(state: {
       `Document context:\n${context}\n\n` +
       `Conversation so far (earlier turns in THIS chat; empty if this is the first message):\n${historyText}\n\n` +
       `Question: ${state.question}`;
-    const res = await makeAnswerModel().invoke([{ role: "user", content: prompt }]);
+    const res = await makeAnswerModel(state.needsReasoning).invoke([
+      { role: "user", content: prompt },
+    ]);
     const answer = extractText(res.content);
     return { answer, sources: docs };
   } catch (error) {

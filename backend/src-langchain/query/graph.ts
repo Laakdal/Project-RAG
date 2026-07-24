@@ -6,6 +6,7 @@ import { driveLookup } from "./nodes/driveLookup.js";
 import { grade } from "./nodes/grade.js";
 import { generate } from "./nodes/generate.js";
 import { webSearch } from "./nodes/webSearch.js";
+import { noMatch } from "./nodes/noMatch.js";
 import { title } from "./nodes/title.js";
 import type { ChatTurn, QueryResult, QuerySource, QueryPhase } from "../../src/rag/types.js";
 
@@ -17,6 +18,7 @@ const State = Annotation.Root({
   rewritten: Annotation<string>(),
   useDrive: Annotation<boolean>(),
   needsWeb: Annotation<boolean>(),
+  needsReasoning: Annotation<boolean>(),
   hasAttachments: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
   confident: Annotation<boolean>(),
@@ -69,6 +71,8 @@ const graph = new StateGraph(State)
   .addNode("driveLookup", phaseNode("driveLookup", driveLookup))
   .addNode("generate", phaseNode("generate", generate))
   .addNode("webSearch", phaseNode("webSearch", webSearch))
+  // No phase label (like titleNode): it is a terminal refusal, nothing to report.
+  .addNode("noMatch", phaseNode("noMatch", noMatch))
   .addNode("titleNode", phaseNode("titleNode", title))
   // `route` is an empty join node: LangGraph runs a node once ALL its inbound
   // edges have completed, so this is what makes rewrite and intentNode a
@@ -102,11 +106,25 @@ const graph = new StateGraph(State)
   .addConditionalEdges("grade", (s) =>
     s.relevant ? "generate" : s.useDrive ? "driveLookup" : s.needsWeb ? "webSearch" : "generate",
   )
-  // Drive lookup and web search only gather context; generate is the single
-  // terminal answer node, so every reply is formatted by the ported prompt.
-  .addEdge("driveLookup", "generate")
+  // Grounded? guard, ported from the live workflow. driveLookup is the sole
+  // convergence for the document path (route -> retrieve -> grade -> driveLookup
+  // is the only way a useDrive question reaches an empty context), so the guard
+  // sits on its out-edge. Live predicate: refuse only when the user asked about
+  // their own documents (useDrive), no file is attached (hasAttachments), and
+  // every retrieval path came back empty. A web-only or upload question never
+  // refuses — it still generates. noMatch answers WITHOUT the LLM, so it cannot
+  // fabricate citations.
+  .addConditionalEdges("driveLookup", (s) =>
+    s.useDrive && !s.hasAttachments && (s.docs?.length ?? 0) === 0
+      ? "noMatch"
+      : "generate",
+  )
+  // Web search only gathers context; generate is the single terminal answer
+  // node, so every generated reply is formatted by the ported prompt.
   .addEdge("webSearch", "generate")
   .addEdge("generate", "titleNode")
+  // The refusal still flows through titleNode so a first message is titled.
+  .addEdge("noMatch", "titleNode")
   .addEdge("titleNode", END)
   .compile();
 
