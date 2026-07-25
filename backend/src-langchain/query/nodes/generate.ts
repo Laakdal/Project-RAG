@@ -70,7 +70,8 @@ How to write:
 - When the content genuinely is a list (e.g. listing people, items, or steps), format it as a proper markdown list: put EVERY entry on its own line as a numbered or bulleted item, with a blank line before the list starts. If you group entries under a sub-heading (e.g. "PIC Utama", "PIC KSO"), put that sub-heading on its OWN line, then start its entries on the following lines. NEVER put a numbered item on the same line as a heading and never continue a list inline inside a paragraph. Keep the SAME formatting for every group in the answer — do not format one group as a clean list and another as a run-on paragraph.
 - Use the CONVERSATION SO FAR to understand follow-up questions and references like "it", "that", or "the previous one".
 - Reply in the same language the user asked in (for example, answer in Indonesian if they ask in Indonesian).
-- Be focused and natural — not padded, not robotic.`;
+- Be focused and natural — not padded, not robotic.
+- For a greeting, small talk, or a simple one-off question, reply in a single short sentence. Do NOT pad, list what you can do, or tack on a follow-up question unless the user asked for one. Save the fuller treatment for questions that genuinely need it.`;
 
 // Render prior turns the way the n8n "Conversation so far" block does: one
 // labelled line per turn, empty string when this is the first message.
