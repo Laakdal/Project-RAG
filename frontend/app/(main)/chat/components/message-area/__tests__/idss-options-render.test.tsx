@@ -56,20 +56,39 @@ describe('IdssOptions', () => {
     expect(screen.queryByText('Prioritize selected')).toBeNull();
   });
 
-  it('expands the resolved picker to read-only rows, still not submittable', () => {
+  it('expands the resolved picker to the chosen rows only, still not submittable', () => {
     const p = ACTION_PRESETS.prioritize;
     messages = [userMsg(`${p.prefix}Hardware Upgrade, Mod Optimization Stack${p.suffix}`)];
 
     render(<IdssOptions data={data} />);
     fireEvent.click(screen.getByLabelText('Show options'));
 
-    expect(screen.getAllByRole('option')).toHaveLength(3);
-    // Chosen rows are marked; the action button stays gone.
+    // Once answered the card is a record of the DECISION, not of the menu:
+    // the options that were not taken are gone rather than dimmed.
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(screen.getByText('Hardware Upgrade')).toBeTruthy();
+    expect(screen.getByText('Mod Optimization Stack')).toBeTruthy();
+    expect(screen.queryByText('JVM Tuning')).toBeNull();
+    // The action button stays gone.
     expect(screen.queryByText('Prioritize selected')).toBeNull();
 
     // Clicking a row must not send another turn.
-    fireEvent.click(screen.getAllByRole('option')[2]);
+    fireEvent.click(screen.getAllByRole('option')[0]);
     expect(append).not.toHaveBeenCalled();
+  });
+
+  it('expands a resolved single-select to just the one option chosen', () => {
+    const singleData: IdssOptionsData = { ...data, multiSelect: false, action: 'compare' };
+    messages = [userMsg('Tell me more about: JVM Tuning')];
+
+    render(<IdssOptions data={singleData} />);
+    fireEvent.click(screen.getByLabelText('Show options'));
+
+    const rows = screen.getAllByRole('option');
+    expect(rows).toHaveLength(1);
+    expect(screen.getByText('JVM Tuning')).toBeTruthy();
+    expect(screen.getByText('GC params')).toBeTruthy();
+    expect(screen.queryByText('Hardware Upgrade')).toBeNull();
   });
 
   it('locks immediately on submit, before the turn reaches the thread', () => {
