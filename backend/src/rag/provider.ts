@@ -10,6 +10,15 @@ async function langgraph() {
   return mod.langgraphProvider;
 }
 
+// Whether the caller's backend-built library context is actually consumed. The
+// n8n path takes libraryDocs/skipDrive and injects them into the workflow; the
+// langgraph path retrieves the library inside its own graph and ignores both
+// arguments. Building them anyway costs two LLM calls and an embedding round
+// trip per turn, all discarded — so callers gate on this instead.
+export function usesBackendLibrary(): boolean {
+  return config.RAG_PROVIDER !== "langgraph";
+}
+
 export async function queryRag(
   conversationId: string,
   question: string,
