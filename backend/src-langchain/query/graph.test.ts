@@ -61,16 +61,44 @@ describe("runQuery graph", () => {
     expect(r.title).toBe("T");
   });
 
-  it("does not refuse when a file is attached, even with empty context", async () => {
-    // hasAttachments routes through retrieve; an empty drive result must still
-    // reach generate (the upload itself is the context), never noMatch.
+  it("does not refuse when a file is attached but retrieval found nothing", async () => {
+    // hasAttachments routes through retrieve; when it genuinely finds nothing and
+    // the drive lookup is empty too, generate must still run (the guard refuses
+    // only for document questions with NO attachment), never noMatch.
     intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: true });
+    retrieve.mockResolvedValueOnce({ docs: [] });
     grade.mockResolvedValueOnce({ relevant: false });
     driveLookup.mockResolvedValueOnce({ docs: [] });
     const { runQuery } = await import("./graph.js");
     const r = await runQuery("c1", "jelaskan gambar ini", [], false);
     expect(generate).toHaveBeenCalled();
     expect(r.answer).toBe("from-docs");
+  });
+
+  it("answers an attached file from its own chunks when grade calls them irrelevant", async () => {
+    // The grader sees only the top few chunks of a long upload, so a "no" is not
+    // evidence the file is irrelevant. Routing to Drive here cost the user the
+    // whole document: driveLookup REPLACES docs, so a failed lookup left generate
+    // with empty context and it answered "I can't find your PDF".
+    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: true });
+    grade.mockResolvedValueOnce({ relevant: false });
+    driveLookup.mockResolvedValueOnce({ docs: [] });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "bagaimana cara menambahkan non fungsional yang ada di pdf", [], false);
+    expect(driveLookup).not.toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
+    expect(state.docs).toHaveLength(1);
+  });
+
+  it("does not web-search away an attached file's chunks", async () => {
+    // Same defect on the other fallback: webSearch also replaces docs wholesale.
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: true });
+    grade.mockResolvedValueOnce({ relevant: false });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "jelaskan isi file ini", [], false);
+    expect(webSearch).not.toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
+    expect(state.docs).toHaveLength(1);
   });
 
   it("threads needsReasoning through to the generate node", async () => {
