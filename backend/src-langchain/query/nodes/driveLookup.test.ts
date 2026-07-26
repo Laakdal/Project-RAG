@@ -10,6 +10,11 @@ vi.mock("../../shared/models.js", () => ({
   geminiRead,
 }));
 
+// The same reader the upload path uses: routes Office formats through Gotenberg
+// and everything else straight to the vision model.
+const readDocument = vi.fn(async () => "read document text");
+vi.mock("../../ingest/read.js", () => ({ readDocument }));
+
 vi.mock("../../shared/content.js", () => ({ extractText: (c: unknown) => String(c) }));
 vi.mock("../../shared/log.js", () => ({ logNodeError: vi.fn() }));
 
@@ -72,7 +77,7 @@ describe("driveLookup node", () => {
     expect(q).toContain("fullText contains 'sppd' or name contains 'sppd'");
     expect(q).toContain("trashed = false");
 
-    expect(geminiRead).toHaveBeenCalledTimes(1);
+    expect(readDocument).toHaveBeenCalledTimes(1);
     expect(upsertDriveReadCache).toHaveBeenCalledWith(
       expect.objectContaining({ driveFileId: "f1", modifiedTime: FILE.modifiedTime, markdown: "read document text" }),
     );
@@ -85,7 +90,7 @@ describe("driveLookup node", () => {
     getDriveReadCache.mockResolvedValueOnce({ markdown: "cached markdown", modifiedTime: FILE.modifiedTime });
     const { driveLookup } = await import("./driveLookup.js");
     const out = await driveLookup({ question: "SPPD Jakarta" });
-    expect(geminiRead).not.toHaveBeenCalled();
+    expect(readDocument).not.toHaveBeenCalled();
     expect(downloadFile).not.toHaveBeenCalled();
     expect(out.docs[0].text).toBe("cached markdown");
   });
@@ -94,7 +99,7 @@ describe("driveLookup node", () => {
     getDriveReadCache.mockResolvedValueOnce({ markdown: "old", modifiedTime: "2020-01-01T00:00:00Z" });
     const { driveLookup } = await import("./driveLookup.js");
     const out = await driveLookup({ question: "SPPD Jakarta" });
-    expect(geminiRead).toHaveBeenCalledTimes(1);
+    expect(readDocument).toHaveBeenCalledTimes(1);
     expect(out.docs[0].text).toBe("read document text");
   });
 
@@ -102,8 +107,71 @@ describe("driveLookup node", () => {
     searchFiles.mockResolvedValueOnce([{ ...FILE, size: String(25 * 1024 * 1024) }]);
     const { driveLookup } = await import("./driveLookup.js");
     const out = await driveLookup({ question: "SPPD Jakarta" });
-    expect(geminiRead).not.toHaveBeenCalled();
+    expect(readDocument).not.toHaveBeenCalled();
     expect(out.docs).toEqual([]);
+  });
+
+  it("skips a file type the reader cannot parse and takes the next best match", async () => {
+    // A .drawio scored highest on the filename terms, was downloaded whole, and
+    // the vision reader answered 400 — which aborted the entire source, so the
+    // readable PDF right behind it was never read.
+    searchFiles.mockResolvedValueOnce([
+      {
+        ...FILE,
+        id: "d1",
+        name: "SPPD Jakarta.drawio",
+        mimeType: "application/vnd.jgraph.mxfile",
+        webUrl: "https://drive/d1",
+      },
+      FILE,
+    ]);
+    const { driveLookup } = await import("./driveLookup.js");
+    const out = await driveLookup({ question: "cari SPPD Jakarta" });
+    expect(out.docs.map((d) => d.filename)).toEqual(["SPPD Jakarta.pdf"]);
+  });
+
+  it("skips Google file types that cannot be exported to PDF", async () => {
+    // Forms have no PDF export; downloading one answers 400 before the reader is
+    // ever reached.
+    searchFiles.mockResolvedValueOnce([
+      {
+        ...FILE,
+        id: "g1",
+        name: "SPPD Jakarta",
+        mimeType: "application/vnd.google-apps.form",
+        webUrl: "https://drive/g1",
+      },
+      FILE,
+    ]);
+    const { driveLookup } = await import("./driveLookup.js");
+    const out = await driveLookup({ question: "cari SPPD Jakarta" });
+    expect(out.docs.map((d) => d.filename)).toEqual(["SPPD Jakarta.pdf"]);
+    expect(downloadFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reads Google-native documents, which download as an exported PDF", async () => {
+    searchFiles.mockResolvedValueOnce([
+      {
+        ...FILE,
+        id: "g2",
+        name: "SPPD Jakarta",
+        mimeType: "application/vnd.google-apps.document",
+        size: undefined,
+      },
+    ]);
+    const { driveLookup } = await import("./driveLookup.js");
+    const out = await driveLookup({ question: "cari SPPD Jakarta" });
+    expect(out.docs).toHaveLength(1);
+  });
+
+  it("converts an Office file instead of handing it to the vision reader", async () => {
+    const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    searchFiles.mockResolvedValueOnce([{ ...FILE, name: "SPPD Jakarta.docx", mimeType: DOCX }]);
+    downloadFile.mockResolvedValueOnce({ buffer: Buffer.from("bytes"), mimeType: DOCX });
+    const { driveLookup } = await import("./driveLookup.js");
+    await driveLookup({ question: "cari SPPD Jakarta" });
+    expect(readDocument).toHaveBeenCalledWith(expect.any(Buffer), DOCX);
+    expect(geminiRead).not.toHaveBeenCalled();
   });
 
   it("falls back to the heuristic extractor when the LLM call fails", async () => {
