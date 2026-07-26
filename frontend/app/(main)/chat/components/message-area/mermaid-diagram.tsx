@@ -196,7 +196,7 @@ const EDGE_TARGET = /(?:-->|---|-\.->|-\.-|==>|===|--[ox]|o--o|x--x|<-->|<--)(?:
  *     child node back to its own parent confuses mermaid's layout engine and
  *     produces half-rendered / misaligned subgraphs.
  */
-function normalizeMermaid(source: string): string {
+export function normalizeMermaid(source: string): string {
   // Fix 1: collapse \n (literal backslash-n) to a space in subgraph title lines
   let result = source.replace(
     /^\s*subgraph\b.*/mg,
@@ -258,6 +258,31 @@ function normalizeMermaid(source: string): string {
   result = result.replace(/\[([^\]]*)\]/g, (match, content) =>
     content.includes('@') ? `[${content.replace(/@/g, '')}]` : match,
   );
+
+  // Fix 5: UML instance names as sequence endpoints, e.g. `participant :User`.
+  // A diagram transcribed from a UML class/sequence image carries the `:Name`
+  // instance notation through verbatim, but mermaid reserves ':' as the
+  // message-text delimiter — so `participant :User` is a hard lexer failure
+  // ("Expecting 'ACTOR', got 'INVALID'") that kills the whole diagram.
+  //
+  // Strip the colon in the three positions an endpoint can appear, leaving
+  // every other colon — including the one before message text, and any colons
+  // INSIDE that text ("error : TooManyRequests") — untouched. Scoped to
+  // sequence diagrams, the only place this notation shows up.
+  if (/^\s*sequenceDiagram\b/m.test(result)) {
+    result = result
+      .split('\n')
+      .map((line) =>
+        line
+          // Declaration: `participant :User` / `actor :UserSession`
+          .replace(/^(\s*(?:participant|actor)\s+):(?=[A-Za-z_])/, '$1')
+          // Sender at line start: `:User-->>AuthController: user`
+          .replace(/^(\s*):(?=[A-Za-z_])/, '$1')
+          // Receiver after an arrow: `AuthController->>:User: loadUserByEmail()`
+          .replace(/(-{1,2}(?:>>?|[x)])|<<-{1,2}>>)\s*:(?=[A-Za-z_])/g, '$1'),
+      )
+      .join('\n');
+  }
 
   return result;
 }
