@@ -1150,7 +1150,12 @@ export function AnswerContent({
         >
           <table
             style={{
-              minWidth: 'max-content',
+              // No min-width: the table is bounded by the message column and
+              // wraps to fit. `max-content` here used to force the table to its
+              // widest unwrapped content, which guaranteed a horizontal
+              // scrollbar on any comparison table however much room there was.
+              // `auto` layout still sizes columns by their content, so a short
+              // "Factor" column stays narrow instead of being padded to match.
               width: '100%',
               borderCollapse: 'collapse',
               fontSize: 'var(--font-size-2)',
@@ -1193,7 +1198,13 @@ export function AnswerContent({
           fontSize: '11px',
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
+          // Headers wrap. Uppercased column titles are the longest unbreakable
+          // run in a comparison table ("PENDEKATAN KOMPLEKS (DENGAN DIAGRAM)"),
+          // so keeping them on one line set a floor on the column width that no
+          // cell max-width could undo.
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
           borderRight: '1px solid var(--slate-5)',
           borderBottom: '2px solid var(--slate-6)',
         }}
