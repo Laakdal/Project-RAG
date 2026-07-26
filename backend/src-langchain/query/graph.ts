@@ -22,6 +22,10 @@ const State = Annotation.Root({
   needsReasoning: Annotation<boolean>(),
   hasAttachments: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
+  // The subset of `docs` that came from files attached to THIS chat, kept apart
+  // so the fallback nodes can preserve it without also preserving the library
+  // chunks the grader rejected.
+  chatDocs: Annotation<QuerySource[]>(),
   confident: Annotation<boolean>(),
   relevant: Annotation<boolean>(),
   answer: Annotation<string>(),
@@ -58,6 +62,24 @@ function phaseNode<S, R>(key: string, fn: (state: S, config?: any) => R) {
   return (state: S, config?: any): R => {
     if (label) (config as PhaseConfig | undefined)?.configurable?.onPhase?.({ key, label });
     return fn(state, config);
+  };
+}
+
+// `driveLookup` and `webSearch` each return only what THEY found, and `docs` is a
+// LastValue channel, so their result REPLACES the channel. That silently threw
+// away the file the user had attached to the chat: a Drive read that failed (or
+// simply found nothing) left generate with empty context, and it answered "I
+// can't find your PDF" while the upload sat indexed and retrievable. Re-attach
+// the per-chat chunks around every fallback so they survive it.
+//
+// Only the per-chat chunks come back — NOT the library chunks the grader just
+// rejected. Those are exactly the off-topic hits the fallback was invoked to
+// replace, and carrying them into generate is how an unrelated library PDF ends
+// up cited.
+function keepingAttachments<S>(fn: (state: S) => Promise<{ docs: QuerySource[] }>) {
+  return async (state: S & { chatDocs?: QuerySource[] }): Promise<{ docs: QuerySource[] }> => {
+    const found = await fn(state);
+    return { docs: [...(state.chatDocs ?? []), ...found.docs] };
   };
 }
 
@@ -101,7 +123,7 @@ async function prepare(state: PrepareState) {
     // Retrieval must never fail the whole query — a greeting used to skip these
     // nodes entirely and must not start breaking when they run on every turn.
     logNodeError("prepare (retrieval)", error);
-    return { rewritten: state.question, docs: [], confident: false };
+    return { rewritten: state.question, docs: [], chatDocs: [], confident: false };
   });
 
   const [classified, retrieved] = await Promise.all([intentPromise, retrievalPromise]);
@@ -110,6 +132,7 @@ async function prepare(state: PrepareState) {
     ...classified,
     rewritten: retrieved.rewritten,
     docs: useDocs ? retrieved.docs : [],
+    chatDocs: useDocs ? (retrieved.chatDocs ?? []) : [],
     confident: useDocs ? retrieved.confident : false,
   };
 }
@@ -117,9 +140,9 @@ async function prepare(state: PrepareState) {
 const graph = new StateGraph(State)
   .addNode("prepare", phaseNode("prepare", prepare))
   .addNode("grade", phaseNode("grade", grade))
-  .addNode("driveLookup", phaseNode("driveLookup", driveLookup))
+  .addNode("driveLookup", phaseNode("driveLookup", keepingAttachments(driveLookup)))
   .addNode("generate", phaseNode("generate", generate))
-  .addNode("webSearch", phaseNode("webSearch", webSearch))
+  .addNode("webSearch", phaseNode("webSearch", keepingAttachments(webSearch)))
   // No phase label (like titleNode): it is a terminal refusal, nothing to report.
   .addNode("noMatch", phaseNode("noMatch", noMatch))
   .addNode("titleNode", phaseNode("titleNode", title))
@@ -149,24 +172,14 @@ const graph = new StateGraph(State)
   // try a live Drive lookup; for a public question, the web; otherwise generate
   // (empty context -> the prompt says plainly it couldn't find it in their files).
   //
-  // A file the user attached to THIS chat is the exception, and it is not a
-  // tie-breaker but a hard override: `driveLookup` and `webSearch` both return a
-  // whole `docs` array, and `docs` is a LastValue channel, so whatever they
-  // return REPLACES the upload's chunks. A failed Drive read therefore left
-  // generate with empty context and it answered "I can't find your PDF" while
-  // the file sat indexed and retrievable. The grader is also the wrong judge
-  // here: it sees the top 5 chunks of what may be a 90-chunk thesis, so a "no"
-  // says the excerpt is thin, not that the document is irrelevant. When the user
-  // deliberately attached a file and retrieval found chunks of it, answer from
-  // them rather than going out to Drive or the web.
+  // A negative grade does NOT send the upload away: both fallbacks run with the
+  // attachment's chunks preserved (see `keepingAttachments`). Gating this edge on
+  // hasAttachments instead was wrong — hasAttachments is a conversation-wide
+  // count and per-chat hits are never score-gated, so it would have cut a chat
+  // off from Drive and the web for the rest of its life the moment one file was
+  // uploaded.
   .addConditionalEdges("grade", (s) =>
-    s.relevant || (s.hasAttachments && (s.docs?.length ?? 0) > 0)
-      ? "generate"
-      : s.useDrive
-        ? "driveLookup"
-        : s.needsWeb
-          ? "webSearch"
-          : "generate",
+    s.relevant ? "generate" : s.useDrive ? "driveLookup" : s.needsWeb ? "webSearch" : "generate",
   )
   // Grounded? guard, ported from the live workflow. driveLookup is the sole
   // convergence for the document path (route -> retrieve -> grade -> driveLookup
