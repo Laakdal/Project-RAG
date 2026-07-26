@@ -49,7 +49,7 @@ const buildPrompt = (preset: ActionPreset, labels: string) =>
   `${preset.prefix}${labels}${preset.suffix}`;
 
 /** The exact turn a single-select row sends — also used to recognise it later. */
-const singleFollowup = (opt: IdssOption) =>
+export const singleFollowup = (opt: IdssOption) =>
   opt.followup && opt.followup.trim() ? opt.followup.trim() : `Tell me more about: ${opt.label}`;
 
 /** Minimal shape we need off a thread message; avoids depending on runtime types. */
@@ -122,7 +122,7 @@ function useSendFollowup() {
  *
  * Styled as a compact numbered picker (à la a command palette): a prompt header,
  * numbered rows, keyboard navigation (↑/↓ to move, Enter to pick), and — once the
- * user picks — a resolved state (chosen row highlighted, the rest dimmed) so the
+ * user picks — a resolved state (only the chosen row survives) so the
  * follow-up answer reads as a continuation of the same interaction rather than a
  * brand-new question. Single-select sends the option's follow-up; multi-select
  * collects a set and sends one compare/prioritise/rank turn.
@@ -299,11 +299,13 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
           {data.options.map((opt, i) => {
             const isSelected = selected.has(i);
             const isResolvedPick = resolvedSet?.has(i) ?? false;
+            // Once answered the card records the DECISION, not the menu it came
+            // from: the roads not taken are dropped rather than dimmed, so the
+            // expanded card reads as "this is what you picked".
+            if (locked && !isResolvedPick) return null;
             const isActive = !locked && active === i;
             // Highlighted when: keyboard-active, multi-selected, or the resolved pick.
             const hot = isActive || (data.multiSelect ? isSelected : false) || isResolvedPick;
-            // Dimmed when the picker is resolved and this row was NOT chosen.
-            const dim = locked && !isResolvedPick;
 
             return (
               <Box
@@ -318,8 +320,7 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
                   padding: 'var(--space-3) var(--space-4)',
                   borderTop: i === 0 ? 'none' : '1px solid var(--slate-4)',
                   backgroundColor: hot ? 'var(--accent-3)' : 'transparent',
-                  opacity: dim ? 0.5 : 1,
-                  transition: 'background-color 0.1s ease, opacity 0.15s ease',
+                  transition: 'background-color 0.1s ease',
                 }}
               >
                 <Flex align="start" gap="3">
