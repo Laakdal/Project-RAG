@@ -11,7 +11,7 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, queryRagStream, ingestFile } from "./provider.js";
+import { queryRag, queryRagStream, ingestFile, usesBackendLibrary } from "./provider.js";
 import { downloadDriveFile } from "./n8n-client.js";
 import type { QueryResult, QuerySource } from "./types.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
@@ -377,7 +377,10 @@ router.post(
     let libraryDocs: QuerySource[] = [];
     let skipDrive = false;
     try {
-      const doSearch = useLibrary ?? (await shouldSearchLibrary(question));
+      // Skipped entirely where the provider ignores the result (langgraph
+      // retrieves the library inside its own graph) — otherwise this is two LLM
+      // calls and an embedding on every turn, thrown away.
+      const doSearch = usesBackendLibrary() && (useLibrary ?? (await shouldSearchLibrary(question)));
       if (doSearch) {
         libraryDocs = await searchLibrary(question);
         // Skip the slow live Drive read only when the library provably answers
@@ -605,7 +608,7 @@ router.post(
     let libraryDocs: QuerySource[] = [];
     let skipDrive = false;
     try {
-      if (await shouldSearchLibrary(lastUser.content)) {
+      if (usesBackendLibrary() && (await shouldSearchLibrary(lastUser.content))) {
         libraryDocs = await searchLibrary(lastUser.content);
         skipDrive = await librarySufficient(lastUser.content, libraryDocs);
       }
