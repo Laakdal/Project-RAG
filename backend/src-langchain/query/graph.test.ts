@@ -4,7 +4,17 @@ const rewrite = vi.fn(async (s: { question: string }) => ({ rewritten: s.questio
 vi.mock("./nodes/rewrite.js", () => ({ rewrite }));
 const intent = vi.fn(async () => ({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: false }));
 vi.mock("./nodes/intent.js", () => ({ intent }));
-const retrieve = vi.fn(async () => ({ docs: [{ filename: "d", chunkIndex: 0, text: "t" }] }));
+// A chunk of a file attached to this chat, as retrieve reports it: included in
+// `docs` for generate, and repeated in `chatDocs` so the fallback nodes can be
+// stopped from discarding it.
+type Doc = { filename: string; chunkIndex: number; text: string };
+const CHAT_DOC: Doc = { filename: "upload.pdf", chunkIndex: 0, text: "upload text" };
+const retrieve = vi.fn(
+  async (): Promise<{ docs: Doc[]; chatDocs: Doc[] }> => ({
+    docs: [{ filename: "d", chunkIndex: 0, text: "t" }],
+    chatDocs: [],
+  }),
+);
 vi.mock("./nodes/retrieve.js", () => ({ retrieve }));
 const grade = vi.fn(async () => ({ relevant: true }));
 vi.mock("./nodes/grade.js", () => ({ grade }));
@@ -66,7 +76,7 @@ describe("runQuery graph", () => {
     // the drive lookup is empty too, generate must still run (the guard refuses
     // only for document questions with NO attachment), never noMatch.
     intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: true });
-    retrieve.mockResolvedValueOnce({ docs: [] });
+    retrieve.mockResolvedValueOnce({ docs: [], chatDocs: [] });
     grade.mockResolvedValueOnce({ relevant: false });
     driveLookup.mockResolvedValueOnce({ docs: [] });
     const { runQuery } = await import("./graph.js");
@@ -75,30 +85,42 @@ describe("runQuery graph", () => {
     expect(r.answer).toBe("from-docs");
   });
 
-  it("answers an attached file from its own chunks when grade calls them irrelevant", async () => {
-    // The grader sees only the top few chunks of a long upload, so a "no" is not
-    // evidence the file is irrelevant. Routing to Drive here cost the user the
-    // whole document: driveLookup REPLACES docs, so a failed lookup left generate
-    // with empty context and it answered "I can't find your PDF".
+  it("keeps the attached file's chunks when the Drive lookup comes back empty", async () => {
+    // driveLookup returns only what IT found and `docs` is a LastValue channel,
+    // so a failed lookup used to erase the upload the user was asking about and
+    // generate answered "I can't find your PDF" over empty context.
     intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: true });
+    retrieve.mockResolvedValueOnce({ docs: [CHAT_DOC], chatDocs: [CHAT_DOC] });
     grade.mockResolvedValueOnce({ relevant: false });
     driveLookup.mockResolvedValueOnce({ docs: [] });
     const { runQuery } = await import("./graph.js");
     await runQuery("c1", "bagaimana cara menambahkan non fungsional yang ada di pdf", [], false);
-    expect(driveLookup).not.toHaveBeenCalled();
-    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
-    expect(state.docs).toHaveLength(1);
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: { filename: string }[] };
+    expect(state.docs?.map((d) => d.filename)).toEqual(["upload.pdf"]);
   });
 
-  it("does not web-search away an attached file's chunks", async () => {
-    // Same defect on the other fallback: webSearch also replaces docs wholesale.
-    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: true });
+  it("adds a Drive hit to the attached file's chunks rather than replacing them", async () => {
+    intent.mockResolvedValueOnce({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: true });
+    retrieve.mockResolvedValueOnce({ docs: [CHAT_DOC], chatDocs: [CHAT_DOC] });
     grade.mockResolvedValueOnce({ relevant: false });
     const { runQuery } = await import("./graph.js");
-    await runQuery("c1", "jelaskan isi file ini", [], false);
-    expect(webSearch).not.toHaveBeenCalled();
-    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: unknown[] };
-    expect(state.docs).toHaveLength(1);
+    await runQuery("c1", "apa isi SOP IT", [], false);
+    // The fallback still runs — a chat holding an attachment must not lose access
+    // to Drive for the rest of its life.
+    expect(driveLookup).toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: { filename: string }[] };
+    expect(state.docs?.map((d) => d.filename)).toEqual(["upload.pdf", "SOP.pdf"]);
+  });
+
+  it("keeps the attached file's chunks when falling back to web search", async () => {
+    intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: true });
+    retrieve.mockResolvedValueOnce({ docs: [CHAT_DOC], chatDocs: [CHAT_DOC] });
+    grade.mockResolvedValueOnce({ relevant: false });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "harga saham Apple hari ini", [], false);
+    expect(webSearch).toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: { filename: string }[] };
+    expect(state.docs?.map((d) => d.filename)).toEqual(["upload.pdf", "Web search"]);
   });
 
   it("threads needsReasoning through to the generate node", async () => {
