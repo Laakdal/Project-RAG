@@ -19,6 +19,7 @@ import { AgentsApi } from '@/app/(main)/agents/api';
 import { useChatStore, ctxKeyFromAgent, getEffectiveModel } from './store';
 import { debugLog } from './debug-logger';
 import { loadHistoricalMessages, getThreadMessagePlainText } from './runtime';
+import { markFailedTurn } from './retry-plan';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import {
   buildAssistantApiFilters,
@@ -49,22 +50,28 @@ function createPendingAssistantId(): string {
 /**
  * If the last message is the empty placeholder assistant for an in-flight stream,
  * replace it with the error text. Otherwise append a new assistant error row.
+ *
+ * Either way the result is tagged with the question that failed: the turn never
+ * reached the database, so Retry has to re-ask it rather than ask the server to
+ * redo "the last answer" (which would be the previous, unrelated turn).
  */
 function withStreamingErrorMessage(
   currentMessages: ThreadMessageLike[],
-  errorText: string
+  errorText: string,
+  question: string
 ): ThreadMessageLike[] {
   const last = currentMessages[currentMessages.length - 1];
-  if (last?.role === 'assistant' && getThreadMessagePlainText(last).trim() === '') {
-    return [
-      ...currentMessages.slice(0, -1),
-      { ...last, content: [{ type: 'text' as const, text: errorText }] },
-    ];
-  }
-  return [
-    ...currentMessages,
-    { role: 'assistant' as const, content: [{ type: 'text' as const, text: errorText }] },
-  ];
+  const withError =
+    last?.role === 'assistant' && getThreadMessagePlainText(last).trim() === ''
+      ? [
+          ...currentMessages.slice(0, -1),
+          { ...last, content: [{ type: 'text' as const, text: errorText }] },
+        ]
+      : [
+          ...currentMessages,
+          { role: 'assistant' as const, content: [{ type: 'text' as const, text: errorText }] },
+        ];
+  return markFailedTurn(withError, question);
 }
 
 function statusMessageFromConnectedEvent(data: SSEConnectedEvent): StatusMessage {
@@ -500,7 +507,7 @@ export async function streamMessageForSlot(
           streamingCitationMaps: null,
           pendingCollections: [],
           abortController: null,
-          messages: withStreamingErrorMessage(currentMessages, err),
+          messages: withStreamingErrorMessage(currentMessages, err, query),
         });
         if (isNewConversation) {
           useChatStore.getState().clearPendingConversation(slotId);
@@ -555,7 +562,7 @@ export async function streamMessageForSlot(
       streamingCitationMaps: null,
       pendingCollections: [],
       abortController: null,
-      messages: withStreamingErrorMessage(currentMessages, errorMessage),
+      messages: withStreamingErrorMessage(currentMessages, errorMessage, query),
     });
     if (isNewConversation) {
       useChatStore.getState().clearPendingConversation(slotId);
