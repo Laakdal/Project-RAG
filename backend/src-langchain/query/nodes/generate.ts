@@ -88,6 +88,7 @@ export async function generate(state: {
   docs?: QuerySource[];
   history?: ChatTurn[];
   needsReasoning?: boolean;
+  needsOptions?: boolean;
 }): Promise<{ answer: string; sources: QuerySource[] }> {
   try {
     // The creative/general path reaches generate without retrieve or web search
@@ -99,8 +100,16 @@ export async function generate(state: {
     // (promptType "define"): the instructions and the context/history/question
     // live in one prompt. Splitting into system + user weakened glm-4.6's
     // adherence to the strict formatting rules.
+    // The idss-options section is written as a permission ("you may"), which the
+    // imperative grounding rules out-compete as soon as there is real document
+    // context to answer from — the block simply stopped appearing. When the
+    // classifier has judged that this question warrants options, say so as an
+    // instruction instead of leaving it to the answer model's mood.
+    const optionsDirective = state.needsOptions
+      ? "\n\nThis question warrants decision support: you MUST include an idss-options block in this reply, IN ADDITION to answering the question itself. Answer first, then offer the options, grounded in the document context where there is any.\n"
+      : "";
     const prompt =
-      `${SYSTEM_PROMPT}\n\n` +
+      `${SYSTEM_PROMPT}${optionsDirective}\n\n` +
       `Document context:\n${context}\n\n` +
       `Conversation so far (earlier turns in THIS chat; empty if this is the first message):\n${historyText}\n\n` +
       `Question: ${state.question}`;
