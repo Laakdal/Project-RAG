@@ -148,8 +148,25 @@ const graph = new StateGraph(State)
   // Docs relevant -> answer from them. Not relevant: for a document question,
   // try a live Drive lookup; for a public question, the web; otherwise generate
   // (empty context -> the prompt says plainly it couldn't find it in their files).
+  //
+  // A file the user attached to THIS chat is the exception, and it is not a
+  // tie-breaker but a hard override: `driveLookup` and `webSearch` both return a
+  // whole `docs` array, and `docs` is a LastValue channel, so whatever they
+  // return REPLACES the upload's chunks. A failed Drive read therefore left
+  // generate with empty context and it answered "I can't find your PDF" while
+  // the file sat indexed and retrievable. The grader is also the wrong judge
+  // here: it sees the top 5 chunks of what may be a 90-chunk thesis, so a "no"
+  // says the excerpt is thin, not that the document is irrelevant. When the user
+  // deliberately attached a file and retrieval found chunks of it, answer from
+  // them rather than going out to Drive or the web.
   .addConditionalEdges("grade", (s) =>
-    s.relevant ? "generate" : s.useDrive ? "driveLookup" : s.needsWeb ? "webSearch" : "generate",
+    s.relevant || (s.hasAttachments && (s.docs?.length ?? 0) > 0)
+      ? "generate"
+      : s.useDrive
+        ? "driveLookup"
+        : s.needsWeb
+          ? "webSearch"
+          : "generate",
   )
   // Grounded? guard, ported from the live workflow. driveLookup is the sole
   // convergence for the document path (route -> retrieve -> grade -> driveLookup
@@ -159,6 +176,13 @@ const graph = new StateGraph(State)
   // every retrieval path came back empty. A web-only or upload question never
   // refuses — it still generates. noMatch answers WITHOUT the LLM, so it cannot
   // fabricate citations.
+  //
+  // NOTE the coupling: `docs.length === 0` reads as "Drive found nothing" only
+  // because driveLookup REPLACES the channel, discarding the library chunks the
+  // grader just rejected — which is what we want on this edge, since those
+  // chunks are exactly the ones that produce off-topic citations. If driveLookup
+  // is ever changed to merge instead, this guard stops refusing and must switch
+  // to a flag reporting what the lookup itself returned.
   .addConditionalEdges("driveLookup", (s) =>
     s.useDrive && !s.hasAttachments && (s.docs?.length ?? 0) === 0
       ? "noMatch"
