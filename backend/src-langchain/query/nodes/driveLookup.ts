@@ -1,5 +1,7 @@
 import { searchFiles, downloadFile, type DriveFile, type DriveCreds } from "../../library/drive.js";
-import { geminiRead, makeIntentModel } from "../../shared/models.js";
+import { makeIntentModel } from "../../shared/models.js";
+import { readDocument } from "../../ingest/read.js";
+import { isAllowedUpload } from "../../../src/rag/upload-allowlist.js";
 import { extractText } from "../../shared/content.js";
 import { listDriveSources } from "../../../src/settings/drive-sources.js";
 import { getDriveReadCache, upsertDriveReadCache } from "../../../src/settings/drive-cache.js";
@@ -76,12 +78,33 @@ function buildQuery(phrases: string[], terms: string[]): string {
   return `(${conditions.join(" or ")}) and trashed = false`;
 }
 
+// Google-native types `downloadFile` can export to PDF. Everything else under
+// vnd.google-apps (forms, drawings, sites, shortcuts, folders) has no PDF export
+// and answers 400 on download.
+const EXPORTABLE_GOOGLE = new Set([
+  "application/vnd.google-apps.document",
+  "application/vnd.google-apps.spreadsheet",
+  "application/vnd.google-apps.presentation",
+]);
+
+// Drive returns whatever the account happens to hold, including formats no
+// reader can parse. A .drawio scored top on the filename terms, downloaded fine,
+// and the vision model answered 400 — and because a read failure aborts the
+// whole source, the readable PDFs behind it were never tried. Candidates are now
+// held to the same formats an upload is (plus exportable Google docs), so an
+// unreadable file is passed over instead of sinking the lookup.
+function isReadable(f: DriveFile): boolean {
+  if (EXPORTABLE_GOOGLE.has(f.mimeType)) return true;
+  if (f.mimeType.startsWith("application/vnd.google-apps")) return false;
+  return isAllowedUpload(f.mimeType, f.name);
+}
+
 // n8n Pick Files: drop over-cap files, score by how many terms appear in the
 // filename, tie-break by search order, take the single best. dev3 applies this
 // per source (Option 2 — top file from each connected account).
 function pickTop(files: DriveFile[], terms: string[]): DriveFile | undefined {
   const scored = files
-    .filter((f) => f.id && !(f.size && Number(f.size) > SIZE_CAP))
+    .filter((f) => f.id && isReadable(f) && !(f.size && Number(f.size) > SIZE_CAP))
     .map((f, idx) => {
       const name = f.name.toLowerCase();
       let nameHits = 0;
@@ -100,7 +123,9 @@ async function readWithCache(creds: DriveCreds, file: DriveFile): Promise<string
     return cached.markdown;
   }
   const { buffer, mimeType } = await downloadFile(creds, file);
-  const text = await geminiRead(buffer, mimeType);
+  // Same reader as the upload path: Office formats take the Gotenberg hop to PDF
+  // first, since handing a raw .docx to the vision model is a 400.
+  const text = await readDocument(buffer, mimeType);
   if (text) {
     await upsertDriveReadCache({
       driveFileId: file.id,
