@@ -73,6 +73,23 @@ describe("generate node", () => {
     expect(system!.content).toMatch(/multiSelect/);
   });
 
+  it("system prompt teaches the DSS/SPK wording users actually type", async () => {
+    // The trigger list was a set of English brainstorming phrases; the words the
+    // user calls the feature by — "dss", "spk", "decision support" — appeared
+    // nowhere in the prompt, so "gunakan fitur dss" matched no trigger and the
+    // option cards never rendered once a document answer was available.
+    // The question deliberately omits the word, so a match can only come from the
+    // instructions themselves and not from the echoed question.
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "apa saja pilihan saya", docs } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "user");
+    expect(system!.content).toMatch(/\bdss\b/i);
+    expect(system!.content).toMatch(/\bspk\b/i);
+    expect(system!.content).toMatch(/decision support/i);
+  });
+
   it("selects the answer model by needsReasoning (routes pro vs flash downstream)", async () => {
     const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
     const { generate } = await import("./generate.js");
