@@ -90,6 +90,27 @@ describe("generate node", () => {
     expect(system!.content).toMatch(/decision support/i);
   });
 
+  it("requires an idss-options block when the classifier flagged needsOptions", async () => {
+    // The block used to be permissive ("you MAY"), which is why it vanished the
+    // moment a grounded document answer was available. When the classifier says
+    // the question warrants options, it stops being optional.
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "apa yang harus saya lakukan", docs, needsOptions: true } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "user");
+    expect(system!.content).toMatch(/MUST include an idss-options block/i);
+  });
+
+  it("does not require an idss-options block when needsOptions is false", async () => {
+    const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
+    const { generate } = await import("./generate.js");
+    await generate({ question: "berapa total biayanya", docs, needsOptions: false } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { role: string; content: string }[];
+    const system = messages.find((m) => m.role === "user");
+    expect(system!.content).not.toMatch(/MUST include an idss-options block/i);
+  });
+
   it("selects the answer model by needsReasoning (routes pro vs flash downstream)", async () => {
     const docs = [{ filename: "d.pdf", chunkIndex: 0, text: "ctx" }];
     const { generate } = await import("./generate.js");
