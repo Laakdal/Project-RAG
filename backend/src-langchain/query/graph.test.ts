@@ -161,6 +161,26 @@ describe("runQuery graph", () => {
     expect(state.needsOptions).toBe(true);
   });
 
+  it("does not consult Drive for an attachment question the classifier kept off Drive", async () => {
+    // The classifier's job is to decide whether the user pointed at their upload
+    // or at their Drive. When it says the upload, a rejected grade must not send
+    // the question out to Drive anyway.
+    intent.mockResolvedValueOnce({
+      useDrive: false,
+      needsWeb: false,
+      needsReasoning: false,
+      hasAttachments: true,
+    });
+    retrieve.mockResolvedValueOnce({ docs: [CHAT_DOC], chatDocs: [CHAT_DOC] });
+    grade.mockResolvedValueOnce({ relevant: false });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "bagaimana cara menambahkan non fungsionalnya", [], false);
+    expect(driveLookup).not.toHaveBeenCalled();
+    expect(webSearch).not.toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { docs?: { filename: string }[] };
+    expect(state.docs?.map((d) => d.filename)).toEqual(["upload.pdf"]);
+  });
+
   it("public question routes to web search", async () => {
     intent.mockResolvedValueOnce({ useDrive: false, needsWeb: true, needsReasoning: false, hasAttachments: false });
     const { runQuery } = await import("./graph.js");
