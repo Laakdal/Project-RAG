@@ -12,11 +12,13 @@ import type { ChatTurn, QuerySource } from "../../../src/rag/types.js";
 // (gemini-2.5-pro when true, else flash). Both useDrive and webSearch false = a
 // creative/build task or small talk answered from general knowledge with no
 // retrieval or web search.
-const INTENT_INSTRUCTIONS = `You route a document chat. The user MAY have attached file(s) to THIS chat (their text, if any, is below). Reply with ONLY a JSON object, nothing else: {useDrive: boolean, webSearch: boolean, needsReasoning: boolean}.
+const INTENT_INSTRUCTIONS = `You route a document chat. The user MAY have attached file(s) to THIS chat (their text, if any, is below). Reply with ONLY a JSON object, nothing else: {useDrive: boolean, webSearch: boolean, needsReasoning: boolean, needsOptions: boolean}.
 useDrive = true when the user asks about the CONTENT of a document, file, report, SOP, manual, journal, or paper; references a SPECIFIC document, letter, or official item (a document/reference number, a dated administrative item such as a memo or surat/nota dinas, or an internal code or acronym such as PPAB / SPPD / DTIS); mentions their Google Drive, library, or company/organization documents; or asks about the user's own organization (e.g. PalmCo) and its activities, projects, letters, or records - UNLESS the attached file(s) below already contain that information. useDrive = false for generic build or creative tasks (flowchart, diagram, code, brainstorm) and for general-knowledge or small-talk questions about the public world.
 Important: an unfamiliar acronym, an internal code, or a specific dated reference is far more likely to be the user's OWN internal document than a public topic. When in doubt between the user's documents and the public web, choose useDrive=true and webSearch=false, because a web search cannot see the user's internal documents.
 webSearch = true ONLY when answering needs CURRENT, recent, or specific EXTERNAL facts that a general assistant would not reliably know from its own training - such as recent events or news, current prices/rates/statistics, the latest version or status of something, or specific facts about a particular named public company/product/website/person, or when the user explicitly asks to search or look something up online. webSearch = false for general conceptual, definitional, educational, comparison, how-to, brainstorming, creative, or opinion questions that a knowledgeable assistant can answer well from its own general knowledge - answer those directly and quickly WITHOUT a web search. webSearch = false when the question refers to or depends on attached/uploaded content, a specific or named document, an official reference or number, or the user's own organization and its records (e.g. 'foto apa ini', 'jelaskan gambar ini', 'apa isi file ini', 'ringkas dokumen ini', 'PPAB tanggal 7 juli 2025'), is a build or creative task, or is a greeting or small talk. If a file is attached below, lean webSearch=false unless the question is clearly a separate general-knowledge question.
 needsReasoning = true when the question calls for genuine analysis or decision support - comparing options, recommending or deciding which is better, weighing trade-offs, ranking or prioritising, or multi-step reasoning over several facts (e.g. 'which is better X or Y', 'compare and recommend', 'should I pick A or B', 'rank these options'). needsReasoning = false for greetings, chit-chat, simple factual or definitional questions, single-fact lookups, summaries, extractions, and creative or build tasks that do not require weighing options.
+needsOptions = true when the user would be better served by being offered a few concrete choices to pick from than by prose alone. Three situations warrant it: (1) COMPETING CHOICES - the question is about picking between alternatives ('mana yang lebih baik A atau B', 'fitur mana yang dikerjakan dulu'); (2) SEVERAL VALID PATHS - the question has a real answer but more than one reasonable way forward ('bagaimana cara saya menambahkan kebutuhan non fungsional', 'apa yang harus saya lakukan selanjutnya'); (3) AMBIGUOUS REQUEST - answering it well requires knowing which reading the user meant ('tolong bantu dengan skripsi saya', 'perbaiki ini'). needsOptions = false for factual lookups, single-fact questions, summaries, extractions, greetings and small talk, and build or creative tasks with one obvious deliverable ('apa isi dokumen ini', 'berapa total biayanya', 'buatkan flowchart login').
+Suppress it on continuations: needsOptions = false when the RECENT CONVERSATION shows options were already offered and this message is picking one of them, answering the question they raised, or drilling into a topic they opened. Offer a fresh set only for a genuinely new decision.
 Follow-up questions: the user may be continuing an earlier topic with a short message (a yes/no, a pick like 'detail paket X', a pronoun like 'that one', or a request to go deeper). Use the RECENT CONVERSATION below to route these consistently instead of defaulting to false,false: if the recent assistant answers were WEB-search results about a public topic (a public product, company, website, or general fact), keep webSearch=true and useDrive=false; if the recent answers were grounded in the user's own documents or Drive, keep useDrive=true and webSearch=false.
 Examples (question -> useDrive,webSearch,needsReasoning): 'apa itu css' -> false,false,false; 'jelaskan konsep agile' -> false,false,false; 'bandingkan agile dan waterfall' -> false,false,true; 'mana yang lebih baik, paket A atau paket B' -> true,false,true; 'harga saham terbaru Apple' -> false,true,false; 'berita terbaru soal AI' -> false,true,false; 'siapa CEO OpenAI saat ini' -> false,true,false; 'apa itu palmco' -> true,false,false; 'PPAB tanggal 7 juli 2025' -> true,false,false; 'surat dinas nomor 110/VII/2025' -> true,false,false; 'SPPD Jakarta' -> true,false,false; 'foto apa ini' -> false,false,false; 'jelaskan gambar ini' -> false,false,false; 'buatkan flowchart login' -> false,false,false; 'apa isi SOP IT Project Management' -> true,false,false; 'ringkas laporan keuangan Q3' -> true,false,false; 'halo' -> false,false,false.`;
 
@@ -29,6 +31,7 @@ export async function intent(state: {
   useDrive: boolean;
   needsWeb: boolean;
   needsReasoning: boolean;
+  needsOptions: boolean;
   hasAttachments: boolean;
 }> {
   // Runs alongside the classifier rather than after it — a cheap indexed count
@@ -64,6 +67,7 @@ export async function intent(state: {
       useDrive: parsed.useDrive === true,
       needsWeb: parsed.webSearch === true,
       needsReasoning: parsed.needsReasoning === true,
+      needsOptions: parsed.needsOptions === true,
       hasAttachments: await attachedPromise,
     };
   } catch (error) {
@@ -75,6 +79,9 @@ export async function intent(state: {
       useDrive: true,
       needsWeb: false,
       needsReasoning: false,
+      // No cards rather than cards on every turn: a classifier outage must not
+      // change what the chat looks like.
+      needsOptions: false,
       hasAttachments: await attachedPromise,
     };
   }
