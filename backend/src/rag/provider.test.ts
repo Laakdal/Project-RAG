@@ -56,4 +56,19 @@ describe("rag provider seam — langgraph dispatch", () => {
     expect(r.chunkCount).toBe(2);
     expect(lgIngest).toHaveBeenCalledWith("c1", "file.pdf", expect.any(Buffer), "application/pdf");
   });
+
+  it("reports that the backend library is not consumed on the langgraph path", async () => {
+    // queryRag's libraryDocs/skipDrive arguments are dropped for langgraph (its
+    // graph retrieves the library itself), so callers must be able to skip
+    // building them — two LLM calls and an embedding wasted on every turn.
+    const provider = await import("./provider.js");
+    expect(provider.usesBackendLibrary()).toBe(false);
+  });
+});
+
+describe("backend library capability", () => {
+  it("is used on the default n8n path", async () => {
+    const provider = await import("./provider.js");
+    expect(provider.usesBackendLibrary()).toBe(true);
+  });
 });
