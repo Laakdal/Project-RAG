@@ -14,6 +14,7 @@ import {
   regenerateAnswer,
   uploadAttachment,
 } from '@/chat/rag-api';
+import { planRetry } from '@/chat/retry-plan';
 import {
   buildAssistantApiFilters,
   type AttachmentRef,
@@ -266,12 +267,13 @@ export function ChatInputWrapper() {
     });
   };
 
-  // Retry (message-actions "Retry" button) regenerates the latest answer IN
-  // PLACE: the backend re-runs the last question and overwrites that assistant
-  // message, and we swap the new answer into the existing bubble (no new turn).
-  // A plain content swap with a "Regenerating…" placeholder — robust for the RAG
+  // Retry (message-actions "Retry" button). For a stored answer this regenerates
+  // it IN PLACE: the backend re-runs that question and overwrites the message we
+  // name, and we swap the new answer into the existing bubble (no new turn). A
+  // plain content swap with a "Regenerating…" placeholder — robust for the RAG
   // message shape (which keys on `id` + `metadata.custom.sources`, not the SSE
-  // streaming-overlay path).
+  // streaming-overlay path). A turn that FAILED is re-asked instead; see
+  // chat/retry-plan.ts for why the two can't be the same call.
   useEffect(() => {
     const { register, unregister } = useCommandStore.getState();
     register('retryAsk', async () => {
@@ -282,15 +284,23 @@ export function ChatInputWrapper() {
       if (!slot || !slot.convId || slot.isStreaming) return;
 
       const original = slot.messages ?? [];
-      // The backend regenerates the LAST assistant message; find it here.
-      let targetId: string | null = null;
-      for (let i = original.length - 1; i >= 0; i--) {
-        if (original[i].role === 'assistant') {
-          targetId = (original[i].id as string) ?? null;
-          break;
-        }
+      const plan = planRetry(original);
+      if (!plan) return;
+
+      // A turn that failed was never stored, so there is nothing to regenerate:
+      // drop the failed pair and ask the question again from scratch. Sending a
+      // regenerate here would rewrite the PREVIOUS answer instead.
+      if (plan.kind === 'reask') {
+        store.updateSlot(slotId, { messages: plan.messages });
+        threadRuntime.append({
+          role: 'user',
+          content: [{ type: 'text', text: plan.question }],
+          startRun: true,
+        });
+        return;
       }
-      if (!targetId) return;
+
+      const targetId = plan.messageId;
 
       // Optimistic placeholder so the user sees it working, then disable the
       // composer for the duration via isStreaming.
@@ -302,7 +312,7 @@ export function ChatInputWrapper() {
       store.updateSlot(slotId, { messages: withPlaceholder, isStreaming: true });
 
       try {
-        const { answer, sources } = await regenerateAnswer(slot.convId);
+        const { answer, sources } = await regenerateAnswer(slot.convId, targetId);
         const cur = useChatStore.getState().slots[slotId]?.messages ?? [];
         const next = cur.map((m) =>
           m.id === targetId
@@ -325,7 +335,7 @@ export function ChatInputWrapper() {
       }
     });
     return () => unregister('retryAsk');
-  }, []);
+  }, [threadRuntime]);
 
   return (
     <ChatInput
