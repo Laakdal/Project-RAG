@@ -155,7 +155,7 @@ export async function askQuestion(
   conversationId: string,
   question: string,
   useLibrary = false,
-): Promise<{ answer: string; sources: Source[] }> {
+): Promise<{ answer: string; sources: Source[]; messageId?: string }> {
   const { data } = await apiClient.post(
     `/chat/conversations/${conversationId}/messages`,
     useLibrary ? { question, useLibrary: true } : { question },
@@ -170,17 +170,22 @@ export async function askQuestion(
 }
 
 /**
- * Regenerate the latest assistant answer: the backend re-runs the query for the
- * last user question and overwrites that assistant message in place, returning
- * the new `{ answer, sources }`. The caller swaps the answer into the slot so the
- * existing bubble is replaced (no new turn appended).
+ * Regenerate one assistant answer: the backend re-runs the query for the
+ * question that produced `messageId` and overwrites that message in place,
+ * returning the new `{ answer, sources }`. The caller swaps the answer into the
+ * slot so the existing bubble is replaced (no new turn appended).
+ *
+ * The id is required by us even though the endpoint still defaults to the latest
+ * answer for older clients: "the latest" is only the same row when the client's
+ * view and the table agree, and a failed turn is exactly when they don't.
  */
 export async function regenerateAnswer(
   conversationId: string,
+  messageId: string,
 ): Promise<{ answer: string; sources: Source[] }> {
   const { data } = await apiClient.post(
     `/chat/conversations/${conversationId}/messages/regenerate`,
-    {},
+    { messageId },
   );
   return data;
 }
