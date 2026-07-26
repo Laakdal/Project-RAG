@@ -487,10 +487,11 @@ router.post(
       await db
         .insert(messages)
         .values({ conversationId: req.params.id, role: "user", content: question });
-      await db
+      const [stored] = await db
         .insert(messages)
-        .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] });
-      res.json({ answer, sources: [] });
+        .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] })
+        .returning({ id: messages.id });
+      res.json({ answer, sources: [], messageId: stored?.id });
       return;
     }
 
@@ -522,12 +523,18 @@ router.post(
       role: "user",
       content: question,
     });
-    await db.insert(messages).values({
-      conversationId: req.params.id,
-      role: "assistant",
-      content: result.answer,
-      sources: result.sources,
-    });
+    // Hand the answer's id back below: without it the client knows this turn
+    // only by the placeholder id it invented, and can't name the row it wants
+    // when regenerating.
+    const [storedAnswer] = await db
+      .insert(messages)
+      .values({
+        conversationId: req.params.id,
+        role: "assistant",
+        content: result.answer,
+        sources: result.sources,
+      })
+      .returning({ id: messages.id });
 
     // Title a fresh conversation from its first message (only while the title
     // is still the default, so later messages don't overwrite it). Prefer a
@@ -550,7 +557,11 @@ router.post(
         );
     }
 
-    res.json({ answer: result.answer, sources: result.sources });
+    res.json({
+      answer: result.answer,
+      sources: result.sources,
+      messageId: storedAnswer?.id,
+    });
   },
 );
 
@@ -779,11 +790,22 @@ router.post(
   },
 );
 
-// Regenerate the most recent assistant answer IN PLACE: re-run the query for the
-// last user question and overwrite the existing assistant message, so the answer
-// is replaced rather than a new turn appended. There is no streaming regenerate;
-// this mirrors the ask path (queryRag) and updates the row by id so the client
-// can refresh that one message.
+const regenerateSchema = z.object({
+  /** Which assistant answer to redo. Omitted by older clients → the latest one. */
+  messageId: z.string().uuid().optional(),
+});
+
+// Regenerate one assistant answer IN PLACE: re-run the query for the question
+// that produced it and overwrite that message, so the answer is replaced rather
+// than a new turn appended. There is no streaming regenerate; this mirrors the
+// ask path (queryRag) and updates the row by id so the client can refresh that
+// one message.
+//
+// The client names the row it wants. It used to be whatever was newest, which
+// silently addressed the wrong turn whenever the client's view and the table
+// disagreed — most destructively when a turn failed mid-query and so was never
+// stored at all: the retry button under the failed bubble rewrote the PREVIOUS
+// answer instead.
 router.post(
   "/conversations/:id/messages/regenerate",
   requireCsrf,
@@ -794,32 +816,48 @@ router.post(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    const parsed = regenerateSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid message id" });
+      return;
+    }
+    const { messageId } = parsed.data;
 
-    // The latest assistant message is the one to replace; the latest user
-    // message is the question to re-ask.
-    const [lastAssistant] = await db
-      .select({ id: messages.id })
+    // The answer to replace: the one named, else the latest.
+    const [target] = await db
+      .select({ id: messages.id, createdAt: messages.createdAt })
       .from(messages)
       .where(
         and(
           eq(messages.conversationId, req.params.id),
           eq(messages.role, "assistant"),
+          ...(messageId ? [eq(messages.id, messageId)] : []),
         ),
       )
       .orderBy(desc(messages.createdAt))
       .limit(1);
-    const [lastUser] = await db
-      .select({ content: messages.content, createdAt: messages.createdAt })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.conversationId, req.params.id),
-          eq(messages.role, "user"),
-        ),
-      )
-      .orderBy(desc(messages.createdAt))
-      .limit(1);
-    if (!lastAssistant || !lastUser) {
+    // A named row that isn't here is a stale client, not an empty conversation.
+    if (!target && messageId) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    // The question that produced it: the last user turn BEFORE that answer.
+    const [askedBy] = target
+      ? await db
+          .select({ content: messages.content, createdAt: messages.createdAt })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, req.params.id),
+              eq(messages.role, "user"),
+              lt(messages.createdAt, target.createdAt),
+            ),
+          )
+          .orderBy(desc(messages.createdAt))
+          .limit(1)
+      : [];
+    if (!target || !askedBy) {
       res.status(400).json({ error: "Nothing to regenerate" });
       return;
     }
@@ -827,33 +865,59 @@ router.post(
     // Prior turns (everything before the question being regenerated), oldest→
     // newest and capped — same memory window as the ask route.
     const priorRows = await db
-      .select({ role: messages.role, content: messages.content })
+      .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
       .from(messages)
       .where(
         and(
           eq(messages.conversationId, req.params.id),
-          lt(messages.createdAt, lastUser.createdAt),
+          lt(messages.createdAt, askedBy.createdAt),
         ),
       )
       .orderBy(desc(messages.createdAt))
       .limit(10);
-    const history = priorRows.reverse();
+    // Newest-first here: dates the conversation as of the question being redone,
+    // which is what tells selectContext whether the file was attached for it.
+    const lastTurnAt = priorRows[0]?.createdAt ?? null;
+    const history = priorRows
+      .slice()
+      .reverse()
+      .map(({ role, content }) => ({ role, content }));
 
-    let libraryDocs: QuerySource[] = [];
-    let skipDrive = false;
-    try {
-      if (await shouldSearchLibrary(lastUser.content)) {
-        libraryDocs = await searchLibrary(lastUser.content);
-        skipDrive = await librarySufficient(lastUser.content, libraryDocs);
-      }
-    } catch {
-      libraryDocs = [];
-      skipDrive = false;
-    }
+    // Same context selection as the ask route. Regenerating has to see the
+    // chat's files too — otherwise retrying a question about an attachment
+    // answers as if no file were there ("I cannot see images").
+    //
+    // Unlike ask, a still-reading attachment isn't waited on: this is a redo of
+    // an old turn, whose files have long since finished reading.
+    const attRows = await db
+      .select({
+        filename: attachments.filename,
+        extractedText: attachments.extractedText,
+        status: attachments.status,
+        createdAt: attachments.createdAt,
+      })
+      .from(attachments)
+      .where(eq(attachments.conversationId, req.params.id));
+    const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+
+    const { docs, libraryDocs, skipDrive } = await selectContext({
+      conversationId: req.params.id,
+      question: askedBy.content,
+      readyDocs,
+      lastTurnAt,
+    });
 
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false, [], libraryDocs, skipDrive);
+      result = await queryRag(
+        req.params.id,
+        askedBy.content,
+        history,
+        false,
+        docs,
+        libraryDocs,
+        skipDrive,
+      );
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
@@ -861,12 +925,12 @@ router.post(
 
     indexDriveSourcesInBackground(result.sources);
 
-    // Overwrite the existing assistant message in place (id stable), so the
-    // client replaces that bubble instead of appending a new turn.
+    // Overwrite that assistant message in place (id stable), so the client
+    // replaces that bubble instead of appending a new turn.
     await db
       .update(messages)
       .set({ content: result.answer, sources: result.sources })
-      .where(eq(messages.id, lastAssistant.id));
+      .where(eq(messages.id, target.id));
 
     res.json({ answer: result.answer, sources: result.sources });
   },
