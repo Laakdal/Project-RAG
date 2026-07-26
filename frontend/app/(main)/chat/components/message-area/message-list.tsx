@@ -4,6 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useMemo, useCallback, useSta
 import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { Flex, Box } from '@radix-ui/themes';
 import { ChatResponse } from './chat-response';
+import { extractIdssBlocks, isIdssFollowup } from './idss-followup';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { ASK_MORE_QUESTION_SETS } from '../../constants';
@@ -197,6 +198,12 @@ interface MessagePair {
   attachments?: AttachmentRef[];
   /** RAG retrieval sources for this answer (mapped from metadata.custom.sources). */
   sources?: ChatSource[];
+  /**
+   * True when the question was sent by an IDSS option picker rather than typed.
+   * Such a turn is a branch of the turn that offered the options, so it renders
+   * without a heading — the answer continues under the "You chose" card.
+   */
+  hideQuestion?: boolean;
 }
 
 export function MessageList() {
@@ -397,6 +404,15 @@ export function MessageList() {
       }
     }
 
+    // Every option set the assistant has offered in this thread. A question
+    // matching one of the turns those pickers send is a branch of an existing
+    // turn, not a new one, so it renders without a heading.
+    const idssBlocks = messages.flatMap((m) =>
+      m.role === 'assistant'
+        ? extractIdssBlocks(extractTextContent(m.content as { type: string; text?: string }[]))
+        : [],
+    );
+
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.role === 'assistant') {
@@ -478,6 +494,7 @@ export function MessageList() {
           createdAt: userCreatedAt,
           attachments: userMessageAttachments,
           sources: filterCitedSources(content, mapRagSourcesToChatSources(metadata?.sources)),
+          hideQuestion: isIdssFollowup(question, idssBlocks),
         });
       }
     }
@@ -1251,6 +1268,7 @@ export function MessageList() {
               >
                 <ChatResponse
                   question={pair.question}
+                  hideQuestion={pair.hideQuestion}
                   answer={pair.answer}
                   citationMaps={pair.citationMaps}
                   citationCallbacks={citationCallbacks}
