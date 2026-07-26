@@ -15,6 +15,7 @@ import type { ThreadMessageLike } from '@assistant-ui/react';
 import { useChatStore } from './store';
 import { cancelStreamForSlot } from './streaming';
 import { askQuestion, ensureSlotConversation, AttachmentReadingError } from './rag-api';
+import { markFailedTurn } from './retry-plan';
 import {
   type AttachmentRef,
   type ChatCollectionAttachment,
@@ -287,16 +288,19 @@ export function buildExternalStoreConfig(
             await new Promise((r) => setTimeout(r, READING_RETRY_DELAY_MS));
           }
         }
-        const { answer, sources } = result;
+        const { answer, sources, messageId } = result;
 
         const latest = useChatStore.getState().slots[targetSlotId];
         const baseMessages = latest ? latest.messages : currentSlot.messages;
         // Replace the empty assistant placeholder with the final answer; stash
         // the RAG sources under metadata.custom.sources for the renderer.
+        // Adopt the stored row's id in place of the local placeholder, so Retry
+        // can name this exact message instead of asking for "the last one".
         const finalMessages: ThreadMessageLike[] = baseMessages.map((m) =>
           m.id === pendingAssistantId
             ? {
                 ...m,
+                id: messageId ?? m.id,
                 content: [{ type: 'text' as const, text: answer }],
                 metadata: { custom: { sources: sources ?? [] } },
               }
@@ -335,11 +339,15 @@ export function buildExternalStoreConfig(
           err instanceof Error ? err.message : 'An error occurred. Please try again.';
         const latest = useChatStore.getState().slots[targetSlotId];
         const baseMessages = latest ? latest.messages : currentSlot.messages;
-        const finalMessages: ThreadMessageLike[] = baseMessages.map((m) =>
+        const erroredMessages: ThreadMessageLike[] = baseMessages.map((m) =>
           m.id === pendingAssistantId
             ? { ...m, content: [{ type: 'text' as const, text: errText }] }
             : m
         );
+        // The turn failed before the server stored it, so this bubble has no row
+        // behind it. Mark it — Retry must re-ask the question rather than tell
+        // the server to redo "the last answer", which is a different turn.
+        const finalMessages = markFailedTurn(erroredMessages, apiQuery);
         useChatStore.getState().updateSlot(targetSlotId, {
           streamingQuestion: '',
           streamingContent: '',
