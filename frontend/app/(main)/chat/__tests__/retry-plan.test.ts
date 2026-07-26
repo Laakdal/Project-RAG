@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planRetry, markFailedTurn } from '@/chat/retry-plan';
+import { planRetry, markFailedTurn } from '../retry-plan';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 
 const user = (text: string): ThreadMessageLike => ({
