@@ -82,6 +82,22 @@ function sqlLiterals(node: unknown, seen = new Set<unknown>()): string[] {
   return out;
 }
 
+// Walk a Drizzle SQL condition and collect the bound parameter values (the
+// right-hand side of eq(col, value)). Lets a test assert WHICH row a clause
+// addresses, which sqlLiterals — raw SQL text only — cannot show.
+function sqlParams(node: unknown, seen = new Set<unknown>()): unknown[] {
+  if (node == null || typeof node !== "object" || seen.has(node)) return [];
+  seen.add(node);
+  const out: unknown[] = [];
+  const obj = node as Record<string, unknown>;
+  if (obj.constructor?.name === "Param") out.push(obj.value);
+  for (const v of Object.values(obj)) {
+    if (Array.isArray(v)) for (const item of v) out.push(...sqlParams(item, seen));
+    else if (v && typeof v === "object") out.push(...sqlParams(v, seen));
+  }
+  return out;
+}
+
 // The db mock and n8n mocks are module-level, so clear call history before
 // each test to keep per-test call-count/argument assertions reliable.
 // clearAllMocks resets call history only; implementations and the db mock's
@@ -479,9 +495,31 @@ describe("message route", () => {
     const docsArg = vi.mocked(queryRag).mock.calls[0][4];
     expect(docsArg).toEqual([{ filename: "a.pdf", text: "# the document body" }]);
   });
+
+  it("returns the stored answer's id so the client can name it when regenerating", async () => {
+    // Without this the client only has the placeholder id it invented locally,
+    // and regenerating a just-answered turn addresses a row that isn't there.
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history
+    dbMock.queueResult([]);              // attachments
+    dbMock.queueResult([]);              // insert user message
+    dbMock.queueResult([{ id: "a9" }]);  // insert assistant message .returning()
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages")
+      .send({ question: "q" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.messageId).toBe("a9");
+  });
 });
 
 describe("regenerate route", () => {
+  // Message ids are uuids in the schema, and the route validates the shape
+  // before it reaches Postgres — so the tests have to use a real one.
+  const ASSISTANT_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
   it("re-runs the query and overwrites the last assistant answer in place", async () => {
     // One row serves the ownership lookup, the last-assistant/last-user reads,
     // and the history read (all reads share the mock's setResult).
@@ -530,6 +568,67 @@ describe("regenerate route", () => {
       .post("/chat/conversations/c1/messages/regenerate")
       .send({});
     expect(res.status).toBe(502);
+  });
+
+  it("re-reads the chat's attachments so a regenerated answer still sees the file", async () => {
+    // Regression: regenerate used to hardcode an empty docs array, so asking
+    // about an attached image and then hitting retry answered "I cannot see
+    // images" — the file was in the chat but never in the prompt.
+    dbMock.queueResult([{ id: "c1" }]);                                       // ownedConversation
+    dbMock.queueResult([{ id: ASSISTANT_ID, role: "assistant", createdAt: "t2" }]);   // assistant row to replace
+    dbMock.queueResult([{ content: "gambar apa ini?", createdAt: "t1" }]);    // question to re-ask
+    dbMock.queueResult([]);                                                    // prior turns
+    dbMock.queueResult([
+      { id: "att1", filename: "seq.png", status: "ready", extractedText: "sequence diagram text" },
+    ]);                                                                        // attachments
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({ messageId: ASSISTANT_ID });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(queryRag).mock.calls[0][4]).toEqual([
+      { filename: "seq.png", text: "sequence diagram text" },
+    ]);
+  });
+
+  it("regenerates the message it is given, not whichever row happens to be last", async () => {
+    // The client may be retrying an older answer (or a failed turn the server
+    // never stored). Addressing by id keeps client and server on the same row.
+    dbMock.queueResult([{ id: "c1" }]);                                       // ownedConversation
+    dbMock.queueResult([{ id: ASSISTANT_ID, role: "assistant", createdAt: "t2" }]);   // targeted assistant
+    dbMock.queueResult([{ content: "the older question", createdAt: "t1" }]); // its question
+    dbMock.queueResult([]);                                                    // prior turns
+    dbMock.queueResult([]);                                                    // attachments
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+    const whereSpy = dbMock.db.where as ReturnType<typeof vi.fn>;
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({ messageId: ASSISTANT_ID });
+
+    expect(res.status).toBe(200);
+    // WHERE clauses in order: ownership, the assistant row, its question,
+    // prior turns, attachments, then the overwrite.
+    const clauses = whereSpy.mock.calls.map((c) => sqlParams(c[0]));
+    // The assistant row is looked up BY ID, not by "latest".
+    expect(clauses[1]).toContain(ASSISTANT_ID);
+    // Its question is bounded by that row's timestamp, not the conversation's end.
+    expect(clauses[2]).toContain("t2");
+    expect(vi.mocked(queryRag).mock.calls[0][1]).toBe("the older question");
+    // And the overwrite addresses that same row.
+    expect(clauses[clauses.length - 1]).toContain(ASSISTANT_ID);
+  });
+
+  it("returns 404 when the message to regenerate is not in this conversation", async () => {
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // no such assistant row here
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({ messageId: "11111111-2222-3333-4444-555555555555" });
+    expect(res.status).toBe(404);
+    expect(vi.mocked(queryRag)).not.toHaveBeenCalled();
   });
 });
 
