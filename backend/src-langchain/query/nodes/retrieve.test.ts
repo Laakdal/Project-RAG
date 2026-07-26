@@ -30,6 +30,26 @@ describe("retrieve node", () => {
     expect(JSON.stringify(filter)).toContain("c1");
   });
 
+  it("reports the per-chat hits separately from the library ones", async () => {
+    // The graph re-attaches chatDocs around driveLookup/webSearch so a fallback
+    // cannot discard the file the user uploaded; it must be able to tell the two
+    // sources apart.
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.4]]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.45]]);
+    const { retrieve } = await import("./retrieve.js");
+    const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf", "lib.pdf"]);
+    expect(out.chatDocs.map((d) => d.filename)).toEqual(["doc.pdf"]);
+  });
+
+  it("reports no per-chat hits when the conversation has no upload", async () => {
+    chatSearch.mockResolvedValueOnce([]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.6]]);
+    const { retrieve } = await import("./retrieve.js");
+    const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(out.chatDocs).toEqual([]);
+  });
+
   it("embeds the query once and reuses the vector for both collections", async () => {
     chatSearch.mockResolvedValueOnce([[chatDoc, 0.6]]);
     librarySearch.mockResolvedValueOnce([[libDoc, 0.6]]);
@@ -76,6 +96,31 @@ describe("retrieve node", () => {
   it("keeps library docs that are more relevant than the upload", async () => {
     chatSearch.mockResolvedValueOnce([[chatDoc, 0.55]]);
     librarySearch.mockResolvedValueOnce([[libDoc, 0.7]]); // beats the upload -> kept
+    const { retrieve } = await import("./retrieve.js");
+    const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf", "lib.pdf"]);
+  });
+
+  it("drops library noise that merely floats near a middling upload score", async () => {
+    // Measured on the live dev corpus: asking about an attached thesis scores
+    // 0.4347 against the thesis itself and 0.3875 against an unrelated laptop
+    // invoice. Because the upload never reached STRONG, the old rule switched off
+    // the relative comparison entirely and admitted the whole library — which is
+    // how four unrelated company PDFs ended up cited in an answer about the
+    // user's own document.
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.4347]]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.3875]]);
+    const { retrieve } = await import("./retrieve.js");
+    const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
+    expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf"]);
+  });
+
+  it("keeps a library hit that clearly beats an unrelated upload", async () => {
+    // Also measured: a genuine library question scores 0.6607 against the right
+    // document while the chat's unrelated attachment sits at 0.3580. The margin
+    // has to be small enough that these still come through.
+    chatSearch.mockResolvedValueOnce([[chatDoc, 0.358]]);
+    librarySearch.mockResolvedValueOnce([[libDoc, 0.6607]]);
     const { retrieve } = await import("./retrieve.js");
     const out = await retrieve({ rewritten: "q", conversationId: "c1" } as never);
     expect(out.docs.map((d) => d.filename)).toEqual(["doc.pdf", "lib.pdf"]);
