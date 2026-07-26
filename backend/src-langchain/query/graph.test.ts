@@ -2,7 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const rewrite = vi.fn(async (s: { question: string }) => ({ rewritten: s.question }));
 vi.mock("./nodes/rewrite.js", () => ({ rewrite }));
-const intent = vi.fn(async () => ({ useDrive: true, needsWeb: false, needsReasoning: false, hasAttachments: false }));
+type Intent = {
+  useDrive: boolean;
+  needsWeb: boolean;
+  needsReasoning: boolean;
+  needsOptions?: boolean;
+  hasAttachments: boolean;
+};
+const intent = vi.fn(
+  async (): Promise<Intent> => ({
+    useDrive: true,
+    needsWeb: false,
+    needsReasoning: false,
+    hasAttachments: false,
+  }),
+);
 vi.mock("./nodes/intent.js", () => ({ intent }));
 // A chunk of a file attached to this chat, as retrieve reports it: included in
 // `docs` for generate, and repeated in `chatDocs` so the fallback nodes can be
@@ -130,6 +144,21 @@ describe("runQuery graph", () => {
     expect(generate).toHaveBeenCalled();
     const state = (generate.mock.calls[0] as unknown[])[0] as { needsReasoning?: boolean };
     expect(state.needsReasoning).toBe(true);
+  });
+
+  it("threads needsOptions through to the generate node", async () => {
+    intent.mockResolvedValueOnce({
+      useDrive: false,
+      needsWeb: false,
+      needsReasoning: false,
+      needsOptions: true,
+      hasAttachments: false,
+    });
+    const { runQuery } = await import("./graph.js");
+    await runQuery("c1", "tolong bantu dengan skripsi saya", [], false);
+    expect(generate).toHaveBeenCalled();
+    const state = (generate.mock.calls[0] as unknown[])[0] as { needsOptions?: boolean };
+    expect(state.needsOptions).toBe(true);
   });
 
   it("public question routes to web search", async () => {
