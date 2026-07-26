@@ -20,6 +20,9 @@ const State = Annotation.Root({
   useDrive: Annotation<boolean>(),
   needsWeb: Annotation<boolean>(),
   needsReasoning: Annotation<boolean>(),
+  // The classifier's verdict that this question is better served by offering a
+  // few concrete choices than by prose alone. Read only by generate.
+  needsOptions: Annotation<boolean>(),
   hasAttachments: Annotation<boolean>(),
   docs: Annotation<QuerySource[]>(),
   // The subset of `docs` that came from files attached to THIS chat, kept apart
