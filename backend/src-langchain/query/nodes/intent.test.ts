@@ -68,6 +68,30 @@ describe("intent node", () => {
     expect(prompt).toMatch(/ambiguous|which reading/i);
     // And the suppression rule that keeps an eager policy tolerable.
     expect(prompt).toMatch(/already (offered|shown)|picking one of|responding to/i);
+    // The worked examples must enumerate the new flag too: examples that list
+    // only three values invite the model to answer with three, and a missing
+    // needsOptions silently parses as false — the feature off, with no error.
+    expect(prompt).toMatch(/useDrive,\s*webSearch,\s*needsReasoning,\s*needsOptions/);
+  });
+
+  it("tells the classifier a file is attached, and to prefer it over Drive", async () => {
+    // The prompt has always carried an "unless the attached file already has it"
+    // clause, but it interpolated state.docs — which the graph never passes, so
+    // the section was always empty and the clause never fired. The result: a
+    // question about the user's own uploaded PDF was classified useDrive=true,
+    // and a rejected grade sent it out to read a random Google Sheet.
+    hasAttachments.mockResolvedValueOnce(true);
+    const { intent } = await import("./intent.js");
+    await intent({ question: "bagaimana cara menambahkan non fungsionalnya", conversationId: "c1" } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { content: string }[];
+    expect(messages[0].content).toMatch(/attached file\(s\) in this chat: yes/i);
+  });
+
+  it("tells the classifier when no file is attached", async () => {
+    const { intent } = await import("./intent.js");
+    await intent({ question: "apa isi SOP IT", conversationId: "c1" } as never);
+    const messages = (invoke.mock.calls[0] as unknown[])[0] as { content: string }[];
+    expect(messages[0].content).toMatch(/attached file\(s\) in this chat: no/i);
   });
 
   it("defaults to the user's documents (and cheap model) when the classifier errors", async () => {
