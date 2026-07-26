@@ -81,6 +81,12 @@ interface FeedbackInfo {
 
 interface ChatResponseProps {
   question: string;
+  /**
+   * Render the answer without its question heading. Set for a turn an IDSS
+   * option picker sent, which continues the previous turn rather than starting
+   * a new one. The question itself is still sent, stored, and in history.
+   */
+  hideQuestion?: boolean;
   answer: string;
   citationMaps?: CitationMaps;
   citationCallbacks?: CitationCallbacks;
@@ -117,6 +123,7 @@ interface ChatResponseProps {
 
 export const ChatResponse = React.memo(function ChatResponse({
   question,
+  hideQuestion = false,
   answer,
   citationMaps = EMPTY_CITATION_MAPS,
   citationCallbacks,
@@ -178,7 +185,7 @@ export const ChatResponse = React.memo(function ChatResponse({
   // ── Render-reason tracking ─────────────────────────────────────────
   const prevCRRef = useRef<Record<string, unknown>>({});
   const currentCRVals: Record<string, unknown> = {
-    question, answer, citationMaps, citationCallbacks, confidence,
+    question, hideQuestion, answer, citationMaps, citationCallbacks, confidence,
     isStreaming, modelInfo, collections, appliedFilters, messageId,
     isLastMessage, streamingContent, currentStatusMessage: currentStatusMessageProp,
     streamingCitationMaps, createdAt,
@@ -422,7 +429,11 @@ export const ChatResponse = React.memo(function ChatResponse({
 
   const shell = (
     <Box style={{ width: '100%' }}>
-      {/* Question Header with hover edit icon */}
+      {/* Question Header with hover edit icon. Suppressed for a turn sent by an
+          IDSS option picker: that turn is a branch of the turn that offered the
+          options, so the answer continues under the "You chose" card instead of
+          opening a second, unrelated-looking question. */}
+      {!hideQuestion && (
       <Box
         onMouseEnter={() => setIsQuestionHovered(true)}
         onMouseLeave={() => setIsQuestionHovered(false)}
@@ -507,6 +518,7 @@ export const ChatResponse = React.memo(function ChatResponse({
           </Text>
         )}
       </Box>
+      )}
 
       {/* Applied filter chips — shown when connector/KB filters were scoped on this query */}
       {appliedFilters && (appliedFilters.apps.length > 0 || appliedFilters.kb.length > 0) && (
