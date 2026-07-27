@@ -322,6 +322,36 @@ function parseSvgDimensions(svgString: string): { width: number; height: number 
 }
 
 /**
+ * Re-render `chart` with the LIGHT palette for export.
+ *
+ * Mirrors the two-pass strategy of the on-screen render: normalised source
+ * first, repaired source second. Returns null if both fail, so the caller can
+ * fall back to the on-screen SVG rather than losing the export entirely.
+ */
+async function renderLightSvg(chart: string, id: string): Promise<string | null> {
+  await applyTheme('light');
+  const { default: mermaid } = await import('mermaid');
+
+  const normalised = normalizeMermaid(chart);
+  try {
+    return (await mermaid.render(id, normalised)).svg;
+  } catch {
+    document.getElementById(id)?.remove();
+    document.getElementById(`d${id}`)?.remove();
+  }
+
+  const { result: repaired, changed } = sanitizeMermaid(normalised);
+  if (!changed) return null;
+  try {
+    return (await mermaid.render(`${id}r`, repaired)).svg;
+  } catch {
+    document.getElementById(`${id}r`)?.remove();
+    document.getElementById(`d${id}r`)?.remove();
+    return null;
+  }
+}
+
+/**
  * Convert a mermaid SVG string → PNG Blob via an off-screen canvas.
  *
  * Key implementation notes:
@@ -521,8 +551,13 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const handleCopyImage = useCallback(async () => {
     if (!svgContent) return;
     let blob: Blob;
+    // The PNG is rasterized onto a forced white background, so it must always
+    // be the light diagram — a dark-mode render would be light text on white.
+    // Leaves the global mermaid config on the light palette; the render effect
+    // re-applies the active theme before the next draw.
     try {
-      blob = await svgToPngBlob(svgContent);
+      const lightSvg = await renderLightSvg(chart, `${containerId}x`);
+      blob = await svgToPngBlob(lightSvg ?? svgContent);
     } catch {
       flash(false);
       return;
@@ -545,7 +580,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     // Fallback: download as PNG
     downloadPng(blob);
     flash(true);
-  }, [svgContent, flash]);
+  }, [svgContent, chart, containerId, flash]);
 
   // ── Copy image button (shared between inline toolbar and fullscreen header) ──
   const copyImageBtn = svgContent ? (
