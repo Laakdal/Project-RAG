@@ -42,6 +42,20 @@ describe('MERMAID_THEMES', () => {
     }
   });
 
+  it('keeps ER attribute rows readable against the shared text colour', () => {
+    // Regression: dark mode set textColor light but left the ER attribute rows
+    // on mermaid's derived light jade, so every attribute was invisible.
+    for (const name of ['light', 'dark'] as const) {
+      const text = luminance(MERMAID_THEMES[name].textColor);
+      for (const row of ['attributeBackgroundColorOdd', 'attributeBackgroundColorEven'] as const) {
+        const bg = luminance(MERMAID_THEMES[name][row]);
+        const contrast =
+          (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
+        expect(contrast, `${name}.${row}`).toBeGreaterThan(4.5);
+      }
+    }
+  });
+
   it('sets mainBkg and nodeBorder so class/ER/mindmap inherit the palette', () => {
     for (const name of ['light', 'dark'] as const) {
       expect(MERMAID_THEMES[name].mainBkg).toBeTruthy();
