@@ -59,6 +59,44 @@ describe('MERMAID_THEMES', () => {
     }
   });
 
+  it('pins all 12 mindmap section colours in both palettes', () => {
+    for (const name of ['light', 'dark'] as const) {
+      for (let i = 0; i < 12; i++) {
+        expect(MERMAID_THEMES[name][`cScale${i}`], `${name}.cScale${i}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('never lets a mindmap section collapse to black', () => {
+    // Regression: mermaid derives cScale{i} by REDUCING lightness from the
+    // palette base — valid only for a light base. The dark palette drove every
+    // section to hsl(H, S%, 0%): pure black nodes on a near-black surface, so
+    // the mindmap read as black holes with no visible node boxes.
+    for (const name of ['light', 'dark'] as const) {
+      for (let i = 0; i < 12; i++) {
+        const value = MERMAID_THEMES[name][`cScale${i}`];
+        const l = value.match(/hsl\([^,]+,[^,]+,\s*([\d.]+)%\)/);
+        expect(l, `${name}.cScale${i} should be an hsl() string`).not.toBeNull();
+        expect(Number(l![1]), `${name}.cScale${i} lightness`).toBeGreaterThan(15);
+      }
+    }
+  });
+
+  it('keeps mindmap section fills readable against their label colour', () => {
+    // Labels come from cScaleLabel{i}, which mermaid derives from textColor:
+    // #1c2024 in light, #e2e8f0 in dark. Sections must contrast with that.
+    for (const name of ['light', 'dark'] as const) {
+      const wantDarkFill = name === 'dark';
+      for (let i = 0; i < 12; i++) {
+        const l = Number(
+          MERMAID_THEMES[name][`cScale${i}`].match(/,\s*([\d.]+)%\)/)![1],
+        );
+        if (wantDarkFill) expect(l, `dark.cScale${i}`).toBeLessThan(45);
+        else expect(l, `light.cScale${i}`).toBeGreaterThan(55);
+      }
+    }
+  });
+
   it('sets mainBkg and nodeBorder so class/ER/mindmap inherit the palette', () => {
     for (const name of ['light', 'dark'] as const) {
       expect(MERMAID_THEMES[name].mainBkg).toBeTruthy();
