@@ -33,6 +33,10 @@ export const MERMAID_THEMES: Record<'light' | 'dark', Record<string, string>> = 
     mainBkg: '#e7f6ef',
     nodeBorder: '#29a383',
     edgeLabelBackground: '#f1f5f3',
+    // ER attribute rows. Pinned to the values mermaid derived before these
+    // palettes existed, so light mode is unchanged.
+    attributeBackgroundColorOdd: '#ffffff',
+    attributeBackgroundColorEven: '#fafdfb',
   },
   // The same jade identity inverted onto a dark surface.
   dark: {
@@ -46,5 +50,9 @@ export const MERMAID_THEMES: Record<'light' | 'dark', Record<string, string>> = 
     mainBkg: '#0c2a22',
     nodeBorder: '#29a383',
     edgeLabelBackground: '#16211c',
+    // Without these, mermaid derives a LIGHT jade for the odd rows and every
+    // ER attribute disappears against the light text.
+    attributeBackgroundColorOdd: '#0c2a22',
+    attributeBackgroundColorEven: '#123e32',
   },
 };
