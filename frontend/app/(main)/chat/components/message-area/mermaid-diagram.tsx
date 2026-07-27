@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Box, Dialog, Flex, IconButton, Spinner, Text, VisuallyHidden } from '@radix-ui/themes';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
+import { useThemeAppearance } from '@/app/components/theme-provider';
+import { MERMAID_BASE_CONFIG, MERMAID_THEMES } from './mermaid-theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -14,87 +16,24 @@ const ZOOM_STEP = 25;
 const DEFAULT_ZOOM = 100;
 const COPY_FEEDBACK_MS = 2000;
 
-// ─── Dark-mode detection ──────────────────────────────────────────────────────
+// ─── Mermaid initialisation ─────────────────────────────────────────────────
 
 /**
- * Returns true when the page is in dark mode.
+ * Apply the palette for `appearance` before rendering.
  *
- * Checks (in priority order):
- *  1. `class="dark"` on <html> or <body>  (Tailwind / most frameworks)
- *  2. `data-appearance="dark"` on <html>  (Radix Themes)
- *  3. `data-theme="dark"` on <html>       (other design systems)
- *  4. `prefers-color-scheme: dark`        (system preference fallback)
- *
- * A MutationObserver keeps the value live when the user toggles the theme.
+ * mermaid.initialize() is global and idempotent, so it is called before every
+ * render rather than once: correctness now depends on the active config
+ * matching the theme the diagram is about to be drawn in. Skipping the call
+ * when the theme has not changed would be a false economy — a diagram
+ * rendered after an export (which re-applies the light palette) would come out
+ * with the wrong colours.
  */
-function readDarkMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  const el = document.documentElement;
-  return (
-    el.classList.contains('dark') ||
-    document.body.classList.contains('dark') ||
-    el.getAttribute('data-appearance') === 'dark' ||
-    el.getAttribute('data-theme') === 'dark' ||
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-}
-
-function useDarkMode(): boolean {
-  const [dark, setDark] = useState(readDarkMode);
-
-  useEffect(() => {
-    const update = () => setDark(readDarkMode());
-
-    const mo = new MutationObserver(update);
-    mo.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-appearance', 'data-theme'],
-    });
-    mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', update);
-
-    return () => {
-      mo.disconnect();
-      mq.removeEventListener('change', update);
-    };
-  }, []);
-
-  return dark;
-}
-
-// ─── Mermaid initialisation (singleton) ─────────────────────────────────────
-
-/**
- * Render with mermaid's 'base' theme plus Project RAG's jade themeVariables so
- * diagrams are branded (node fills, borders, edges). This stays a light-base
- * render; dark-mode legibility is handled separately by injectDarkEdgeStyles().
- */
-let mermaidInitPromise: Promise<void> | null = null;
-
-function ensureInit(): Promise<void> {
-  if (mermaidInitPromise) return mermaidInitPromise;
-
-  mermaidInitPromise = import('mermaid').then(({ default: mermaid }) => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'base',
-      securityLevel: 'antiscript',
-      fontFamily: 'inherit',
-      // Project RAG jade accent (Radix jade / olive, light base).
-      themeVariables: {
-        primaryColor: '#e7f6ef',
-        primaryBorderColor: '#29a383',
-        primaryTextColor: '#1c2024',
-        lineColor: '#208368',
-        secondaryColor: '#f1f5f3',
-        tertiaryColor: '#fbfdfc',
-      },
-    });
+async function applyTheme(appearance: 'light' | 'dark'): Promise<void> {
+  const { default: mermaid } = await import('mermaid');
+  mermaid.initialize({
+    ...MERMAID_BASE_CONFIG,
+    themeVariables: MERMAID_THEMES[appearance],
   });
-
-  return mermaidInitPromise;
 }
 
 /** How long (ms) to wait after the last `chart` change before rendering.
@@ -322,93 +261,6 @@ function sanitizeMermaid(source: string): { result: string; changed: boolean } {
   return { result: out.join('\n').trim(), changed };
 }
 
-// ─── Dark-mode overlay ────────────────────────────────────────────────────────
-
-/**
- * A light blue-gray for edges/arrows — visible against --slate-2 without
- * clashing with default-theme node fills.
- */
-const DARK_EDGE_COLOR = '#9baab8';
-
-/**
- * Light slate for label/message text on dark backgrounds.
- * Slightly warmer than pure white so it doesn't feel harsh.
- */
-const DARK_TEXT_COLOR = '#e2e8f0';
-
-/**
- * Inject a <style> block into a rendered mermaid SVG string so the diagram
- * is legible on dark backgrounds (Radix --slate-2 / similar).
- *
- * Two classes of problem are fixed here:
- *
- * A. Lines & arrowheads — mermaid's default theme uses dark strokes that
- *    disappear on dark containers.  We override to DARK_EDGE_COLOR.
- *
- * B. Label text — message labels, edge labels, loop/alt descriptions, and
- *    sequence numbers are rendered with dark `fill` values that become
- *    invisible on a dark background.  We override to DARK_TEXT_COLOR.
- *    Node body text (inside filled rectangles) is intentionally NOT touched
- *    because the node has its own light background and the default dark text
- *    remains readable.
- *
- * Selectors cover every diagram type shipped with mermaid v11:
- *   - Flowchart / graph: .edgePath .path, .flowchart-link, .edgeLabel
- *   - Sequence:          .messageLine*, .messageText, .actor-line, .loopLine,
- *                        .loopText, .labelText, .sequenceNumber
- *   - Class / ER / git:  .relation line, .commit-bullets line
- *   - All arrowheads:    defs marker path
- */
-function injectDarkEdgeStyles(svgString: string): string {
-  if (!svgString) return svgString;
-
-  const overrides = [
-    /* ── A. Lines & arrows ─────────────────────────────────────────────── */
-
-    /* Flowchart edge paths */
-    `.edgePath .path { stroke: ${DARK_EDGE_COLOR} !important; fill: none !important; }`,
-    `.flowchart-link { stroke: ${DARK_EDGE_COLOR} !important; fill: none !important; }`,
-
-    /* Sequence message lines (solid + dashed variants) */
-    `.messageLine0, .messageLine1 { stroke: ${DARK_EDGE_COLOR} !important; }`,
-
-    /* Sequence vertical actor-lifeline + loop/alt/opt box borders */
-    `.actor-line, .loopLine { stroke: ${DARK_EDGE_COLOR} !important; }`,
-
-    /* Class / ER / git edge lines */
-    `.relation line, .commit-bullets line { stroke: ${DARK_EDGE_COLOR} !important; }`,
-
-    /* Arrowhead markers — overrides the inline fill attribute */
-    `defs marker path { fill: ${DARK_EDGE_COLOR} !important; stroke: none !important; }`,
-
-    /* ── B. Label & message text ────────────────────────────────────────── */
-
-    /* Sequence diagram: text on message arrows (the most common complaint) */
-    `.messageText { fill: ${DARK_TEXT_COLOR} !important; stroke: none !important; font-weight: 500 !important; }`,
-
-    /* Sequence diagram: loop/alt/opt/par/critical description text */
-    `.loopText, .loopText > tspan { fill: ${DARK_TEXT_COLOR} !important; stroke: none !important; }`,
-
-    /* Sequence diagram: the "loop" / "alt" / "opt" keyword badge text */
-    `.labelText, .labelText > tspan { fill: ${DARK_TEXT_COLOR} !important; stroke: none !important; }`,
-
-    /* Sequence diagram: auto-numbered sequence labels */
-    `.sequenceNumber { fill: ${DARK_TEXT_COLOR} !important; }`,
-
-    /* Flowchart: edge labels rendered inside a <foreignObject> */
-    `.edgeLabel .label { color: ${DARK_TEXT_COLOR} !important; }`,
-    `.edgeLabel foreignObject { color: ${DARK_TEXT_COLOR} !important; }`,
-
-    /* Flowchart edge label background — keep transparent so container shows through */
-    `.edgeLabel .label rect { fill: transparent !important; }`,
-  ].join(' ');
-
-  const styleBlock = `<style id="rag-diagram-dark">${overrides}</style>`;
-
-  // Insert immediately after the opening <svg> tag
-  return svgString.replace(/(<svg\b[^>]*>)/, `$1${styleBlock}`);
-}
-
 // ─── SVG helpers ─────────────────────────────────────────────────────────────
 
 /**
@@ -564,8 +416,8 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const uid = useId().replace(/:/g, '');
   const containerId = `mermaid-${uid}`;
 
-  // Drives dark-edge overlay and container styling
-  const isDark = useDarkMode();
+  // Selects which mermaid palette the diagram is rendered with.
+  const { appearance } = useThemeAppearance();
 
   const [svgContent, setSvgContent]       = useState<string | null>(null);
   const [responsiveSvg, setResponsiveSvg] = useState<string | null>(null);
@@ -582,11 +434,6 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     () => (svgContent ? makeSvgResponsive(svgContent, false) : null),
     [svgContent],
   );
-
-  // In dark mode, inject light-coloured edge/arrow/text styles so the diagram
-  // is legible on a dark background. Recomputed on theme change.
-  const displayInlineSvg     = isDark && inlineSvg    ? injectDarkEdgeStyles(inlineSvg)    : inlineSvg;
-  const displayFullscreenSvg = isDark && responsiveSvg ? injectDarkEdgeStyles(responsiveSvg) : responsiveSvg;
 
   // ── Render pipeline ──────────────────────────────────────────────────────────
   //
@@ -605,7 +452,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     setShowErrorSource(false);
 
     async function tryRender() {
-      await ensureInit();
+      await applyTheme(appearance);
       const { default: mermaid } = await import('mermaid');
 
       // Always normalise first — fixes visual bugs in otherwise-valid source
@@ -652,7 +499,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [chart]);
+  }, [chart, appearance]);
 
   // ── Reset zoom when dialog opens ────────────────────────────────────────────
   useEffect(() => {
@@ -861,7 +708,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         }}
       >
         {inlineSvg ? (
-          <div dangerouslySetInnerHTML={{ __html: displayInlineSvg ?? '' }} style={{ width: '100%', display: 'flex', justifyContent: 'center' }} />
+          <div dangerouslySetInnerHTML={{ __html: inlineSvg ?? '' }} style={{ width: '100%', display: 'flex', justifyContent: 'center' }} />
         ) : (
           <Flex align="center" gap="2">
             <Spinner size="2" />
@@ -989,7 +836,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             }}
           >
             <div style={fullscreenSvgWrapperStyle}>
-              <div dangerouslySetInnerHTML={{ __html: displayFullscreenSvg ?? '' }} />
+              <div dangerouslySetInnerHTML={{ __html: responsiveSvg ?? '' }} />
             </div>
           </Box>
         </Dialog.Content>
