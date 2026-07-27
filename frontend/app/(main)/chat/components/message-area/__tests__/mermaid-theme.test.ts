@@ -45,9 +45,12 @@ describe('MERMAID_THEMES', () => {
   it('keeps ER attribute rows readable against the shared text colour', () => {
     // Regression: dark mode set textColor light but left the ER attribute rows
     // on mermaid's derived light jade, so every attribute was invisible.
+    // mermaid 11's erBox reads `rowOdd`/`rowEven` — NOT the documented
+    // `attributeBackgroundColor*` aliases, which it never consults. Without
+    // these, rowOdd falls back to lighten(mainBkg, 75) — a near-white jade.
     for (const name of ['light', 'dark'] as const) {
       const text = luminance(MERMAID_THEMES[name].textColor);
-      for (const row of ['attributeBackgroundColorOdd', 'attributeBackgroundColorEven'] as const) {
+      for (const row of ['rowOdd', 'rowEven'] as const) {
         const bg = luminance(MERMAID_THEMES[name][row]);
         const contrast =
           (Math.max(text, bg) + 0.05) / (Math.min(text, bg) + 0.05);
