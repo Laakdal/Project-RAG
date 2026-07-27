@@ -62,6 +62,15 @@ function sectionScale(mode: 'light' | 'dark'): Record<string, string> {
     const l = mode === 'light' ? c.light : DARK_SECTION_LIGHTNESS;
     out[`cScale${i}`] = `hsl(${c.h}, ${c.s}%, ${l}%)`;
   });
+
+  // The mindmap ROOT node carries both `section-root` and `section--1`, and
+  // mermaid emits the `.section-root` rule after the `.section--1` one at equal
+  // specificity — so `.section-root` wins. It is filled from `git0`, the
+  // gitGraph branch colour, NOT from the cScale series. Pinning only cScale
+  // therefore left the root a black hole while every other node was fixed.
+  // Light derives git0 to exactly its cScale0, so matching them keeps light
+  // unchanged and gives dark a root that matches its first branch.
+  out.git0 = out.cScale0;
   return out;
 }
 

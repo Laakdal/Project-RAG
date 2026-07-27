@@ -82,6 +82,19 @@ describe('MERMAID_THEMES', () => {
     }
   });
 
+  it('fills the mindmap root circle from git0, matching section 0', () => {
+    // The root node carries BOTH `section-root` and `section--1`. mermaid emits
+    // a `.section-root` rule AFTER the `.section--1` one at equal specificity,
+    // and fills it from `git0` — the gitGraph branch colour, not the cScale
+    // series. Pinning only cScale left the root a black hole while every other
+    // node was fixed. Light already resolves git0 to its cScale0.
+    for (const name of ['light', 'dark'] as const) {
+      expect(MERMAID_THEMES[name].git0, `${name}.git0`).toBe(
+        MERMAID_THEMES[name].cScale0,
+      );
+    }
+  });
+
   it('keeps mindmap section fills readable against their label colour', () => {
     // Labels come from cScaleLabel{i}, which mermaid derives from textColor:
     // #1c2024 in light, #e2e8f0 in dark. Sections must contrast with that.
