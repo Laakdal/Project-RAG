@@ -15,29 +15,38 @@ import type { IdssAction, IdssOptionsData, IdssOption } from '../../utils/parse-
  * function so the same strings both BUILD the prompt and RECOGNISE it later when
  * scanning the thread (see findResolution). One source of truth — a reworded
  * prompt can't silently stop matching.
+ *
+ * `label`/`resolvedLabel` are shown to the user and are Indonesian; the users
+ * are, and the model writes the option text in their language already. But
+ * `prefix`/`suffix` are deliberately LEFT IN ENGLISH: they are a wire format,
+ * not UI. Every card ever answered is re-locked by matching them against the
+ * stored transcript (findResolution) and every such turn is hidden by the same
+ * match (isIdssFollowup), so translating them would un-lock every card in every
+ * existing conversation and bring back its question heading. The user never
+ * reads them — the turn they belong to is not rendered.
  */
 export const ACTION_PRESETS: Record<
   IdssAction,
   { label: string; icon: string; resolvedLabel: string; prefix: string; suffix: string }
 > = {
   compare: {
-    label: 'Compare selected',
+    label: 'Bandingkan pilihan',
     icon: 'balance',
-    resolvedLabel: 'Compared',
+    resolvedLabel: 'Dibandingkan',
     prefix: 'Compare these options: ',
     suffix: ' — which is better?',
   },
   prioritize: {
-    label: 'Prioritize selected',
+    label: 'Prioritaskan pilihan',
     icon: 'low_priority',
-    resolvedLabel: 'Prioritized',
+    resolvedLabel: 'Diprioritaskan',
     prefix: 'Prioritize these options: ',
     suffix: '. Rank them from highest to lowest priority and justify each.',
   },
   rank: {
-    label: 'Rank selected',
+    label: 'Urutkan pilihan',
     icon: 'sort',
-    resolvedLabel: 'Ranked',
+    resolvedLabel: 'Diurutkan',
     prefix: 'Rank these options: ',
     suffix: ' from best to worst and explain the ordering.',
   },
@@ -210,7 +219,7 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
   const summary = resolved
     ? data.multiSelect
       ? `${preset.resolvedLabel}: ${resolved.map((i) => data.options[i].label).join(', ')}`
-      : `You chose: ${data.options[resolved[0]].label}`
+      : `Anda memilih: ${data.options[resolved[0]].label}`
     : null;
 
   return (
@@ -253,14 +262,16 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
           </Flex>
         ) : (
           <Text size="2" weight="bold" as="div" style={{ color: 'var(--slate-12)', minWidth: 0 }}>
-            {data.prompt || (data.multiSelect ? 'Select options' : 'Pick a direction to explore')}
+            {data.prompt || (data.multiSelect ? 'Pilih beberapa opsi' : 'Pilih arah untuk dijelajahi')}
           </Text>
         )}
         <Box
           role="button"
           tabIndex={0}
           aria-expanded={!collapsed}
-          aria-label={collapsed ? 'Show options' : locked ? 'Hide options' : 'Dismiss options'}
+          aria-label={
+            collapsed ? 'Tampilkan opsi' : locked ? 'Sembunyikan opsi' : 'Tutup opsi'
+          }
           onClick={() => setCollapsedOverride(!collapsed)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -290,7 +301,7 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
         <div
           ref={listRef}
           role="listbox"
-          aria-label={data.prompt || 'Options'}
+          aria-label={data.prompt || 'Opsi'}
           aria-multiselectable={data.multiSelect || undefined}
           tabIndex={locked ? -1 : 0}
           onKeyDown={onKeyDown}
@@ -432,13 +443,13 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
               </button>
               <Text size="1" style={{ color: 'var(--slate-9)' }}>
                 {selected.size < 2
-                  ? 'Select at least two, or type your answer below'
-                  : `${selected.size} selected`}
+                  ? 'Pilih minimal dua, atau ketik jawaban Anda di bawah'
+                  : `${selected.size} dipilih`}
               </Text>
             </>
           ) : (
             <Text size="1" style={{ color: 'var(--slate-9)' }}>
-              ↑↓ to navigate · Enter to select · or type your answer below
+              ↑↓ untuk navigasi · Enter untuk memilih · atau ketik jawaban Anda di bawah
             </Text>
           )}
         </Flex>
