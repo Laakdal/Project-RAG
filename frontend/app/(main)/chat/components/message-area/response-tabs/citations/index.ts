@@ -13,7 +13,5 @@ export type {
   CitationOrigin,
   CitationData,
   CitationMaps,
-  StreamingCitationData,
-  ConnectorConfig,
   CitationCallbacks,
 } from './types';
