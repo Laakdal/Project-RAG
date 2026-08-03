@@ -165,37 +165,3 @@ export function getCitationCopyHref(citation: CitationData): string | undefined 
 // Derived helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Format an ISO date string as a relative "Synced X ago" label.
- */
-export function formatSyncLabel(isoDate?: string): string | undefined {
-  if (!isoDate) return undefined;
-  const diff = Date.now() - new Date(isoDate).getTime();
-  if (diff < 0) return 'Synced just now';
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'Synced just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `Synced ${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Synced ${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `Synced ${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `Synced ${months}mo ago`;
-  const years = Math.floor(months / 12);
-  return `Synced ${years}y ago`;
-}
-
-/**
- * Count how many citations reference each source (recordId).
- * Returns a map of recordId → count.
- */
-export function getCitationCountBySource(
-  maps: CitationMaps
-): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const citation of Object.values(maps.citations)) {
-    counts[citation.recordId] = (counts[citation.recordId] || 0) + 1;
-  }
-  return counts;
-}

@@ -71,7 +71,7 @@ export async function locateAttachmentPage(
   }
 }
 
-export async function createConversation(): Promise<Conversation> {
+async function createConversation(): Promise<Conversation> {
   const { data } = await apiClient.post<Conversation>('/chat/conversations', {});
   return data;
 }

@@ -34,7 +34,7 @@ const SIZE_RANGES: Record<SizeRange, { gte: number; lte: number }> = {
  * @param sizeRanges Array of size range identifiers
  * @returns API-formatted size filter string or undefined
  */
-export function convertSizeRangesToApiFormat(sizeRanges: SizeRange[]): string | undefined {
+function convertSizeRangesToApiFormat(sizeRanges: SizeRange[]): string | undefined {
   if (!sizeRanges || sizeRanges.length === 0) {
     return undefined;
   }
@@ -65,7 +65,7 @@ export function convertSizeRangesToApiFormat(sizeRanges: SizeRange[]): string | 
  * @param dateType Type of date filter (on, between, before, after)
  * @returns API-formatted date range string or undefined
  */
-export function convertDateRangeToApiFormat(
+function convertDateRangeToApiFormat(
   after?: string,
   before?: string,
   dateType?: DateFilterType

@@ -100,7 +100,7 @@ export function mapReindexOptionsToMenuActions(
 }
 
 /** folder / recordGroup — container rows are not indexed as entities. */
-export function isNonIndexableContainer(node: ReindexNode): boolean {
+function isNonIndexableContainer(node: ReindexNode): boolean {
   return node.nodeType === 'folder' || node.nodeType === 'recordGroup';
 }
 
@@ -228,7 +228,7 @@ function getBulkReindexMenuOptions(node: ReindexNode): ReindexMenuOption[] {
 }
 
 /** Toast variant from chosen depth / filters. */
-export function getReindexToastKind(
+function getReindexToastKind(
   node: ReindexNode,
   depth: number,
   statusFilters?: string[],
@@ -249,7 +249,7 @@ export function getReindexToastKind(
 }
 
 /** Determine the reindex action for legacy guards. */
-export function getReindexAction(node: ReindexNode): ReindexAction {
+function getReindexAction(node: ReindexNode): ReindexAction {
   if (needsReindexScopeModal(node)) {
     return leafActionFromStatus(node.indexingStatus);
   }
@@ -272,38 +272,8 @@ export function requiresForceReindexConfirmation(
   return getReindexAction(node) === 'force-reindex';
 }
 
-/** Human-readable label for the menu item / button. */
-export function getReindexLabel(node: ReindexNode): string {
-  switch (getReindexAction(node)) {
-    case 'force-reindex':
-      return 'Force reindex';
-    case 'retry-indexing':
-      return 'Retry indexing';
-    case 'start-indexing':
-      return 'Start indexing';
-    case 'unsupported':
-      return 'File not supported';
-    case 'reindex':
-    default:
-      return 'Reindex';
-  }
-}
-
 function iconForAction(action: ReindexAction): string {
   return action === 'force-reindex' ? 'redo' : 'refresh';
-}
-
-/** Material icon name for the reindex menu item. */
-export function getReindexIcon(node: ReindexNode): string {
-  return iconForAction(getReindexAction(node));
-}
-
-/** Whether all reindex menu items should be disabled (legacy row-level guard). */
-export function isReindexDisabled(node: ReindexNode): boolean {
-  if (!supportsBulkReindex(node)) {
-    return leafActionFromStatus(node.indexingStatus) === 'unsupported';
-  }
-  return false;
 }
 
 /** Whether reindex menu items should be shown (connector app nodes and empty containers excluded). */
@@ -334,7 +304,7 @@ function leafReindexLabelKey(action: ReindexAction): ReindexMenuLabelKey {
 }
 
 /** Status-aware reindex menu options for a table row or sidebar node. */
-export function getReindexMenuOptions(node: ReindexNode): ReindexMenuOption[] {
+function getReindexMenuOptions(node: ReindexNode): ReindexMenuOption[] {
   if (!canShowReindexMenu(node)) return [];
 
   if (!supportsBulkReindex(node)) {

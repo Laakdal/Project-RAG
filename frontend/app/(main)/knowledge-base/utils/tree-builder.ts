@@ -18,7 +18,7 @@ export function categorizeNode(node: KnowledgeHubNode): SidebarSection {
 /**
  * Convert API node to tree node structure
  */
-export function nodeToTreeNode(
+function nodeToTreeNode(
   node: KnowledgeHubNode,
   depth: number = 0,
   children: EnhancedFolderTreeNode[] = []
@@ -48,7 +48,7 @@ export function nodeToTreeNode(
 /**
  * Build hierarchical tree from flat node list
  */
-export function buildTreeFromNodes(
+function buildTreeFromNodes(
   nodes: KnowledgeHubNode[],
   parentId: string | null = null,
   depth: number = 0

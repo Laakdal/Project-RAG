@@ -13,8 +13,10 @@ import {
 import { getConversationLastActivityMs } from '@/lib/utils/conversation-activity';
 import type { Conversation } from '@/chat/types';
 
-// Re-export for consumers that still import from here
-export { TIME_GROUP_KEYS, type TimeGroupKey };
+// Re-export for consumers that still import from here.
+// TIME_GROUP_KEYS itself has no importer — the canonical one lives in
+// @/lib/utils/group-by-time — but the type half is still consumed.
+export { type TimeGroupKey };
 
 /** Maps the fixed TimeGroupKey to its display label */
 const TIME_GROUP_LABELS: Record<TimeGroupKey, string> = {

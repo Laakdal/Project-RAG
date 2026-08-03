@@ -3,11 +3,6 @@ export { Header } from './header';
 export { FilterBar } from './filter-bar';
 export { SearchBar } from './search-bar';
 export { KbDataTable } from './kb-data-table';
-export { KbListView } from './kb-list-view';
-export { KbGridView } from './kb-grid-view';
-
-// Constants
-export { CARD_ICONS } from './grid-card-icons';
 
 // Action components
 export { SelectionActionBar } from './selection-action-bar';

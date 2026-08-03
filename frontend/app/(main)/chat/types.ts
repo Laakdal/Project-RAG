@@ -314,14 +314,6 @@ export interface AttachmentRef {
   virtualRecordId: string;
 }
 
-/** MIME types accepted by the chat attachment upload endpoint. */
-export const CHAT_ATTACHMENT_ACCEPTED_MIMETYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-] as const;
-
 /** Maximum file size for a single chat attachment (50 MB, matching the backend). */
 export const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
 

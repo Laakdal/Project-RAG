@@ -1,7 +1,7 @@
 import type { KnowledgeHubNode } from '../types';
 
 /** Decodes a JWT payload without verifying the signature (same shape as axios `decodeToken`). */
-export function decodeJwtPayload(token: string | null): Record<string, unknown> | null {
+function decodeJwtPayload(token: string | null): Record<string, unknown> | null {
   try {
     if (!token) return null;
     const parts = token.split('.');
@@ -17,18 +17,18 @@ export function decodeJwtPayload(token: string | null): Record<string, unknown> 
   }
 }
 
-export function getOrgIdFromAccessToken(token: string | null): string | null {
+function getOrgIdFromAccessToken(token: string | null): string | null {
   const payload = decodeJwtPayload(token);
   const orgId = payload?.orgId;
   return typeof orgId === 'string' && orgId.trim().length > 0 ? orgId.trim() : null;
 }
 
 /** Backend Collection app id when parent type is `app` (see knowledge_hub_router). */
-export function buildCollectionsHubAppId(orgId: string): string {
+function buildCollectionsHubAppId(orgId: string): string {
   return `knowledgeBase_${orgId}`;
 }
 
-export function createSyntheticKbCollectionsHubApp(collectionAppId: string): KnowledgeHubNode {
+function createSyntheticKbCollectionsHubApp(collectionAppId: string): KnowledgeHubNode {
   return {
     id: collectionAppId,
     name: "Collections",

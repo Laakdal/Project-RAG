@@ -362,7 +362,3 @@ export function buildNavUrl(
   return buildFilterUrl(baseParams, filterParams);
 }
 
-/** Check if a filter object has any active filters */
-export function hasFilterParams(filter: KnowledgeBaseFilter | AllRecordsFilter): boolean {
-  return Object.keys(filter).length > 0;
-}

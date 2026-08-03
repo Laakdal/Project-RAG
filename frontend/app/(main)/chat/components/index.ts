@@ -1,21 +1,6 @@
-// Chat panel (input area, expansion panels)
+// Only the symbols page.tsx actually consumes. Everything else in these
+// subtrees is imported directly from its source module, so re-exporting it
+// here just created a second, unused path.
 export { ChatInputWrapper } from './chat-panel';
-
-// Message area (response display, tabs, citations)
-export {
-  ChatResponse,
-  MessageList,
-  MessageSources,
-  MessageActions,
-  StatusMessageComponent,
-  ConfidenceIndicator,
-  AnswerContent,
-} from './message-area';
-export * from './message-area/response-tabs/citations';
-
-// Search overlay
-export { ChatSearch } from './search';
-export { SelectedCollections } from './selected-collections';
-
-// Search results
+export { MessageList } from './message-area';
 export { SearchResultsView } from './search-results';

@@ -17,34 +17,11 @@ function SkeletonLine({ width }: { width: string }) {
   );
 }
 
-/** Skeleton row with title + date (matches SearchResultRow) */
-function SkeletonItemWithDate({ titleWidth, dateWidth }: { titleWidth: string; dateWidth: string }) {
-  return (
-    <Flex direction="column" gap="1" style={{ padding: '6px var(--space-2)' }}>
-      <SkeletonLine width={titleWidth} />
-      <SkeletonLine width={dateWidth} />
-    </Flex>
-  );
-}
-
 /** Skeleton row with title only (matches ChatRow with showDate={false}) */
 function SkeletonItemTitleOnly({ titleWidth }: { titleWidth: string }) {
   return (
     <Flex direction="column" style={{ padding: '6px var(--space-2)' }}>
       <SkeletonLine width={titleWidth} />
-    </Flex>
-  );
-}
-
-/** Skeleton for search results — flat list of title + date rows */
-export function SearchResultsSkeleton() {
-  return (
-    <Flex direction="column" gap="1">
-      <SkeletonItemWithDate titleWidth="85%" dateWidth="90px" />
-      <SkeletonItemWithDate titleWidth="70%" dateWidth="80px" />
-      <SkeletonItemWithDate titleWidth="90%" dateWidth="95px" />
-      <SkeletonItemWithDate titleWidth="60%" dateWidth="85px" />
-      <SkeletonItemWithDate titleWidth="75%" dateWidth="75px" />
     </Flex>
   );
 }
@@ -77,9 +54,4 @@ export function TimeGroupedSkeleton() {
       </Flex>
     </Flex>
   );
-}
-
-/** @deprecated Use SearchResultsSkeleton or TimeGroupedSkeleton instead */
-export function SkeletonGroup() {
-  return <TimeGroupedSkeleton />;
 }

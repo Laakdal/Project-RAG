@@ -1203,39 +1203,4 @@ export const useKnowledgeBaseStore = create<KnowledgeBaseStore>()(
     { name: 'KnowledgeBaseStore' }
   )
 );
-
-// Selectors - Collections mode
-export const selectKnowledgeBases = (state: KnowledgeBaseStore) => state.knowledgeBases;
-export const selectCurrentKnowledgeBase = (state: KnowledgeBaseStore) => state.currentKnowledgeBase;
-export const selectItems = (state: KnowledgeBaseStore) => state.items;
-export const selectSelectedItems = (state: KnowledgeBaseStore) => state.selectedItems;
-export const selectViewMode = (state: KnowledgeBaseStore) => state.viewMode;
-export const selectIsLoading = (state: KnowledgeBaseStore) => state.isLoading;
-export const selectFilter = (state: KnowledgeBaseStore) => state.filter;
-
-// Selectors - All Records mode
-export const selectCurrentViewMode = (state: KnowledgeBaseStore) => state.currentViewMode;
-export const selectAllRecords = (state: KnowledgeBaseStore) => state.allRecords;
-export const selectConnectors = (state: KnowledgeBaseStore) => state.connectors;
-export const selectAppNodes = (state: KnowledgeBaseStore) => state.appNodes;
-export const selectAppChildrenCache = (state: KnowledgeBaseStore) => state.appChildrenCache;
-export const selectLoadingAppIds = (state: KnowledgeBaseStore) => state.loadingAppIds;
-export const selectAllRecordsSidebarSelection = (state: KnowledgeBaseStore) =>
-  state.allRecordsSidebarSelection;
-export const selectSelectedRecords = (state: KnowledgeBaseStore) => state.selectedRecords;
-export const selectExpandedSections = (state: KnowledgeBaseStore) => state.expandedSections;
-export const selectAllRecordsFilter = (state: KnowledgeBaseStore) => state.allRecordsFilter;
-export const selectAllRecordsSort = (state: KnowledgeBaseStore) => state.allRecordsSort;
-export const selectAllRecordsSearchQuery = (state: KnowledgeBaseStore) =>
-  state.allRecordsSearchQuery;
-export const selectAllRecordsPagination = (state: KnowledgeBaseStore) =>
-  state.allRecordsPagination;
-export const selectIsLoadingAllRecords = (state: KnowledgeBaseStore) => state.isLoadingAllRecords;
-export const selectIsLoadingConnectors = (state: KnowledgeBaseStore) => state.isLoadingConnectors;
-export const selectAllRecordsError = (state: KnowledgeBaseStore) => state.allRecordsError;
-
-// Selectors - Available Filters (from API response)
-export const selectAvailableFilters = (state: KnowledgeBaseStore) =>
-  state.tableData?.filters?.available;
-export const selectAllRecordsAvailableFilters = (state: KnowledgeBaseStore) =>
-  state.allRecordsTableData?.filters?.available;
+

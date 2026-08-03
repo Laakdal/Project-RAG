@@ -10,22 +10,6 @@ const ROW_H = 24;
 const ICON_SHIM = 14;
 const LABEL_H = 8;
 
-/** Replaces the expand chevron while a row’s children are loading (no Lottie). */
-export function SidebarChevronSlotShimmer() {
-  return (
-    <Box
-      style={{
-        width: 14,
-        height: 14,
-        borderRadius: 'var(--radius-full)',
-        backgroundColor: 'var(--slate-a5)',
-        flexShrink: 0,
-        ...SHIMMER,
-      }}
-    />
-  );
-}
-
 /**
  * Placeholder rows while sidebar list data loads — compact “item row” layout
  * (icon + label bar per row), similar density to {@link FolderTreeItem} rows.

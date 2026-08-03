@@ -2,25 +2,13 @@
 
 export { InlineCitationBadge } from './inline-citation-badge';
 export { InlineCitationGroup } from './inline-citation-group';
-export { CitationNumberCircle } from './citation-number-circle';
-export { CitationPopoverContent } from './citation-popover';
-export { InlineCitationPopoverHost } from './inline-citation-popover-host';
 export {
   buildCitationMapsFromApi,
   buildCitationMapsFromStreaming,
   emptyCitationMaps,
-  getConnectorConfig,
-  getCitationCountBySource,
-  formatSyncLabel,
 } from './utils';
 export { useCitationActions } from './use-citation-actions';
-export {
-  CitationMessageRowKeyContext,
-  useCitationMessageRowKeyForInline,
-  buildInlineCitationInstanceKey,
-  isCitationPopoverKeyStillValid,
-} from './citation-popover-control';
-export { useInlineCitationPopoverStore } from './citation-popover-store';
+export { isCitationPopoverKeyStillValid } from './citation-popover-control';
 export type {
   CitationOrigin,
   CitationData,
