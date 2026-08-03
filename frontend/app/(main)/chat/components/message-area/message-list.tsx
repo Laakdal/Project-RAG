@@ -7,7 +7,6 @@ import { ChatResponse } from './chat-response';
 import { extractIdssBlocks, isIdssFollowup } from './idss-followup';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
-import { ASK_MORE_QUESTION_SETS } from '../../constants';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import type { AppliedFilters, AttachmentRef, ChatArtifact, ChatSource } from '../../types';
 import type { ConfidenceLevel, ModelInfo } from '../../types';
@@ -1184,37 +1183,6 @@ export function MessageList() {
     wasStreamingRef.current = isStreaming;
   }, [isStreaming, recalcSpacerHeight]);
 
-  // ── Ask More: randomly pick one question set per new message pair ──
-  // TODO: Move this to the backend, also remove from il8n jsons since it's meant to be dynamic content
-  const askMoreSetIndexRef = useRef<{ count: number; index: number }>({ count: -1, index: 0 });
-  if (askMoreSetIndexRef.current.count !== messagePairs.length) {
-    askMoreSetIndexRef.current = {
-      count: messagePairs.length,
-      // eslint-disable-next-line react-hooks/purity -- intentional render-time ref update: pick a stable random set per message-pair count change
-      index: Math.floor(Math.random() * 1_000_000),
-    };
-  }
-  const askMoreQuestions = useMemo(() => {
-    if (messagePairs.length === 0) return [];
-    const setIndex = askMoreSetIndexRef.current.index % ASK_MORE_QUESTION_SETS.length;
-    return ASK_MORE_QUESTION_SETS[setIndex];
-  }, [messagePairs.length]);
-
-  // Whether to show Ask More suggestions
-  const showAskMore = messagePairs.length > 0 && !isStreaming && !isLoadingConversation;
-
-  // Handle Ask More question click — send through runtime
-  const handleAskMoreClick = useCallback(
-    (question: string) => {
-      threadRuntime.append({
-        role: 'user',
-        content: [{ type: 'text', text: question }],
-        startRun: true,
-      });
-    },
-    [threadRuntime]
-  );
-
   return (
     <Box
       ref={scrollContainerRef}
@@ -1289,24 +1257,6 @@ export function MessageList() {
                   streamingArtifacts={pair.isStreaming ? streamingArtifacts : undefined}
                 />
 
-                {/* Ask More — follow-up suggestions after the last bot response.
-                    Placed inside the last message wrapper so the ResizeObserver
-                    accounts for its height in the spacer calculation.
-
-                    TEMPORARILY DISABLED: the follow-up questions are hardcoded
-                    (see `ASK_MORE_QUESTION_SETS` in ../../constants) and are not
-                    yet generated from the actual conversation. Re-enable once
-                    the suggestions are dynamically produced by the backend. */}
-                {/*
-                {isLast && showAskMore && (
-                  <Box style={{ marginTop: 'var(--space-6)' }}>
-                    <AskMore
-                      questions={askMoreQuestions}
-                      onQuestionClick={handleAskMoreClick}
-                    />
-                  </Box>
-                )}
-                */}
               </div>
             );
           })}

@@ -1,11 +1,5 @@
 // Chat panel (input area, expansion panels)
-export {
-  ChatInputWrapper,
-  ChatInputExpansionPanel,
-  ConnectorsCollectionsPanel,
-  CollectionsTab,
-  CollectionRow,
-} from './chat-panel';
+export { ChatInputWrapper } from './chat-panel';
 
 // Message area (response display, tabs, citations)
 export {
@@ -16,12 +10,8 @@ export {
   StatusMessageComponent,
   ConfidenceIndicator,
   AnswerContent,
-  AskMore,
 } from './message-area';
 export * from './message-area/response-tabs/citations';
-
-// Standalone components
-export { SuggestionChip } from './suggestion-chip';
 
 // Search overlay
 export { ChatSearch } from './search';

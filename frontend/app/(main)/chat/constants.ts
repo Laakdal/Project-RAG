@@ -91,59 +91,6 @@ export function getQueryModeConfig(id: string): QueryModeConfig | undefined {
   return QUERY_MODES.find((m) => m.id === id);
 }
 
-/**
- * Hardcoded follow-up question sets for the "Ask More" feature.
- *
- * Each set contains 4–6 generic questions. At render time one set is
- * randomly selected and displayed in full beneath the last bot response.
- * The randomisation happens per new message pair so users see fresh
- * suggestions after every answer.
- *
- * TODO: Replace with an API-driven suggestion endpoint when available.
- */
-export const ASK_MORE_QUESTION_SETS: string[][] = [
-  // Set 1 — strategy & planning
-  [
-    'What are the key challenges and how are they being addressed',
-    'Can you break down the main strategies involved',
-    'What metrics or KPIs are used to measure success',
-    'How does this compare to industry best practices',
-    'What are the potential risks and mitigation plans',
-    'Who are the main stakeholders and what are their roles',
-  ],
-  // Set 2 — deep-dive & analysis
-  [
-    'Can you provide more details on the implementation process',
-    'What tools or technologies are being used',
-    'How has this evolved over the past few years',
-    'What are the most common pain points teams face',
-    'Are there any case studies or examples to reference',
-  ],
-  // Set 3 — operational focus
-  [
-    'How is the team structured to support this',
-    'What does the onboarding process look like',
-    'How are decisions prioritized and communicated',
-    'What feedback mechanisms are in place',
-  ],
-  // Set 4 — growth & impact
-  [
-    'What growth opportunities have been identified',
-    'How does this impact the overall business goals',
-    'What integrations or partnerships are involved',
-    'Can you summarize the key takeaways',
-    'What would a roadmap for the next quarter look like',
-    'How are results reported to leadership',
-  ],
-  // Set 5 — exploration & context
-  [
-    'What background context is important to understand this',
-    'How does this relate to other ongoing initiatives',
-    'What are the short-term vs long-term priorities',
-    'Are there any dependencies or blockers to be aware of',
-    'What lessons have been learned so far',
-  ],
-];
 
 /** Maximum number of visible chats in the sidebar. */
 export const MAX_VISIBLE_CHATS = 10;

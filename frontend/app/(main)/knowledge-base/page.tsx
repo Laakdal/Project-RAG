@@ -2600,24 +2600,6 @@ function KnowledgeBasePageContent() {
           />
         )}
 
-        {/* Chat Bar (temporarily disabled)
-        {selectedCount === 0 &&
-        <Box
-          style={{ 
-            position: 'absolute',
-            bottom: 'var(--space-6)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-          }}
-        >
-          <ChatWidgetWrapper
-            currentTitle={currentTitle}
-            selectedKbId={selectedKbId}
-            isAllRecordsMode={isAllRecordsMode}
-          />
-        </Box>
-        } */}
       </Flex>
 
       {/* Force reindex confirmation (table, grid, and sidebar) */}

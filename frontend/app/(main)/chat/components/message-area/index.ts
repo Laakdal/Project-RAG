@@ -6,4 +6,3 @@ export { StatusMessageComponent } from './status-message';
 export { ConfidenceIndicator } from './confidence-indicator';
 export { AnswerContent } from './answer-content';
 export * from './response-tabs/citations';
-export { AskMore } from './ask-more';
