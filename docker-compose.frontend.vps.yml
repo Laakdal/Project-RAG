@@ -1,0 +1,28 @@
+# VPS: run the frontend, served publicly at https://ariorafa.site.
+# Fronted by nginx (see deploy/nginx/ariorafa.site.conf) and published on
+# 127.0.0.1:3000 so only nginx on this host can reach it.
+#
+#   docker compose -f docker-compose.frontend.vps.yml up -d --build
+#
+# NEXT_PUBLIC_* and BACKEND_ORIGIN are baked at BUILD time, so any change needs a
+# rebuild (--build). The frontend uses a same-origin proxy: the browser talks
+# ONLY to ariorafa.site and Next proxies /auth/*, /admin/*, /library/*,
+# /chat/conversations/*, /health to BACKEND_ORIGIN — keeping cookies first-party.
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty -> browser uses same-origin URLs; session/CSRF cookies stay
+        # first-party to ariorafa.site.
+        NEXT_PUBLIC_API_BASE_URL: ""
+        NEXT_PUBLIC_DEV_BYPASS_AUTH: "0"
+        # Server-side proxy target. The public URL works with no shared Docker
+        # network. For lower latency, attach this service to the backend's
+        # network and use http://<backend-service>:4000 instead.
+        BACKEND_ORIGIN: https://api.ariorafa.site
+    image: project-rag-frontend:vps
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"

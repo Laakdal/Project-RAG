@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Button, Heading, IconButton } from '@radix-ui/themes';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { SelectedCollections } from '../selected-collections';
@@ -38,6 +38,25 @@ import { CitationMessageRowKeyContext } from './response-tabs/citations/citation
 // Stable empty reference — avoids creating new objects in default params
 const EMPTY_CITATION_MAPS: CitationMaps = emptyCitationMaps();
 
+/**
+ * Elapsed-time-driven loading phases for the non-streaming RAG query. Each entry
+ * is shown once `elapsed >= at` (ms); the last matching entry wins, so keep the
+ * list sorted by `at` ascending. The wording mirrors the real pipeline
+ * (search documents → search the web → read sources → write) so the status reads
+ * like live progress even though the backend emits no per-step SSE events.
+ */
+const LOADING_PHASES: readonly { at: number; text: string }[] = [
+  { at: 0, text: 'Thinking…' },
+  { at: 2_000, text: 'Understanding your question…' },
+  { at: 4_000, text: 'Searching your documents…' },
+  { at: 8_000, text: 'Searching the web…' },
+  { at: 13_000, text: 'Reading the most relevant sources…' },
+  { at: 19_000, text: 'Cross-checking the sources…' },
+  { at: 26_000, text: 'Writing the answer…' },
+  { at: 38_000, text: 'Almost there — putting it together…' },
+  { at: 50_000, text: 'Still working — this can take a moment for large documents…' },
+];
+
 function formatMessageTime(isoString: string): string {
   const date = new Date(isoString);
   if (isNaN(date.getTime())) return '';
@@ -62,6 +81,12 @@ interface FeedbackInfo {
 
 interface ChatResponseProps {
   question: string;
+  /**
+   * Render the answer without its question heading. Set for a turn an IDSS
+   * option picker sent, which continues the previous turn rather than starting
+   * a new one. The question itself is still sent, stored, and in history.
+   */
+  hideQuestion?: boolean;
   answer: string;
   citationMaps?: CitationMaps;
   citationCallbacks?: CitationCallbacks;
@@ -98,6 +123,7 @@ interface ChatResponseProps {
 
 export const ChatResponse = React.memo(function ChatResponse({
   question,
+  hideQuestion = false,
   answer,
   citationMaps = EMPTY_CITATION_MAPS,
   citationCallbacks,
@@ -120,21 +146,46 @@ export const ChatResponse = React.memo(function ChatResponse({
   debugLog.tick('[chat] [ChatResponse]');
   const isMobile = useIsMobile();
 
+  // The RAG query is non-streaming (one POST, no live progress events), so a
+  // slow answer would otherwise sit on a frozen "Thinking…" for minutes. Drive
+  // the loading status off elapsed time instead: cycle through plausible phases
+  // so it reads like a live status. Resets whenever a new load starts.
+  const [loadingPhase, setLoadingPhase] = useState(LOADING_PHASES[0].text);
+  useEffect(() => {
+    if (!isStreaming) {
+      setLoadingPhase(LOADING_PHASES[0].text);
+      return;
+    }
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      let text = LOADING_PHASES[0].text;
+      for (const phase of LOADING_PHASES) {
+        if (elapsed >= phase.at) text = phase.text;
+        else break;
+      }
+      setLoadingPhase(text);
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [isStreaming]);
+
   /** Shown only if the stream is active but no SSE status has arrived yet */
   const streamingFallbackStatus = useMemo(
     (): StatusMessage => ({
       id: 'status-waiting',
       status: 'processing',
-      message: "Thinking…",
+      message: loadingPhase,
       timestamp: '',
     }),
-    [],
+    [loadingPhase],
   );
 
   // ── Render-reason tracking ─────────────────────────────────────────
   const prevCRRef = useRef<Record<string, unknown>>({});
   const currentCRVals: Record<string, unknown> = {
-    question, answer, citationMaps, citationCallbacks, confidence,
+    question, hideQuestion, answer, citationMaps, citationCallbacks, confidence,
     isStreaming, modelInfo, collections, appliedFilters, messageId,
     isLastMessage, streamingContent, currentStatusMessage: currentStatusMessageProp,
     streamingCitationMaps, createdAt,
@@ -378,7 +429,11 @@ export const ChatResponse = React.memo(function ChatResponse({
 
   const shell = (
     <Box style={{ width: '100%' }}>
-      {/* Question Header with hover edit icon */}
+      {/* Question Header with hover edit icon. Suppressed for a turn sent by an
+          IDSS option picker: that turn is a branch of the turn that offered the
+          options, so the answer continues under the "You chose" card instead of
+          opening a second, unrelated-looking question. */}
+      {!hideQuestion && (
       <Box
         onMouseEnter={() => setIsQuestionHovered(true)}
         onMouseLeave={() => setIsQuestionHovered(false)}
@@ -463,6 +518,7 @@ export const ChatResponse = React.memo(function ChatResponse({
           </Text>
         )}
       </Box>
+      )}
 
       {/* Applied filter chips — shown when connector/KB filters were scoped on this query */}
       {appliedFilters && (appliedFilters.apps.length > 0 || appliedFilters.kb.length > 0) && (

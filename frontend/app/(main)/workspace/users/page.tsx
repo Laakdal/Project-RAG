@@ -63,6 +63,7 @@ export default function AdminUsersPage() {
 
   // Dialog state
   const [createOpen, setCreateOpen] = useState(false);
+  const [editFor, setEditFor] = useState<AdminUser | null>(null);
   const [resetFor, setResetFor] = useState<AdminUser | null>(null);
   const [deleteFor, setDeleteFor] = useState<AdminUser | null>(null);
   const [disableFor, setDisableFor] = useState<AdminUser | null>(null);
@@ -210,22 +211,27 @@ export default function AdminUsersPage() {
                 <Table.Cell>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
-                      <IconButton variant="ghost" color="gray" disabled={isSelf} style={{ cursor: isSelf ? 'not-allowed' : 'pointer' }}>
+                      <IconButton variant="ghost" color="gray" style={{ cursor: 'pointer' }}>
                         <MaterialIcon name="more_horiz" size={18} color="var(--gray-11)" />
                       </IconButton>
                     </DropdownMenu.Trigger>
+                    {/* Edit account is safe on your own row; the rest could lock
+                        you out (or make no sense for self), so they stay disabled. */}
                     <DropdownMenu.Content>
-                      <DropdownMenu.Item onSelect={() => void toggleAdmin(u)}>
+                      <DropdownMenu.Item onSelect={() => setEditFor(u)}>
+                        {'Edit account'}
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => void toggleAdmin(u)}>
                         {u.isAdmin ? 'Revoke admin' : 'Make admin'}
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onSelect={() => setDisableFor(u)}>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => setDisableFor(u)}>
                         {disabled ? 'Enable account' : 'Disable account'}
                       </DropdownMenu.Item>
-                      <DropdownMenu.Item onSelect={() => setResetFor(u)}>
+                      <DropdownMenu.Item disabled={isSelf} onSelect={() => setResetFor(u)}>
                         {'Reset password'}
                       </DropdownMenu.Item>
                       <DropdownMenu.Separator />
-                      <DropdownMenu.Item color="red" onSelect={() => setDeleteFor(u)}>
+                      <DropdownMenu.Item color="red" disabled={isSelf} onSelect={() => setDeleteFor(u)}>
                         {'Delete'}
                       </DropdownMenu.Item>
                     </DropdownMenu.Content>
@@ -249,6 +255,16 @@ export default function AdminUsersPage() {
         onOpenChange={setCreateOpen}
         onCreated={() => {
           setCreateOpen(false);
+          void refresh();
+        }}
+      />
+
+      {/* ── Edit account dialog ── */}
+      <EditUserDialog
+        user={editFor}
+        onClose={() => setEditFor(null)}
+        onDone={() => {
+          setEditFor(null);
           void refresh();
         }}
       />
@@ -380,6 +396,86 @@ function CreateUserDialog({
   );
 }
 
+// ── Edit account dialog ────────────────────────────────────────────────────────
+function EditUserDialog({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: AdminUser | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const addToast = useToastStore((s) => s.addToast);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Prefill from the target user each time the dialog opens for a new row.
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email);
+      setName(user.name ?? '');
+    }
+  }, [user]);
+
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const canSubmit = emailValid && !busy && user !== null;
+
+  const submit = async () => {
+    if (!user || !canSubmit) return;
+    setBusy(true);
+    try {
+      await AdminApi.updateUser(user.id, {
+        email: email.trim(),
+        name: name.trim() || null,
+      });
+      addToast({ variant: 'success', title: 'Account updated', description: email.trim() });
+      onDone();
+    } catch (err) {
+      addToast({
+        variant: 'error',
+        title: 'Update failed',
+        description: errorMessage(err, 'Could not update the account'),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Dialog.Content style={{ maxWidth: 460 }}>
+        <Dialog.Title>{'Edit account'}</Dialog.Title>
+        <Flex direction="column" gap="3" style={{ marginTop: 'var(--space-3)' }}>
+          <label>
+            <Text size="2" weight="medium">{'Email'}</Text>
+            <TextField.Root
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              color={email && !emailValid ? 'red' : undefined}
+            />
+            {email && !emailValid && (
+              <Text size="1" style={{ color: 'var(--red-a11)' }}>{'Enter a valid email address.'}</Text>
+            )}
+          </label>
+          <label>
+            <Text size="2" weight="medium">{'Name'}</Text>
+            <TextField.Root value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          </label>
+        </Flex>
+        <Flex justify="end" gap="2" style={{ marginTop: 'var(--space-4)' }}>
+          <Dialog.Close>
+            <Button variant="soft" color="gray">{'Cancel'}</Button>
+          </Dialog.Close>
+          <Button disabled={!canSubmit} onClick={() => void submit()}>{'Save'}</Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}
+
 // ── Reset password dialog ──────────────────────────────────────────────────────
 function ResetPasswordDialog({
   user,
@@ -392,10 +488,22 @@ function ResetPasswordDialog({
 }) {
   const addToast = useToastStore((s) => s.addToast);
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const pwError = password ? validatePassword(password) : null;
-  const canSubmit = password !== '' && pwError === null && !busy && user !== null;
+  const confirmError = confirm && confirm !== password ? "This doesn't match the new password" : null;
+  const canSubmit =
+    password !== '' && confirm !== '' && pwError === null && confirmError === null && !busy && user !== null;
+
+  const reset = () => {
+    setPassword('');
+    setConfirm('');
+    setShowPassword(false);
+    setShowConfirm(false);
+  };
 
   const submit = async () => {
     if (!user || !canSubmit) return;
@@ -403,7 +511,7 @@ function ResetPasswordDialog({
     try {
       await AdminApi.resetPassword(user.id, password);
       addToast({ variant: 'success', title: 'Password reset', description: user.email });
-      setPassword('');
+      reset();
       onDone();
     } catch (err) {
       addToast({
@@ -417,17 +525,62 @@ function ResetPasswordDialog({
   };
 
   return (
-    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) { setPassword(''); onClose(); } }}>
+    <Dialog.Root open={user !== null} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
       <Dialog.Content style={{ maxWidth: 460 }}>
         <Dialog.Title>{'Reset password'}</Dialog.Title>
         <Text size="2" style={{ color: 'var(--gray-10)' }}>{user?.email}</Text>
-        <Box style={{ marginTop: 'var(--space-3)' }}>
-          <Text size="2" weight="medium">{'New password'}</Text>
-          <TextField.Root type="password" value={password} onChange={(e) => setPassword(e.target.value)} color={pwError ? 'red' : undefined} />
-          <Text size="1" style={{ color: pwError ? 'var(--red-a11)' : 'var(--gray-10)' }}>
-            {pwError ?? 'At least 8 characters: lowercase, uppercase, number, symbol.'}
-          </Text>
-        </Box>
+        <Flex direction="column" gap="3" style={{ marginTop: 'var(--space-3)' }}>
+          <Box>
+            <Text size="2" weight="medium">{'New password'}</Text>
+            <TextField.Root
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              color={pwError ? 'red' : undefined}
+            >
+              <TextField.Slot side="right">
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="1"
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <MaterialIcon name={showPassword ? 'visibility' : 'visibility_off'} size={16} color="var(--gray-9)" />
+                </IconButton>
+              </TextField.Slot>
+            </TextField.Root>
+            <Text size="1" style={{ color: pwError ? 'var(--red-a11)' : 'var(--gray-10)' }}>
+              {pwError ?? 'At least 8 characters: lowercase, uppercase, number, symbol.'}
+            </Text>
+          </Box>
+          <Box>
+            <Text size="2" weight="medium">{'Confirm new password'}</Text>
+            <TextField.Root
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              color={confirmError ? 'red' : undefined}
+            >
+              <TextField.Slot side="right">
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="1"
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <MaterialIcon name={showConfirm ? 'visibility' : 'visibility_off'} size={16} color="var(--gray-9)" />
+                </IconButton>
+              </TextField.Slot>
+            </TextField.Root>
+            {confirmError && (
+              <Text size="1" style={{ color: 'var(--red-a11)' }}>{confirmError}</Text>
+            )}
+          </Box>
+        </Flex>
         <Flex justify="end" gap="2" style={{ marginTop: 'var(--space-4)' }}>
           <Dialog.Close>
             <Button variant="soft" color="gray">{'Cancel'}</Button>

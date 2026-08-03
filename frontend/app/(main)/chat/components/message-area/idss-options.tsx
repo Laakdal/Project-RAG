@@ -1,37 +1,118 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Box, Flex, Text } from '@radix-ui/themes';
-import { useThreadRuntime } from '@assistant-ui/react';
+import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import type { IdssAction, IdssOptionsData } from '../../utils/parse-idss-options';
+import type { IdssAction, IdssOptionsData, IdssOption } from '../../utils/parse-idss-options';
 
 /**
  * Per-action presets for the multi-select button. The LLM picks `data.action`
  * from the question's intent, so the label, icon, and the follow-up turn we send
  * all match what the user asked — instead of always being a comparison.
+ *
+ * The follow-up turn is split into `prefix`/`suffix` rather than a template
+ * function so the same strings both BUILD the prompt and RECOGNISE it later when
+ * scanning the thread (see findResolution). One source of truth — a reworded
+ * prompt can't silently stop matching.
+ *
+ * `label`/`resolvedLabel` are shown to the user and are Indonesian; the users
+ * are, and the model writes the option text in their language already. But
+ * `prefix`/`suffix` are deliberately LEFT IN ENGLISH: they are a wire format,
+ * not UI. Every card ever answered is re-locked by matching them against the
+ * stored transcript (findResolution) and every such turn is hidden by the same
+ * match (isIdssFollowup), so translating them would un-lock every card in every
+ * existing conversation and bring back its question heading. The user never
+ * reads them — the turn they belong to is not rendered.
  */
-const ACTION_PRESETS: Record<
+export const ACTION_PRESETS: Record<
   IdssAction,
-  { label: string; icon: string; prompt: (labels: string) => string }
+  { label: string; icon: string; resolvedLabel: string; prefix: string; suffix: string }
 > = {
   compare: {
-    label: 'Compare selected',
+    label: 'Bandingkan pilihan',
     icon: 'balance',
-    prompt: (labels) => `Compare these options: ${labels} — which is better?`,
+    resolvedLabel: 'Dibandingkan',
+    prefix: 'Compare these options: ',
+    suffix: ' — which is better?',
   },
   prioritize: {
-    label: 'Prioritize selected',
+    label: 'Prioritaskan pilihan',
     icon: 'low_priority',
-    prompt: (labels) =>
-      `Prioritize these options: ${labels}. Rank them from highest to lowest priority and justify each.`,
+    resolvedLabel: 'Diprioritaskan',
+    prefix: 'Prioritize these options: ',
+    suffix: '. Rank them from highest to lowest priority and justify each.',
   },
   rank: {
-    label: 'Rank selected',
+    label: 'Urutkan pilihan',
     icon: 'sort',
-    prompt: (labels) => `Rank these options: ${labels} from best to worst and explain the ordering.`,
+    resolvedLabel: 'Diurutkan',
+    prefix: 'Rank these options: ',
+    suffix: ' from best to worst and explain the ordering.',
   },
 };
+
+type ActionPreset = (typeof ACTION_PRESETS)[IdssAction];
+
+const buildPrompt = (preset: ActionPreset, labels: string) =>
+  `${preset.prefix}${labels}${preset.suffix}`;
+
+/** The exact turn a single-select row sends — also used to recognise it later. */
+export const singleFollowup = (opt: IdssOption) =>
+  opt.followup && opt.followup.trim() ? opt.followup.trim() : `Tell me more about: ${opt.label}`;
+
+/** Minimal shape we need off a thread message; avoids depending on runtime types. */
+type TextLikeMessage = {
+  role?: string;
+  content?: ReadonlyArray<{ type?: string; text?: string }>;
+};
+
+const messageText = (m: TextLikeMessage): string =>
+  (m.content ?? [])
+    .filter((p) => p?.type === 'text')
+    .map((p) => p?.text ?? '')
+    .join('')
+    .trim();
+
+/**
+ * Recover which options were already chosen by looking for the follow-up turn
+ * this picker would have sent.
+ *
+ * The picker's own `resolved` state is component-local, so it dies on any
+ * remount (a new run appending messages, reopening the conversation) and the
+ * card came back fully interactive after it had already been answered. The
+ * transcript is the only durable record, so we read the answer back out of it
+ * instead of trying to remember it.
+ *
+ * Known limitation: two identical pickers in one conversation share the same
+ * follow-up text, so answering the first also marks the second resolved. Ruling
+ * that out needs this card's own message position, which isn't available here —
+ * the app renders messages itself rather than through MessagePrimitive.
+ */
+export function findResolution(
+  data: IdssOptionsData,
+  preset: ActionPreset,
+  messages: readonly TextLikeMessage[]
+): number[] | null {
+  for (const m of messages) {
+    if (m.role !== 'user') continue;
+    const text = messageText(m);
+    if (!text) continue;
+
+    if (data.multiSelect) {
+      if (!text.startsWith(preset.prefix) || !text.endsWith(preset.suffix)) continue;
+      const inner = text.slice(preset.prefix.length, text.length - preset.suffix.length);
+      const idx = inner.split(', ').map((label) => data.options.findIndex((o) => o.label === label));
+      if (idx.length >= 2 && idx.every((i) => i >= 0)) {
+        return [...idx].sort((a, b) => a - b);
+      }
+    } else {
+      const i = data.options.findIndex((o) => singleFollowup(o) === text);
+      if (i >= 0) return [i];
+    }
+  }
+  return null;
+}
 
 /** Send a user turn and start a run — same primitive as Ask More. */
 function useSendFollowup() {
@@ -45,10 +126,47 @@ function useSendFollowup() {
   };
 }
 
+/**
+ * Interactive brainstorming picker rendered from a ```idss-options block.
+ *
+ * Styled as a compact numbered picker (à la a command palette): a prompt header,
+ * numbered rows, keyboard navigation (↑/↓ to move, Enter to pick), and — once the
+ * user picks — a resolved state (only the chosen row survives) so the
+ * follow-up answer reads as a continuation of the same interaction rather than a
+ * brand-new question. Single-select sends the option's follow-up; multi-select
+ * collects a set and sends one compare/prioritise/rank turn.
+ */
 export function IdssOptions({ data }: { data: IdssOptionsData }) {
   const send = useSendFollowup();
+  const listRef = useRef<HTMLDivElement>(null);
+
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [active, setActive] = useState(0);
+  /**
+   * Local echo of the pick so the card locks on click, before the follow-up turn
+   * has landed in the thread. Once it lands, `derived` covers it — and unlike
+   * this, `derived` survives remounts and reloads.
+   */
+  const [justResolved, setJustResolved] = useState<number[] | null>(null);
+
+  const preset = ACTION_PRESETS[data.action] ?? ACTION_PRESETS.compare;
+
+  const thread = useThread();
+  const derived = useMemo(
+    () => findResolution(data, preset, (thread.messages ?? []) as readonly TextLikeMessage[]),
+    [data, preset, thread.messages]
+  );
+
+  const resolved = justResolved ?? derived;
+  const locked = resolved !== null;
+
+  /**
+   * Collapsed by default once resolved — the answered picker reads as a one-line
+   * summary, expandable to review what was offered. `null` means "follow the
+   * resolved state"; toggling pins it.
+   */
+  const [collapsedOverride, setCollapsedOverride] = useState<boolean | null>(null);
+  const collapsed = collapsedOverride ?? locked;
 
   const toggle = (i: number) => {
     setSelected((prev) => {
@@ -59,135 +177,281 @@ export function IdssOptions({ data }: { data: IdssOptionsData }) {
     });
   };
 
-  const handleSingle = (i: number) => {
-    const opt = data.options[i];
-    send(opt.followup && opt.followup.trim() ? opt.followup : `Tell me more about: ${opt.label}`);
+  const pickSingle = (i: number) => {
+    if (locked) return;
+    setJustResolved([i]);
+    send(singleFollowup(data.options[i]));
   };
 
-  const preset = ACTION_PRESETS[data.action] ?? ACTION_PRESETS.compare;
-
-  const handleAction = () => {
-    const labels = [...selected].sort((a, b) => a - b).map((i) => data.options[i].label);
-    if (labels.length < 2) return;
-    send(preset.prompt(labels.join(', ')));
+  const submitMulti = () => {
+    if (locked) return;
+    const idx = [...selected].sort((a, b) => a - b);
+    if (idx.length < 2) return;
+    setJustResolved(idx);
+    send(buildPrompt(preset, idx.map((i) => data.options[i].label).join(', ')));
   };
+
+  const choose = (i: number) => (data.multiSelect ? toggle(i) : pickSingle(i));
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (locked) return;
+    const last = data.options.length - 1;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive((a) => (a >= last ? 0 : a + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((a) => (a <= 0 ? last : a - 1));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setActive(last);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      choose(active);
+    }
+  };
+
+  const resolvedSet = resolved ? new Set(resolved) : null;
+
+  const summary = resolved
+    ? data.multiSelect
+      ? `${preset.resolvedLabel}: ${resolved.map((i) => data.options[i].label).join(', ')}`
+      : `Anda memilih: ${data.options[resolved[0]].label}`
+    : null;
 
   return (
-    <Box style={{ margin: 'var(--space-3) 0' }}>
-      {data.prompt && (
-        <Text
-          size="2"
-          weight="medium"
-          as="div"
-          style={{ color: 'var(--slate-11)', marginBottom: 'var(--space-2)' }}
-        >
-          {data.prompt}
-        </Text>
-      )}
-
-      <Flex direction="column" gap="2">
-        {data.options.map((opt, i) => {
-          const isSelected = selected.has(i);
-          const isHovered = hovered === i;
-          const active = data.multiSelect ? isSelected : isHovered;
-          return (
-            <Box
-              key={i}
-              role="button"
-              tabIndex={0}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => (data.multiSelect ? toggle(i) : handleSingle(i))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  if (data.multiSelect) toggle(i);
-                  else handleSingle(i);
-                }
-              }}
+    <Box
+      style={{
+        margin: 'var(--space-3) 0',
+        border: '1px solid var(--slate-6)',
+        borderRadius: 'var(--radius-4)',
+        backgroundColor: 'var(--slate-2)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header: the question while open; the chosen answer once resolved. */}
+      <Flex
+        align="center"
+        justify="between"
+        gap="2"
+        style={{
+          padding: 'var(--space-3) var(--space-3) var(--space-3) var(--space-4)',
+          borderBottom: collapsed ? 'none' : '1px solid var(--slate-5)',
+        }}
+      >
+        {locked ? (
+          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+            <MaterialIcon name="check_circle" size={16} color="var(--accent-9)" />
+            <Text
+              size="2"
+              as="div"
+              title={summary ?? undefined}
               style={{
-                cursor: 'pointer',
-                padding: 'var(--space-3)',
-                borderRadius: 'var(--radius-3)',
-                border: `1px solid ${active ? 'var(--accent-8)' : 'var(--slate-6)'}`,
-                backgroundColor: active ? 'var(--accent-3)' : 'var(--slate-2)',
-                transition: 'background-color 0.12s ease, border-color 0.12s ease',
+                color: 'var(--slate-11)',
+                minWidth: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
-              <Flex align="start" gap="2">
-                {data.multiSelect && (
+              {summary}
+            </Text>
+          </Flex>
+        ) : (
+          <Text size="2" weight="bold" as="div" style={{ color: 'var(--slate-12)', minWidth: 0 }}>
+            {data.prompt || (data.multiSelect ? 'Pilih beberapa opsi' : 'Pilih arah untuk dijelajahi')}
+          </Text>
+        )}
+        <Box
+          role="button"
+          tabIndex={0}
+          aria-expanded={!collapsed}
+          aria-label={
+            collapsed ? 'Tampilkan opsi' : locked ? 'Sembunyikan opsi' : 'Tutup opsi'
+          }
+          onClick={() => setCollapsedOverride(!collapsed)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setCollapsedOverride(!collapsed);
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            padding: '2px',
+            borderRadius: 'var(--radius-2)',
+            color: 'var(--slate-9)',
+            flexShrink: 0,
+          }}
+        >
+          <MaterialIcon
+            name={collapsed ? 'expand_more' : locked ? 'expand_less' : 'close'}
+            size={16}
+            color="var(--slate-9)"
+          />
+        </Box>
+      </Flex>
+
+      {!collapsed && (
+        <div
+          ref={listRef}
+          role="listbox"
+          aria-label={data.prompt || 'Opsi'}
+          aria-multiselectable={data.multiSelect || undefined}
+          tabIndex={locked ? -1 : 0}
+          onKeyDown={onKeyDown}
+          style={{ outline: 'none' }}
+        >
+          {data.options.map((opt, i) => {
+            const isSelected = selected.has(i);
+            const isResolvedPick = resolvedSet?.has(i) ?? false;
+            // Once answered the card records the DECISION, not the menu it came
+            // from: the roads not taken are dropped rather than dimmed, so the
+            // expanded card reads as "this is what you picked".
+            if (locked && !isResolvedPick) return null;
+            const isActive = !locked && active === i;
+            // Highlighted when: keyboard-active, multi-selected, or the resolved pick.
+            const hot = isActive || (data.multiSelect ? isSelected : false) || isResolvedPick;
+
+            return (
+              <Box
+                key={i}
+                role="option"
+                aria-selected={data.multiSelect ? isSelected : isResolvedPick}
+                tabIndex={-1}
+                onMouseEnter={() => !locked && setActive(i)}
+                onClick={() => !locked && choose(i)}
+                style={{
+                  cursor: locked ? 'default' : 'pointer',
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--slate-4)',
+                  backgroundColor: hot ? 'var(--accent-3)' : 'transparent',
+                  transition: 'background-color 0.1s ease',
+                }}
+              >
+                <Flex align="start" gap="3">
+                  {/* Number chip (single-select) or checkbox (multi-select) */}
                   <Box
                     aria-hidden
                     style={{
-                      marginTop: '2px',
-                      width: '16px',
-                      height: '16px',
-                      minWidth: '16px',
-                      borderRadius: 'var(--radius-1)',
-                      border: `1.5px solid ${isSelected ? 'var(--accent-9)' : 'var(--slate-7)'}`,
-                      backgroundColor: isSelected ? 'var(--accent-9)' : 'transparent',
+                      marginTop: '1px',
+                      width: '22px',
+                      height: '22px',
+                      minWidth: '22px',
+                      borderRadius: data.multiSelect ? 'var(--radius-1)' : 'var(--radius-2)',
+                      border: `1.5px solid ${
+                        hot || isResolvedPick ? 'var(--accent-9)' : 'var(--slate-7)'
+                      }`,
+                      backgroundColor:
+                        (data.multiSelect && isSelected) || isResolvedPick
+                          ? 'var(--accent-9)'
+                          : hot
+                          ? 'var(--accent-4)'
+                          : 'var(--slate-3)',
+                      color:
+                        (data.multiSelect && isSelected) || isResolvedPick
+                          ? 'white'
+                          : 'var(--slate-11)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
                     }}
                   >
-                    {isSelected && <MaterialIcon name="check" size={11} color="white" />}
+                    {(data.multiSelect && isSelected) || isResolvedPick ? (
+                      <MaterialIcon name="check" size={13} color="white" />
+                    ) : (
+                      i + 1
+                    )}
                   </Box>
-                )}
-                <Box style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="2" weight="bold" as="div" style={{ color: 'var(--slate-12)' }}>
-                    {opt.label}
-                  </Text>
-                  {opt.description && (
-                    <Text
-                      size="1"
-                      as="div"
-                      style={{ color: 'var(--slate-11)', marginTop: '2px', lineHeight: 1.5 }}
-                    >
-                      {opt.description}
-                    </Text>
-                  )}
-                </Box>
-                {!data.multiSelect && (
-                  <MaterialIcon
-                    name="arrow_forward"
-                    size={14}
-                    color={isHovered ? 'var(--accent-11)' : 'var(--slate-8)'}
-                  />
-                )}
-              </Flex>
-            </Box>
-          );
-        })}
-      </Flex>
 
-      {data.multiSelect && (
-        <Flex align="center" gap="3" style={{ marginTop: 'var(--space-3)' }}>
-          <button
-            type="button"
-            onClick={handleAction}
-            disabled={selected.size < 2}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-2)',
-              border: 'none',
-              cursor: selected.size < 2 ? 'default' : 'pointer',
-              backgroundColor: selected.size < 2 ? 'var(--slate-4)' : 'var(--accent-9)',
-              color: selected.size < 2 ? 'var(--slate-9)' : 'white',
-              fontSize: '13px',
-              fontWeight: 500,
-              transition: 'background-color 0.12s ease',
-            }}
-          >
-            <MaterialIcon name={preset.icon} size={14} color={selected.size < 2 ? 'var(--slate-9)' : 'white'} />
-            {preset.label}
-          </button>
-          <Text size="1" style={{ color: 'var(--slate-9)' }}>
-            {selected.size < 2 ? 'Select at least two options' : `${selected.size} selected`}
-          </Text>
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="2" weight="medium" as="div" style={{ color: 'var(--slate-12)' }}>
+                      {opt.label}
+                    </Text>
+                    {opt.description && (
+                      <Text
+                        size="1"
+                        as="div"
+                        style={{ color: 'var(--slate-11)', marginTop: '2px', lineHeight: 1.5 }}
+                      >
+                        {opt.description}
+                      </Text>
+                    )}
+                  </Box>
+
+                  {!data.multiSelect && !locked && (
+                    <MaterialIcon
+                      name="arrow_forward"
+                      size={15}
+                      color={isActive ? 'var(--accent-11)' : 'var(--slate-8)'}
+                    />
+                  )}
+                </Flex>
+              </Box>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Footer: only while unanswered — once resolved the header carries the
+          summary, so a second copy of it here would just be noise. */}
+      {!collapsed && !locked && (
+        <Flex
+          align="center"
+          gap="3"
+          wrap="wrap"
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            borderTop: '1px solid var(--slate-5)',
+          }}
+        >
+          {data.multiSelect ? (
+            <>
+              <button
+                type="button"
+                onClick={submitMulti}
+                disabled={selected.size < 2}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-2)',
+                  border: 'none',
+                  cursor: selected.size < 2 ? 'default' : 'pointer',
+                  backgroundColor: selected.size < 2 ? 'var(--slate-4)' : 'var(--accent-9)',
+                  color: selected.size < 2 ? 'var(--slate-9)' : 'white',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  transition: 'background-color 0.12s ease',
+                }}
+              >
+                <MaterialIcon
+                  name={preset.icon}
+                  size={14}
+                  color={selected.size < 2 ? 'var(--slate-9)' : 'white'}
+                />
+                {preset.label}
+              </button>
+              <Text size="1" style={{ color: 'var(--slate-9)' }}>
+                {selected.size < 2
+                  ? 'Pilih minimal dua, atau ketik jawaban Anda di bawah'
+                  : `${selected.size} dipilih`}
+              </Text>
+            </>
+          ) : (
+            <Text size="1" style={{ color: 'var(--slate-9)' }}>
+              ↑↓ untuk navigasi · Enter untuk memilih · atau ketik jawaban Anda di bawah
+            </Text>
+          )}
         </Flex>
       )}
     </Box>

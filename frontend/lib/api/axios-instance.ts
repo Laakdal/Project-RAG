@@ -18,12 +18,28 @@ declare module 'axios' {
 // Default to '' (same origin). A single sentinel avoids `"undefined"` leaking
 // into template-built URLs when `NEXT_PUBLIC_API_BASE_URL` is unset.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
-// Must exceed the backend's n8n query timeout (150s) so a slow first-time
+// Must exceed the backend's n8n query timeout (240s) so a slow first-time
 // on-demand Drive read completes instead of the client aborting early and
 // discarding an answer the backend already has in flight.
-const API_TIMEOUT = 160_000;
+const API_TIMEOUT = 250_000;
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+// Next.js (trailingSlash: true) answers any API path WITHOUT a trailing slash
+// with a 308 redirect to the slash version. For a GET that's a wasted round
+// trip; for a large multipart POST it makes the browser RE-SEND the entire body
+// to the slash URL — a 20 MB upload gets uploaded twice (and buffered to disk at
+// each proxy hop), which stalls and times out. Normalizing every request to the
+// trailing-slash path up front means the redirect never fires. The Express
+// backend matches both `/x` and `/x/`, so this is safe for every endpoint; the
+// slash is inserted before the query/hash so `/x?q=1` becomes `/x/?q=1`.
+function ensureTrailingSlashPath(url?: string): string | undefined {
+  if (!url) return url;
+  const splitAt = url.search(/[?#]/);
+  const path = splitAt === -1 ? url : url.slice(0, splitAt);
+  const suffix = splitAt === -1 ? '' : url.slice(splitAt);
+  return path.endsWith('/') ? url : `${path}/${suffix}`;
+}
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -58,6 +74,10 @@ apiClient.interceptors.request.use(
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       config.headers.delete('Content-Type');
     }
+
+    // Avoid the Next.js trailing-slash 308 redirect (see helper above) — critical
+    // for large uploads, which would otherwise send the whole body twice.
+    config.url = ensureTrailingSlashPath(config.url);
     return config;
   },
   (error) => Promise.reject(error),

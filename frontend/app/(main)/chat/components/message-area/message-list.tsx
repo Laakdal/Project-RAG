@@ -4,6 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useMemo, useCallback, useSta
 import { useThread, useThreadRuntime } from '@assistant-ui/react';
 import { Flex, Box } from '@radix-ui/themes';
 import { ChatResponse } from './chat-response';
+import { extractIdssBlocks, isIdssFollowup } from './idss-followup';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { ASK_MORE_QUESTION_SETS } from '../../constants';
@@ -94,6 +95,28 @@ function mapRagSourcesToChatSources(raw: unknown): ChatSource[] | undefined {
 }
 
 /**
+ * Keep only the sources the answer actually cited, so context documents that
+ * were provided but not used (e.g. an unrelated file uploaded earlier in the
+ * chat) don't clutter the Sources footer. A source is "cited" when its number
+ * appears as an `[N]` marker in the answer. Original numbers are preserved so
+ * the footer still lines up with the inline citation badges. If the answer cites
+ * nothing (no `[N]` markers), all sources are kept as a fallback.
+ */
+function filterCitedSources(
+  content: string,
+  sources: ChatSource[] | undefined,
+): ChatSource[] | undefined {
+  if (!sources || sources.length === 0) return sources;
+  const cited = new Set<string>();
+  const re = /\[(\d+)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) cited.add(m[1]);
+  if (cited.size === 0) return sources;
+  const kept = sources.filter((s) => s.citationLabel != null && cited.has(s.citationLabel));
+  return kept.length > 0 ? kept : sources;
+}
+
+/**
  * Build a `CitationMaps` from the RAG `{filename, chunkIndex, text, webUrl}`
  * sources so the inline `[N]` markers in the answer resolve to real citation
  * pills (source name + icon + link) instead of inert grey numbers.
@@ -175,6 +198,12 @@ interface MessagePair {
   attachments?: AttachmentRef[];
   /** RAG retrieval sources for this answer (mapped from metadata.custom.sources). */
   sources?: ChatSource[];
+  /**
+   * True when the question was sent by an IDSS option picker rather than typed.
+   * Such a turn is a branch of the turn that offered the options, so it renders
+   * without a heading — the answer continues under the "You chose" card.
+   */
+  hideQuestion?: boolean;
 }
 
 export function MessageList() {
@@ -375,6 +404,15 @@ export function MessageList() {
       }
     }
 
+    // Every option set the assistant has offered in this thread. A question
+    // matching one of the turns those pickers send is a branch of an existing
+    // turn, not a new one, so it renders without a heading.
+    const idssBlocks = messages.flatMap((m) =>
+      m.role === 'assistant'
+        ? extractIdssBlocks(extractTextContent(m.content as { type: string; text?: string }[]))
+        : [],
+    );
+
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (msg.role === 'assistant') {
@@ -455,7 +493,8 @@ export function MessageList() {
           appliedFilters: userMessageAppliedFilters,
           createdAt: userCreatedAt,
           attachments: userMessageAttachments,
-          sources: mapRagSourcesToChatSources(metadata?.sources),
+          sources: filterCitedSources(content, mapRagSourcesToChatSources(metadata?.sources)),
+          hideQuestion: isIdssFollowup(question, idssBlocks),
         });
       }
     }
@@ -1229,6 +1268,7 @@ export function MessageList() {
               >
                 <ChatResponse
                   question={pair.question}
+                  hideQuestion={pair.hideQuestion}
                   answer={pair.answer}
                   citationMaps={pair.citationMaps}
                   citationCallbacks={citationCallbacks}

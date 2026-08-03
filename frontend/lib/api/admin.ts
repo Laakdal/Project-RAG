@@ -29,6 +29,12 @@ export interface CreateUserPayload {
   isAdmin: boolean;
 }
 
+export interface UpdateUserPayload {
+  email: string;
+  /** Display name; null clears it. */
+  name: string | null;
+}
+
 export const AdminApi = {
   /** GET /admin/users */
   async listUsers(): Promise<AdminUser[]> {
@@ -45,6 +51,12 @@ export const AdminApi = {
   /** POST /admin/users */
   async createUser(payload: CreateUserPayload): Promise<Omit<AdminUser, 'conversationCount'>> {
     const { data } = await apiClient.post<Omit<AdminUser, 'conversationCount'>>('/admin/users', payload, { suppressErrorToast: true });
+    return data;
+  },
+
+  /** PATCH /admin/users/:id */
+  async updateUser(id: string, payload: UpdateUserPayload): Promise<AdminUser> {
+    const { data } = await apiClient.patch<AdminUser>(`/admin/users/${id}`, payload, { suppressErrorToast: true });
     return data;
   },
 
