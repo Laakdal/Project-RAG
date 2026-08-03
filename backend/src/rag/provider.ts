@@ -15,15 +15,17 @@ export async function queryRag(
   question: string,
   history: ChatTurn[] = [],
   generateTitle = false,
+  docs: { filename: string; text: string }[] = [],
   libraryDocs: QuerySource[] = [],
   skipDrive = false,
 ): Promise<QueryResult> {
   if (config.RAG_PROVIDER === "langgraph") {
-    // langgraph path does not consume libraryDocs or the skip-drive hint; the
-    // backend-driven library enriches the n8n path only.
+    // langgraph path does not consume the inline per-chat docs, libraryDocs, or
+    // the skip-drive hint; it runs its own retrieval, and the backend-driven
+    // library enriches the n8n path only.
     return (await langgraph()).queryRag(conversationId, question, history, generateTitle);
   }
-  return n8n.queryRag(conversationId, question, history, generateTitle, libraryDocs, skipDrive);
+  return n8n.queryRag(conversationId, question, history, generateTitle, docs, libraryDocs, skipDrive);
 }
 
 export async function ingestFile(

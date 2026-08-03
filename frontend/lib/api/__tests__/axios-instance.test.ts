@@ -50,6 +50,15 @@ function respond(
 
 type Seen = { url?: string; csrf?: string };
 
+// The request interceptor normalizes every path to its trailing-slash form to
+// dodge the Next.js 308 redirect, so `/chat/send` reaches the adapter as
+// `/chat/send/`. Match either shape: an exact-string comparison here silently
+// falls through to the "not the CSRF endpoint" branch, which answers the
+// re-seed request with a 403 and recurses until the heap dies.
+function isPath(url: string | undefined, path: string): boolean {
+  return url === path || url === `${path}/`;
+}
+
 describe('axios 403 Invalid CSRF auto-recovery', () => {
   beforeEach(() => {
     // No readable cookie — forces the body-token (cross-origin) path.
@@ -65,7 +74,7 @@ describe('axios 403 Invalid CSRF auto-recovery', () => {
     let chatCalls = 0;
     apiClient.defaults.adapter = async (config) => {
       seen.push({ url: config.url, csrf: headerCsrf(config) });
-      if (config.url === '/auth/csrf') {
+      if (isPath(config.url, '/auth/csrf')) {
         return respond(config, 200, { csrfToken: 'fresh-token' });
       }
       chatCalls += 1;
@@ -78,9 +87,9 @@ describe('axios 403 Invalid CSRF auto-recovery', () => {
     const res = await apiClient.post('/chat/send', { q: 'hi' });
 
     expect(res.data).toEqual({ ok: true });
-    expect(seen.some((s) => s.url === '/auth/csrf')).toBe(true);
+    expect(seen.some((s) => isPath(s.url, '/auth/csrf'))).toBe(true);
 
-    const chats = seen.filter((s) => s.url === '/chat/send');
+    const chats = seen.filter((s) => isPath(s.url, '/chat/send'));
     expect(chats).toHaveLength(2); // original + one retry
     expect(chats[1].csrf).toBe('fresh-token'); // retry carried the fresh token
     expect(showErrorToast).not.toHaveBeenCalled(); // healed silently
@@ -89,7 +98,7 @@ describe('axios 403 Invalid CSRF auto-recovery', () => {
   it('retries at most once, then surfaces the error (no infinite loop)', async () => {
     let chatCalls = 0;
     apiClient.defaults.adapter = async (config) => {
-      if (config.url === '/auth/csrf') {
+      if (isPath(config.url, '/auth/csrf')) {
         return respond(config, 200, { csrfToken: 'fresh-token' });
       }
       chatCalls += 1;
