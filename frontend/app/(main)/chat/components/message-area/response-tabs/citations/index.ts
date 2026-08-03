@@ -5,9 +5,6 @@ export { InlineCitationGroup } from './inline-citation-group';
 export { CitationNumberCircle } from './citation-number-circle';
 export { CitationPopoverContent } from './citation-popover';
 export { InlineCitationPopoverHost } from './inline-citation-popover-host';
-export { ReferenceCard } from './citation-card';
-export { SourcesTab } from './sources-tab';
-export { CitationsTab } from './citations-tab';
 export {
   buildCitationMapsFromApi,
   buildCitationMapsFromStreaming,

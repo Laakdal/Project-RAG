@@ -1,6 +1,5 @@
 // Chat panel (input area, expansion panels)
 export {
-  ChatComposer,
   ChatInputWrapper,
   ChatInputExpansionPanel,
   ConnectorsCollectionsPanel,
@@ -12,13 +11,11 @@ export {
 export {
   ChatResponse,
   MessageList,
-  MessageBubble,
   MessageSources,
   MessageActions,
   StatusMessageComponent,
   ConfidenceIndicator,
   AnswerContent,
-  ResponseTabs,
   AskMore,
 } from './message-area';
 export * from './message-area/response-tabs/citations';
