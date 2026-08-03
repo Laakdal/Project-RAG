@@ -1,8 +1,6 @@
-import { useChatStore, ASSISTANT_CTX } from '@/chat/store';
+import { useChatStore } from '@/chat/store';
 import { ChatApi } from '@/chat/api';
-import { AgentsApi } from '@/app/(main)/agents/api';
 import type { AvailableLlmModel, ModelOverride } from '@/chat/types';
-import type { AgentConfiguredModel } from '@/app/(main)/agents/types';
 
 /**
  * Freshness window: within this many milliseconds the cached model list is
@@ -12,24 +10,6 @@ const FRESHNESS_MS = 60_000;
 
 /** In-flight fetch dedupe: one concurrent request per context key at a time. */
 const inflight = new Map<string, Promise<AvailableLlmModel[]>>();
-
-/**
- * Convert an agent-configured model (from AgentsApi.getAgent) into the shared
- * AvailableLlmModel shape used by the org LLM endpoint. This keeps both paths
- * interchangeable for the model selector and the store cache.
- */
-export function mapAgentModelToAvailable(model: AgentConfiguredModel): AvailableLlmModel {
-  return {
-    modelKey: model.modelKey,
-    modelName: model.modelName,
-    modelFriendlyName: model.modelFriendlyName,
-    provider: model.provider,
-    isDefault: model.isDefault,
-    isReasoning: model.isReasoning,
-    isMultimodal: model.isMultimodal,
-    modelType: model.modelType,
-  };
-}
 
 function toOverride(m: AvailableLlmModel): ModelOverride {
   return {
@@ -66,8 +46,7 @@ export interface FetchModelsOptions {
 /**
  * Fetch, cache, and normalize the model list for a given chat context.
  *
- * - `ctxKey === ASSISTANT_CTX`  → GET org LLMs (`ChatApi.fetchAvailableLlms`)
- * - otherwise the key IS the agentId → GET that agent's configured models
+ * Models come from the org LLM endpoint (`ChatApi.fetchAvailableLlms`).
  *
  * Side effects on the chat store:
  *   - Writes the list into `settings.availableModels[ctxKey]`
@@ -100,21 +79,14 @@ export async function fetchModelsForContext(
   }
 
   const promise = (async (): Promise<AvailableLlmModel[]> => {
-    let models: AvailableLlmModel[];
-    if (ctxKey === ASSISTANT_CTX) {
-      models = await ChatApi.fetchAvailableLlms();
-    } else {
-      const { agent } = await AgentsApi.getAgent(ctxKey);
-      models = (agent?.models ?? []).map(mapAgentModelToAvailable);
-    }
+    const models: AvailableLlmModel[] = await ChatApi.fetchAvailableLlms();
 
     const s = useChatStore.getState();
     s.setAvailableModelsForCtx(ctxKey, models);
 
     // Prefer an explicitly flagged default; otherwise fall back to the first
-    // model in the list. Agent configs typically have no `isDefault` flag,
-    // and in that case the pill should still show a concrete model name
-    // (not the "AI models" placeholder) so users can see what will be used.
+    // model in the list, so the pill always shows a concrete model name
+    // rather than the "AI models" placeholder.
     const def = models.find((m) => m.isDefault) ?? models[0] ?? null;
     s.setDefaultModelForCtx(ctxKey, def ? toOverride(def) : null);
 
@@ -139,9 +111,7 @@ export async function fetchModelsForContext(
  * call refetches from the network. Also cancels any in-flight dedupe entry
  * so a concurrent request won't return stale results.
  *
- * Call this whenever the source of truth for a context's models changes —
- * e.g. after the Agent Builder saves an agent (its `models[]` may have
- * changed, and chat UI opened for that agent must see the fresh list).
+ * Call this whenever the source of truth for a context's models changes.
  */
 export function invalidateModelsForContext(ctxKey: string): void {
   const store = useChatStore.getState();

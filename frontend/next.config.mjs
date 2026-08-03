@@ -22,8 +22,8 @@ const nextConfig = {
     },
     /**
      * Static export does not emit per-slug callback HTML. Rewrites map
-     * `/toolsets/oauth/callback/:slug` and `/connectors/oauth/callback/:slug` → the
-     * corresponding static callback page so `next dev` matches Netlify `_redirects`.
+     * `/connectors/oauth/callback/:slug` → the corresponding static callback
+     * page so `next dev` matches Netlify `_redirects`.
      * (Rewrites are not applied to `next export` output; production static hosts still need host rules.)
      */
     async rewrites() {
@@ -50,8 +50,6 @@ const nextConfig = {
                 { source: '/health', destination: `${backendOrigin}/health` },
             ],
             afterFiles: [
-                { source: '/toolsets/oauth/callback/:slug', destination: '/toolsets/oauth/callback/' },
-                { source: '/toolsets/oauth/callback/:slug/', destination: '/toolsets/oauth/callback/' },
                 { source: '/connectors/oauth/callback/:slug', destination: '/connectors/oauth/callback/' },
                 { source: '/connectors/oauth/callback/:slug/', destination: '/connectors/oauth/callback/' },
                 // `/record/<recordId>` URLs can't ship a dynamic `[recordId]` segment

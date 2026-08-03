@@ -16,13 +16,6 @@ import {
   listMessages as ragListMessages,
 } from '@/chat/rag-api';
 import { buildChatHref } from '@/chat/build-chat-url';
-import {
-  AgentsApi,
-  buildAgentChatToolGroups,
-  extractAgentKnowledgeDefaults,
-  extractAgentKnowledgeConnectors,
-  extractAgentKnowledgeCollectionRows,
-} from '@/app/(main)/agents/api';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { buildExternalStoreConfig } from '@/chat/runtime';
 import { debugLog } from '@/chat/debug-logger';
@@ -287,111 +280,10 @@ function ChatContent() {
     let cancelled = false;
 
     const load = async () => {
-      const store = useChatStore.getState();
-      const ctxKey = ctxKeyFromAgent(agentId);
-
-      if (agentId?.trim()) {
-        try {
-          const { agent, toolFullNames } = await AgentsApi.getAgent(agentId);
-          if (cancelled) return;
-          const knowledgeDefaults = extractAgentKnowledgeDefaults(agent);
-          const collectionRows = extractAgentKnowledgeCollectionRows(agent);
-          const kbIds =
-            collectionRows.length > 0
-              ? collectionRows.map((r) => r.id)
-              : knowledgeDefaults.kb;
-          const knowledgeDefaultsForStore = {
-            apps: knowledgeDefaults.apps,
-            kb: kbIds,
-          };
-          const connectors = extractAgentKnowledgeConnectors(agent);
-          const toolGroups = buildAgentChatToolGroups(agent);
-          const deprecatedToolNames = (agent?.toolsets ?? [])
-            .flatMap((ts) => ts.tools ?? [])
-            .filter((tool) => tool.deprecated === true)
-            .map((tool) => tool.name);
-          store.hydrateAgentChatResources({
-            toolCatalogFullNames: toolFullNames,
-            toolGroups,
-            connectors,
-            kbIds,
-            knowledgeCollectionRows: collectionRows,
-            knowledgeDefaults: knowledgeDefaultsForStore,
-            deprecatedToolNames,
-          });
-          store.setAgentContextDisplayName(agent?.name?.trim() || null);
-          store.setAgentContextCreatedBy(agent?.createdBy ?? null);
-
-          // Warn when any tool attached to this agent has been removed from
-          // server code since the agent was last saved (deprecated=true is
-          // stamped by the GET /agent/:id handler at read time).
-          if (deprecatedToolNames.length > 0) {
-            toast.error("This agent has tools that are no longer available. Open the Agent Builder to remove them.", {
-              action: {
-                label: "Open Agent Builder",
-                onClick: () =>
-                  router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId!)}`),
-              },
-            });
-          }
-
-          // hydrateAgentChatResources always resets agentKnowledgeScope to null.
-          // On page reload with an existing conversationId, loadHistory may have
-          // already set the scope from the last message's appliedFilters before
-          // getAgent resolved. Re-apply it so the race doesn't wipe it out.
-          if (conversationId) {
-            const freshStore = useChatStore.getState();
-            const existing = freshStore.getSlotByConvId(conversationId, { forAgentId: agentId });
-            if (existing?.slot.isInitialized) {
-              const lastWithFilters = [...existing.slot.messages].reverse().find(
-                (msg) =>
-                  msg.role === 'user' &&
-                  (msg.metadata as { custom?: { appliedFilters?: import('./types').AppliedFilters } })
-                    ?.custom?.appliedFilters != null
-              );
-              const af = (
-                lastWithFilters?.metadata as {
-                  custom?: { appliedFilters?: import('./types').AppliedFilters };
-                }
-              )?.custom?.appliedFilters;
-              if (af) {
-                freshStore.setAgentKnowledgeScope({
-                  apps: af.apps.map((n) => n.id),
-                  kb: af.kb.map((n) => n.id),
-                });
-                const namesCache: Record<string, string> = {};
-                const metaCache: Record<string, { name: string; nodeType: string; connector: string }> = {};
-                for (const node of [...af.apps, ...af.kb]) {
-                  namesCache[node.id] = node.name;
-                  metaCache[node.id] = { name: node.name, nodeType: node.nodeType, connector: node.connector };
-                }
-                freshStore.setCollectionNamesCache(namesCache);
-                freshStore.setCollectionMetaCache(metaCache);
-              }
-            }
-          }
-        } catch (error) {
-          if (!cancelled) {
-            console.error('Failed to fetch agent details:', error);
-            store.hydrateAgentChatResources(null);
-            store.setAgentContextDisplayName(null);
-            store.setAgentContextCreatedBy(null);
-          }
-        }
-      } else {
-        store.hydrateAgentChatResources(null);
-        store.setAgentContextDisplayName(null);
-        store.setAgentContextCreatedBy(null);
-      }
+      const ctxKey = ctxKeyFromAgent(null);
 
       try {
-        // Force a refetch for agent contexts: the agent's configured models
-        // can change between visits (Agent Builder save, admin edits) and
-        // stale cached lists would surface wrong defaults in the pill and
-        // the model selector. Assistant (org-wide) models change far less
-        // often, so the normal freshness window is fine there.
-        const force = Boolean(agentId?.trim());
-        await fetchModelsForContext(ctxKey, { force });
+        await fetchModelsForContext(ctxKey);
       } catch (error) {
         if (!cancelled && useServicesHealthStore.getState().apiServerReachable) {
           console.error('Failed to fetch models for context', ctxKey, error);
@@ -820,11 +712,8 @@ function ChatContent() {
 
   const chatShareAdapter = useMemo(() => {
     if (!conversationId) return null;
-    return createChatShareAdapter(
-      conversationId,
-      historyAndShareAgentId ? { agentId: historyAndShareAgentId } : undefined
-    );
-  }, [conversationId, historyAndShareAgentId]);
+    return createChatShareAdapter(conversationId);
+  }, [conversationId]);
 
   // Agent threads are not shareable by anyone (including the owner), so gate on
   // historyAndShareAgentId (slot-scoped, set for both URL and restored agent threads).

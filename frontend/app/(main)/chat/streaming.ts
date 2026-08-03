@@ -15,7 +15,6 @@
 
 import { startTransition } from 'react';
 import { ChatApi, type StreamMessageCallbacks } from './api';
-import { AgentsApi } from '@/app/(main)/agents/api';
 import { useChatStore, ctxKeyFromAgent, getEffectiveModel } from './store';
 import { debugLog } from './debug-logger';
 import { loadHistoricalMessages, getThreadMessagePlainText } from './runtime';
@@ -179,9 +178,7 @@ export async function streamRegenerateForSlot(
   if (!slot || !slot.convId) return;
 
   // Resolve model: explicit override → context-scoped selection/default.
-  // Context is the slot's own agent (so regenerate for an agent thread
-  // always picks from that agent's models, never leaks assistant choices).
-  const regenCtxKey = ctxKeyFromAgent(slot.threadAgentId ?? null);
+  const regenCtxKey = ctxKeyFromAgent(null);
   const resolvedModel: ModelOverride =
     modelOverride
       ?? getEffectiveModel(regenCtxKey)
@@ -244,14 +241,6 @@ export async function streamRegenerateForSlot(
     }
   }
 
-  const rawAgentIdFromUrl =
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('agentId') : null;
-  const agentIdFromUrl = rawAgentIdFromUrl?.trim() ? rawAgentIdFromUrl : null;
-  const slotAgentId = slot.threadAgentId?.trim() || null;
-  const threadAgentId = slotAgentId ?? agentIdFromUrl;
-  /** Which API we use for reload — frozen at regen start (URL may change before `complete`) */
-  const reloadViaAgentId = threadAgentId;
-
   const regenerateCallbacks: StreamMessageCallbacks = {
     onConnected: (data) => {
       scheduleStatus(statusMessageFromConnectedEvent(data));
@@ -308,9 +297,7 @@ export async function streamRegenerateForSlot(
       }
       cancelPendingStatus();
       try {
-        const detail = reloadViaAgentId
-          ? await AgentsApi.fetchAgentConversation(reloadViaAgentId, slot.convId!)
-          : await ChatApi.fetchConversation(slot.convId!);
+        const detail = await ChatApi.fetchConversation(slot.convId!);
         const finalMessages = loadHistoricalMessages(detail.messages);
         const postRegenModelInfo = pickModelInfoFromConversationBundle({
           modelInfo: detail.conversation.modelInfo,
@@ -372,60 +359,14 @@ export async function streamRegenerateForSlot(
   };
 
   try {
-    if (threadAgentId && slotAgentId !== threadAgentId) {
-      useChatStore.getState().updateSlot(slotId, { threadAgentId });
-    }
-    /** Strip `instanceId:` prefix added for UI multi-instance isolation. */
-    const stripInstancePrefix = (key: string) => {
-      const colon = key.indexOf(':');
-      return colon >= 0 ? key.slice(colon + 1) : key;
-    };
-
-    if (threadAgentId) {
-      const { chatMode } = buildStreamRequestModeFields(store.settings);
-      const agentApiChatMode = streamChatModeToAgentApiChatMode(chatMode);
-      // Read agent tools from the store at regen time so the correct tool set
-      // is used even when the user changed the selection between turns.
-      const agentToolsSel = useChatStore.getState().agentStreamTools;
-      const agentToolCatalog = useChatStore.getState().agentToolCatalogFullNames;
-      const regenTools = [...new Set(
-        (agentToolsSel === null ? [...agentToolCatalog] : [...agentToolsSel]).map(stripInstancePrefix)
-      )];
-      await ChatApi.streamAgentRegenerate(
-        threadAgentId,
-        slot.convId,
-        messageId,
-        regenerateCallbacks,
-        {
-          modelKey: resolvedModel.modelKey.trim(),
-          modelName: resolvedModel.modelName || resolvedModel.modelKey,
-          chatMode: agentApiChatMode,
-          tools: regenTools,
-          filters: originalFilters ?? buildAssistantApiFilters(store.settings.filters),
-        }
-      );
-    } else {
-      const { chatMode } = buildStreamRequestModeFields(store.settings);
-      // Universal agent mode: read current tool selection at regen time
-      const isUniversalAgent = store.settings.queryMode === 'agent';
-      const universalToolsSel = useChatStore.getState().universalAgentStreamTools;
-      const universalToolCatalog = useChatStore.getState().universalAgentToolCatalogFullNames;
-      // null → "all tools" (send full catalog), array → explicit subset, undefined → not an agent turn
-      // Strip instanceId prefix from internal keys before putting on the wire.
-      const regenStreamTools = isUniversalAgent
-        ? [...new Set(
-            (universalToolsSel === null ? [...universalToolCatalog] : [...universalToolsSel]).map(stripInstancePrefix)
-          )]
-        : undefined;
-      await ChatApi.streamRegenerate(slot.convId, messageId, regenerateCallbacks, {
-        modelKey: resolvedModel.modelKey,
-        modelName: resolvedModel.modelName,
-        modelFriendlyName: resolvedModel.modelFriendlyName,
-        chatMode,
-        filters: originalFilters ?? buildAssistantApiFilters(store.settings.filters),
-        ...(regenStreamTools !== undefined ? { agentStreamTools: regenStreamTools } : {}),
-      });
-    }
+    const { chatMode } = buildStreamRequestModeFields(store.settings);
+    await ChatApi.streamRegenerate(slot.convId, messageId, regenerateCallbacks, {
+      modelKey: resolvedModel.modelKey,
+      modelName: resolvedModel.modelName,
+      modelFriendlyName: resolvedModel.modelFriendlyName,
+      chatMode,
+      filters: originalFilters ?? buildAssistantApiFilters(store.settings.filters),
+    });
   } catch (error) {
     if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
     cancelPendingStatus();
@@ -489,9 +430,7 @@ export async function loadOlderMessagesForSlot(slotId: string): Promise<void> {
   });
 
   try {
-    const detail = slot.threadAgentId
-      ? await AgentsApi.fetchAgentConversation(slot.threadAgentId, slot.convId, { page: nextPage })
-      : await ChatApi.fetchConversation(slot.convId, nextPage);
+    const detail = await ChatApi.fetchConversation(slot.convId, nextPage);
 
     const olderMessages = loadHistoricalMessages(detail.messages);
     const newPagination = {

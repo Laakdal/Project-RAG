@@ -4,27 +4,14 @@ import type { User } from '@/lib/types/users';
 import { fetchShareUsersPaginated } from '@/app/components/share/utils';
 import type { ShareAdapter, SharedMember, ShareSubmission } from '@/app/components/share/types';
 import { useUserStore } from '@/lib/store/user-store';
-import { AgentsApi } from '@/app/(main)/agents/api';
 import type { SharedWithEntry } from './types';
-
-export interface CreateChatShareAdapterOptions {
-  /** When set, uses GET/POST agent conversation share routes instead of global chat. */
-  agentId?: string;
-}
 
 /**
  * Creates a ShareAdapter for a Chat Conversation.
  * Simple share/unshare — no roles and no team-sharing UI.
  */
-export function createChatShareAdapter(
-  conversationId: string,
-  options?: CreateChatShareAdapterOptions
-): ShareAdapter {
-  const agentId = options?.agentId;
-
-  const conversationBasePath = agentId
-    ? `/api/v1/agents/${agentId}/conversations/${conversationId}`
-    : `/api/v1/conversations/${conversationId}`;
+export function createChatShareAdapter(conversationId: string): ShareAdapter {
+  const conversationBasePath = `/api/v1/conversations/${conversationId}`;
 
   return {
     entityType: 'conversation',
@@ -45,9 +32,7 @@ export function createChatShareAdapter(
         userId?: string;
         ownerId?: string;
       };
-      if (agentId) {
-        conversation = (await AgentsApi.fetchAgentConversation(agentId, conversationId)).conversation;
-      } else {
+      {
         const { data } = await apiClient.get(`/api/v1/conversations/${conversationId}/`);
         conversation = data.conversation ?? data;
       }
