@@ -102,6 +102,53 @@ describe("POST /admin/users", () => {
   });
 });
 
+describe("PATCH /admin/users/:id", () => {
+  it("updates email + name and returns the row (email lowercased)", async () => {
+    dbMock.setResult([
+      {
+        id: "u9",
+        email: "renamed@example.com",
+        name: "Renamed",
+        isAdmin: false,
+        disabledAt: null,
+        createdAt: "t",
+        lastLoginAt: null,
+      },
+    ]);
+    const res = await request(app())
+      .patch("/admin/users/u9")
+      .send({ email: "Renamed@Example.com", name: "Renamed" });
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe("renamed@example.com");
+  });
+
+  it("rejects an invalid email with 400", async () => {
+    const res = await request(app())
+      .patch("/admin/users/u9")
+      .send({ email: "not-an-email", name: "X" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 409 on a duplicate email", async () => {
+    const updateSpy = dbMock.db.update as ReturnType<typeof vi.fn>;
+    updateSpy.mockImplementationOnce(() => {
+      throw Object.assign(new Error("duplicate"), { code: "23505" });
+    });
+    const res = await request(app())
+      .patch("/admin/users/u9")
+      .send({ email: "dupe@example.com", name: null });
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 404 when the user does not exist", async () => {
+    dbMock.setResult([]); // update .returning empty
+    const res = await request(app())
+      .patch("/admin/users/ghost")
+      .send({ email: "ghost@example.com", name: null });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("PATCH /admin/users/:id/admin", () => {
   it("promotes a user to admin and returns 204", async () => {
     dbMock.setResult([{ id: "u9" }]); // update .returning row

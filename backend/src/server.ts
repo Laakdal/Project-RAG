@@ -13,6 +13,7 @@ import { config, isProduction } from "./config.js";
 import { db, pool } from "./db/index.js";
 import authRoutes from "./auth/routes.js";
 import { chatRouter } from "./rag/chat-routes.js";
+import { internalRouter } from "./rag/internal-routes.js";
 import { adminRouter } from "./admin/routes.js";
 import { libraryRouter } from "./library/routes.js";
 import { libraryBackfillRouter } from "./library/backfill-routes.js";
@@ -70,6 +71,9 @@ app.get("/health", async (_req: Request, res: Response) => {
 });
 
 app.use("/auth", authRoutes);
+// Internal server-to-server routes (n8n -> backend progress events). Token-authed,
+// no session; kept off /chat so it isn't behind requireAuth.
+app.use("/internal", internalRouter);
 app.use("/chat", chatRouter);
 app.use("/admin", adminRouter);
 // Token-authed backfill endpoints must be matched before the session-guarded

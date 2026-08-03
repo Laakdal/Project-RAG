@@ -7,8 +7,7 @@ export async function extractText(
   filename: string,
   mimeType: string,
 ): Promise<string> {
-  const base = config.N8N_READ_URL ?? config.N8N_BASE_URL;
-  const url = `${base.replace(/\/$/, "")}${READ_PATH}`;
+  const url = `${config.N8N_BASE_URL.replace(/\/$/, "")}${READ_PATH}`;
   const form = new FormData();
   form.append("filename", filename);
   form.append("file", new Blob([file], { type: mimeType }), filename);

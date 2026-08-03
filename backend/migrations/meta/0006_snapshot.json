@@ -1,5 +1,5 @@
 {
-  "id": "6b60e91b-831b-49e6-926a-382ee6bed5a4",
+  "id": "95eb18ae-620b-4be8-8903-412b0d411f1f",
   "prevId": "b4719d48-7189-46ac-ab2e-20995d0e76cd",
   "version": "7",
   "dialect": "postgresql",
@@ -49,6 +49,12 @@
         "data": {
           "name": "data",
           "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "extracted_text": {
+          "name": "extracted_text",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -130,75 +136,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.library_documents": {
-      "name": "library_documents",
-      "schema": "",
-      "columns": {
-        "drive_file_id": {
-          "name": "drive_file_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "modified_time": {
-          "name": "modified_time",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chunk_count": {
-          "name": "chunk_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "web_url": {
-          "name": "web_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "indexed_at": {
-          "name": "indexed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

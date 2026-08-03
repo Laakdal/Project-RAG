@@ -14,27 +14,47 @@ vi.mock("./n8n-client.js", () => ({
     answer: "42",
     sources: [{ filename: "doc.pdf", chunkIndex: 1, text: "the answer is 42" }],
   })),
-  ingestFile: vi.fn(async () => ({ status: "ok", chunkCount: 3 })),
   downloadDriveFile: vi.fn(async () => ({
     buffer: Buffer.from("%PDF-1.4 test"),
     contentType: "application/pdf",
   })),
 }));
 
-const searchLibrary = vi.fn(async () => [] as { filename: string; chunkIndex: number; text: string }[]);
-const shouldSearchLibrary = vi.fn(async () => false);
-const librarySufficient = vi.fn(async () => false);
-vi.mock("../library/retrieve.js", () => ({ searchLibrary, shouldSearchLibrary, librarySufficient }));
+vi.mock("./attachment-reader.js", () => ({
+  startBackgroundRead: vi.fn(),
+  ensureExtractedText: vi.fn(async () => null),
+}));
+
+vi.mock("../library/retrieve.js", () => ({
+  searchLibrary: vi.fn(async () => []),
+  // The chat routes reach the library through selectContext, which needs the
+  // scored variant so it can weigh the library against a per-chat attachment.
+  searchLibraryScored: vi.fn(async () => ({ docs: [], topScore: 0 })),
+  shouldSearchLibrary: vi.fn(async () => false),
+  librarySufficient: vi.fn(async () => false),
+}));
+
+vi.mock("../library/drive-index.js", () => ({
+  indexDriveSourcesInBackground: vi.fn(),
+}));
 
 // Keep the real deterministic titleFromQuestion; stub the LLM summarizer to
-// return null by default so title tests exercise the heuristic unless overridden.
+// return null by default so title tests exercise the heuristic path unless a
+// test overrides it.
 vi.mock("./title-generator.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./title-generator.js")>()),
   summarizeTitle: vi.fn(async () => null),
 }));
 
 // These resolve to the mocked fns above; override per-test with vi.mocked(...).
-import { queryRag, ingestFile, downloadDriveFile } from "./n8n-client.js";
+import { queryRag, downloadDriveFile } from "./n8n-client.js";
+import { startBackgroundRead } from "./attachment-reader.js";
+import {
+  searchLibrary,
+  searchLibraryScored,
+  shouldSearchLibrary,
+  librarySufficient,
+} from "../library/retrieve.js";
 import { summarizeTitle } from "./title-generator.js";
 
 // Imported after mocks are registered.
@@ -62,12 +82,29 @@ function sqlLiterals(node: unknown, seen = new Set<unknown>()): string[] {
   return out;
 }
 
+// Walk a Drizzle SQL condition and collect the bound parameter values (the
+// right-hand side of eq(col, value)). Lets a test assert WHICH row a clause
+// addresses, which sqlLiterals — raw SQL text only — cannot show.
+function sqlParams(node: unknown, seen = new Set<unknown>()): unknown[] {
+  if (node == null || typeof node !== "object" || seen.has(node)) return [];
+  seen.add(node);
+  const out: unknown[] = [];
+  const obj = node as Record<string, unknown>;
+  if (obj.constructor?.name === "Param") out.push(obj.value);
+  for (const v of Object.values(obj)) {
+    if (Array.isArray(v)) for (const item of v) out.push(...sqlParams(item, seen));
+    else if (v && typeof v === "object") out.push(...sqlParams(v, seen));
+  }
+  return out;
+}
+
 // The db mock and n8n mocks are module-level, so clear call history before
 // each test to keep per-test call-count/argument assertions reliable.
 // clearAllMocks resets call history only; implementations and the db mock's
 // setResult state are preserved.
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.clearQueue();
 });
 
 describe("conversation routes", () => {
@@ -252,7 +289,10 @@ describe("message route", () => {
   });
 
   it("answers via n8n and persists both turns", async () => {
-    dbMock.setResult([{ id: "c1" }]); // ownership + inserts resolve to this
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([{ id: "c1" }]); // history (non-empty → generateTitle false)
+    dbMock.queueResult([]);             // attachments (none → no read grace loop)
+    dbMock.setResult([{ id: "c1" }]);   // inserts resolve to this
     const res = await request(app())
       .post("/chat/conversations/c1/messages")
       .send({ question: "What is the answer?" });
@@ -264,17 +304,20 @@ describe("message route", () => {
       text: "the answer is 42",
     });
 
-    // The query ran with (conversationId, question, history, generateTitle, libraryDocs).
+    // The query ran with (conversationId, question, history, generateTitle, docs, libraryDocs).
     // The shared db mock returns one truthy row for both the ownership lookup
     // and the history read, so history is non-empty here and generateTitle is
     // false; the first-message path is covered by its own test below.
+    // docs is empty because the attachments query returns none.
+    // libraryDocs is empty because shouldSearchLibrary defaults to false.
     expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
       "c1",
       "What is the answer?",
       expect.any(Array),
       false,
-      [], // libraryDocs — empty until library search populates it
-      false, // skipDrive — false unless the library is judged sufficient
+      expect.any(Array),
+      expect.any(Array),
+      false,
     );
 
     // Both turns were persisted in order: the user message first, then the
@@ -296,6 +339,8 @@ describe("message route", () => {
 
   it("titles the first message via heuristic when n8n returns no title", async () => {
     dbMock.setResult([{ id: "c1" }]); // ownership + inserts + update
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
     // The first turn has no prior history. The shared mock returns one row for
     // every read, so steer the history query (it ends with .limit(10)) to an
     // empty result while the ownership lookup (.limit(1)) still finds the row.
@@ -319,8 +364,9 @@ describe("message route", () => {
       "Apa isi dokumen ini? Tolong jelaskan.",
       expect.any(Array),
       true,
-      [], // libraryDocs — empty until library search populates it
-      false, // skipDrive
+      expect.any(Array),
+      expect.any(Array),
+      false,
     );
 
     // The conversation title was set from the heuristic (first sentence).
@@ -332,6 +378,8 @@ describe("message route", () => {
 
   it("prefers the LLM-summarized title from n8n on the first message", async () => {
     dbMock.setResult([{ id: "c1" }]);
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
     const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
     limitSpy.mockImplementation((n: number) =>
       n === 10
@@ -357,6 +405,8 @@ describe("message route", () => {
 
   it("summarizes the first-message title with the LLM when n8n returns none", async () => {
     dbMock.setResult([{ id: "c1" }]);
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([]);             // attachments (none; history uses the limit(10) override below)
     const limitSpy = dbMock.db.limit as ReturnType<typeof vi.fn>;
     limitSpy.mockImplementation((n: number) =>
       n === 10
@@ -378,7 +428,10 @@ describe("message route", () => {
   });
 
   it("returns 502 when n8n is unavailable", async () => {
-    dbMock.setResult([{ id: "c1" }]); // owned
+    dbMock.queueResult([{ id: "c1" }]); // ownership
+    dbMock.queueResult([{ id: "c1" }]); // history
+    dbMock.queueResult([]);             // attachments (none)
+    dbMock.setResult([{ id: "c1" }]);   // owned
     vi.mocked(queryRag).mockRejectedValueOnce(new Error("n8n down"));
     const res = await request(app())
       .post("/chat/conversations/c1/messages")
@@ -394,44 +447,79 @@ describe("message route", () => {
     expect(res.status).toBe(404);
   });
 
-  it("passes gated library docs to queryRag on a document-ish question", async () => {
-    dbMock.setResult([{ id: "c1" }]); // ownership + history
-    shouldSearchLibrary.mockResolvedValueOnce(true);
-    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
-    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
-    await request(app())
-      .post("/chat/conversations/c1/messages")
-      .send({ question: "what does the SOP say?" });
-    const call = vi.mocked(queryRag).mock.calls.at(-1);
-    expect(call?.[4]).toEqual([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+  it("passes library docs as the 6th arg when intent gate is true", async () => {
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history (no prior messages)
+    dbMock.queueResult([]);              // attachments query (no per-chat docs)
+    const libDoc = { filename: "lib.pdf", chunkIndex: 0, text: "library content" };
+    vi.mocked(shouldSearchLibrary).mockResolvedValueOnce(true);
+    vi.mocked(searchLibraryScored).mockResolvedValueOnce({ docs: [libDoc], topScore: 0.5 });
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    await request(app()).post("/chat/conversations/c1/messages").send({ question: "What is in the SOP?" });
+
+    const libraryDocsArg = vi.mocked(queryRag).mock.calls[0][5];
+    expect(libraryDocsArg).toEqual([libDoc]);
   });
 
-  it("passes skipDrive=true only when the library is judged sufficient", async () => {
-    dbMock.setResult([{ id: "c1" }]); // ownership + history
-    shouldSearchLibrary.mockResolvedValueOnce(true);
-    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "the answer" }]);
-    librarySufficient.mockResolvedValueOnce(true);
-    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
-    await request(app())
-      .post("/chat/conversations/c1/messages")
-      .send({ question: "what does the SOP say?" });
-    const call = vi.mocked(queryRag).mock.calls.at(-1);
-    expect(call?.[5]).toBe(true);
+  it("passes skipDrive=true only when the library is sufficient", async () => {
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history
+    dbMock.queueResult([]);              // attachments
+    vi.mocked(shouldSearchLibrary).mockResolvedValueOnce(true);
+    vi.mocked(searchLibraryScored).mockResolvedValueOnce({
+      docs: [{ filename: "lib.pdf", chunkIndex: 0, text: "the answer" }],
+      topScore: 0.5,
+    });
+    vi.mocked(librarySufficient).mockResolvedValueOnce(true);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    await request(app()).post("/chat/conversations/c1/messages").send({ question: "What is in the SOP?" });
+
+    expect(vi.mocked(queryRag).mock.calls[0][6]).toBe(true);
   });
 
-  it("skips the library when useLibrary is false", async () => {
-    dbMock.setResult([{ id: "c1" }]); // ownership + history
-    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
-    await request(app())
+  it("asking a question passes the chat's read docs to the query", async () => {
+    // Queue results in order: ownership lookup, history query (limit 10 → []),
+    // then the attachments query returns one already-read ("ready") attachment
+    // whose extracted text is forwarded to the query as a doc.
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history (no prior messages → first turn)
+    dbMock.queueResult([
+      { id: "att1", filename: "a.pdf", status: "ready", extractedText: "# the document body" },
+    ]);
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    await request(app()).post("/chat/conversations/c1/messages").send({ question: "q" });
+
+    const docsArg = vi.mocked(queryRag).mock.calls[0][4];
+    expect(docsArg).toEqual([{ filename: "a.pdf", text: "# the document body" }]);
+  });
+
+  it("returns the stored answer's id so the client can name it when regenerating", async () => {
+    // Without this the client only has the placeholder id it invented locally,
+    // and regenerating a just-answered turn addresses a row that isn't there.
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // history
+    dbMock.queueResult([]);              // attachments
+    dbMock.queueResult([]);              // insert user message
+    dbMock.queueResult([{ id: "a9" }]);  // insert assistant message .returning()
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
+    const res = await request(app())
       .post("/chat/conversations/c1/messages")
-      .send({ question: "hi", useLibrary: false });
-    expect(shouldSearchLibrary).not.toHaveBeenCalled();
-    const call = vi.mocked(queryRag).mock.calls.at(-1);
-    expect(call?.[4]).toEqual([]);
+      .send({ question: "q" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.messageId).toBe("a9");
   });
 });
 
 describe("regenerate route", () => {
+  // Message ids are uuids in the schema, and the route validates the shape
+  // before it reaches Postgres — so the tests have to use a real one.
+  const ASSISTANT_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
   it("re-runs the query and overwrites the last assistant answer in place", async () => {
     // One row serves the ownership lookup, the last-assistant/last-user reads,
     // and the history read (all reads share the mock's setResult).
@@ -445,14 +533,15 @@ describe("regenerate route", () => {
     expect(res.status).toBe(200);
     expect(res.body.answer).toBe("42");
 
-    // The last user question is re-asked (generateTitle false).
+    // The last user question is re-asked (generateTitle false, empty docs, libraryDocs from intent gate).
     expect(vi.mocked(queryRag)).toHaveBeenCalledWith(
       "c1",
       "redo this",
       expect.any(Array),
       false,
-      [], // libraryDocs — empty until library search populates it
-      expect.any(Boolean), // skipDrive
+      [],
+      expect.any(Array),
+      expect.any(Boolean),
     );
 
     // The answer is written via UPDATE .set (overwrite in place), not a new insert.
@@ -481,47 +570,105 @@ describe("regenerate route", () => {
     expect(res.status).toBe(502);
   });
 
-  it("passes gated library docs to queryRag on regenerate when intent matches", async () => {
-    dbMock.setResult([
-      { id: "m1", role: "user", content: "what does the SOP say?", createdAt: "t" },
-    ]);
-    shouldSearchLibrary.mockResolvedValueOnce(true);
-    searchLibrary.mockResolvedValueOnce([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
-    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "a", sources: [] });
+  it("re-reads the chat's attachments so a regenerated answer still sees the file", async () => {
+    // Regression: regenerate used to hardcode an empty docs array, so asking
+    // about an attached image and then hitting retry answered "I cannot see
+    // images" — the file was in the chat but never in the prompt.
+    dbMock.queueResult([{ id: "c1" }]);                                       // ownedConversation
+    dbMock.queueResult([{ id: ASSISTANT_ID, role: "assistant", createdAt: "t2" }]);   // assistant row to replace
+    dbMock.queueResult([{ content: "gambar apa ini?", createdAt: "t1" }]);    // question to re-ask
+    dbMock.queueResult([]);                                                    // prior turns
+    dbMock.queueResult([
+      { id: "att1", filename: "seq.png", status: "ready", extractedText: "sequence diagram text" },
+    ]);                                                                        // attachments
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+
     const res = await request(app())
       .post("/chat/conversations/c1/messages/regenerate")
-      .send({});
+      .send({ messageId: ASSISTANT_ID });
+
     expect(res.status).toBe(200);
-    const call = vi.mocked(queryRag).mock.calls.at(-1);
-    expect(call?.[4]).toEqual([{ filename: "lib.pdf", chunkIndex: 0, text: "libctx" }]);
+    expect(vi.mocked(queryRag).mock.calls[0][4]).toEqual([
+      { filename: "seq.png", text: "sequence diagram text" },
+    ]);
+  });
+
+  it("regenerates the message it is given, not whichever row happens to be last", async () => {
+    // The client may be retrying an older answer (or a failed turn the server
+    // never stored). Addressing by id keeps client and server on the same row.
+    dbMock.queueResult([{ id: "c1" }]);                                       // ownedConversation
+    dbMock.queueResult([{ id: ASSISTANT_ID, role: "assistant", createdAt: "t2" }]);   // targeted assistant
+    dbMock.queueResult([{ content: "the older question", createdAt: "t1" }]); // its question
+    dbMock.queueResult([]);                                                    // prior turns
+    dbMock.queueResult([]);                                                    // attachments
+    vi.mocked(queryRag).mockResolvedValueOnce({ answer: "A", sources: [] });
+    const whereSpy = dbMock.db.where as ReturnType<typeof vi.fn>;
+
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({ messageId: ASSISTANT_ID });
+
+    expect(res.status).toBe(200);
+    // WHERE clauses in order: ownership, the assistant row, its question,
+    // prior turns, attachments, then the overwrite.
+    const clauses = whereSpy.mock.calls.map((c) => sqlParams(c[0]));
+    // The assistant row is looked up BY ID, not by "latest".
+    expect(clauses[1]).toContain(ASSISTANT_ID);
+    // Its question is bounded by that row's timestamp, not the conversation's end.
+    expect(clauses[2]).toContain("t2");
+    expect(vi.mocked(queryRag).mock.calls[0][1]).toBe("the older question");
+    // And the overwrite addresses that same row.
+    expect(clauses[clauses.length - 1]).toContain(ASSISTANT_ID);
+  });
+
+  it("returns 404 when the message to regenerate is not in this conversation", async () => {
+    dbMock.queueResult([{ id: "c1" }]); // ownedConversation
+    dbMock.queueResult([]);              // no such assistant row here
+    const res = await request(app())
+      .post("/chat/conversations/c1/messages/regenerate")
+      .send({ messageId: "11111111-2222-3333-4444-555555555555" });
+    expect(res.status).toBe(404);
+    expect(vi.mocked(queryRag)).not.toHaveBeenCalled();
   });
 });
 
 describe("attachment route", () => {
-  it("rejects an unsupported file type with 400", async () => {
+  it("rejects a genuinely unsupported file with 400", async () => {
     dbMock.setResult([{ id: "c1" }]); // owned
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("PK"), {
+      .attach("file", Buffer.from("PK fake zip"), {
         filename: "archive.zip",
         contentType: "application/zip",
       });
     expect(res.status).toBe(400);
   });
 
-  it("accepts an image upload (read via the ingest pipeline)", async () => {
-    dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
+  it("accepts a newly-supported type (XLSX) and returns 202", async () => {
+    dbMock.setResult([{ id: "att1" }]); // owned lookup + insert .returning row
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("PNG fake"), {
-        filename: "screenshot.png",
-        contentType: "image/png",
+      .attach("file", Buffer.from("PK fake xlsx"), {
+        filename: "sheet.xlsx",
+        contentType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
     expect(res.status).toBe(202);
-    expect(res.body.attachmentId).toBe("att1");
+    expect(res.body).toMatchObject({ status: "processing" });
   });
 
-  it("accepts a PDF and returns 202 with a chunk count", async () => {
+  it("accepts a .md sent as octet-stream via extension fallback", async () => {
+    dbMock.setResult([{ id: "att2" }]);
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("# notes"), {
+        filename: "notes.md",
+        contentType: "application/octet-stream",
+      });
+    expect(res.status).toBe(202);
+  });
+
+  it("accepts a PDF and returns 202 processing immediately", async () => {
     dbMock.setResult([{ id: "att1" }]); // ownership + insert returning
     const res = await request(app())
       .post("/chat/conversations/c1/attachments")
@@ -531,8 +678,17 @@ describe("attachment route", () => {
       });
     expect(res.status).toBe(202);
     expect(res.body.attachmentId).toBe("att1");
-    expect(res.body.status).toBe("ready");
-    expect(res.body.chunkCount).toBe(3);
+    expect(res.body.status).toBe("processing");
+  });
+
+  it("upload returns 202 processing and starts a background read", async () => {
+    dbMock.setResult([{ id: "att1" }]); // ownership lookup + insert .returning
+    const res = await request(app())
+      .post("/chat/conversations/c1/attachments")
+      .attach("file", Buffer.from("PK"), { filename: "a.pdf", contentType: "application/pdf" });
+    expect(res.status).toBe(202);
+    expect(res.body).toMatchObject({ status: "processing" });
+    expect(vi.mocked(startBackgroundRead)).toHaveBeenCalledWith("att1");
   });
 
   it("stores the file bytes and mime type on a successful upload", async () => {
@@ -548,37 +704,6 @@ describe("attachment route", () => {
     const inserted = valuesSpy.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.mimeType).toBe("application/pdf");
     expect(Buffer.isBuffer(inserted.data)).toBe(true);
-  });
-
-  it("does not persist an attachment when ingestion throws and returns 200 with status:failed", async () => {
-    dbMock.setResult([{ id: "att1" }]); // ownership lookup
-    vi.mocked(ingestFile).mockRejectedValueOnce(new Error("ingest down"));
-    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
-    const res = await request(app())
-      .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("%PDF-1.4 fake"), {
-        filename: "doc.pdf",
-        contentType: "application/pdf",
-      });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
-    // No attachment row was written for the failed ingest.
-    expect(insertSpy).not.toHaveBeenCalled();
-  });
-
-  it("does not persist an attachment when ingestion returns a non-ok status and returns 200 with status:failed", async () => {
-    dbMock.setResult([{ id: "att1" }]); // ownership lookup
-    vi.mocked(ingestFile).mockResolvedValueOnce({ status: "error", chunkCount: 0 });
-    const insertSpy = dbMock.db.insert as ReturnType<typeof vi.fn>;
-    const res = await request(app())
-      .post("/chat/conversations/c1/attachments")
-      .attach("file", Buffer.from("%PDF-1.4 fake"), {
-        filename: "doc.pdf",
-        contentType: "application/pdf",
-      });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ attachmentId: "", status: "failed", chunkCount: 0 });
-    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("returns 413 for an oversize upload", async () => {

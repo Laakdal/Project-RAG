@@ -1,6 +1,6 @@
 {
-  "id": "2281c0a8-7e54-4633-9d7d-1e92aa40c991",
-  "prevId": "95eb18ae-620b-4be8-8903-412b0d411f1f",
+  "id": "f4e2a719-3c8d-4b5e-a1f6-9d0c2e8b7a34",
+  "prevId": "2281c0a8-7e54-4633-9d7d-1e92aa40c991",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -146,11 +146,24 @@
       "name": "library_documents",
       "schema": "",
       "columns": {
-        "drive_file_id": {
-          "name": "drive_file_id",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "uuid",
           "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "filename": {
           "name": "filename",
@@ -160,12 +173,6 @@
         },
         "mime_type": {
           "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "modified_time": {
-          "name": "modified_time",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -183,14 +190,20 @@
           "primaryKey": false,
           "notNull": true
         },
-        "web_url": {
-          "name": "web_url",
+        "last_error": {
+          "name": "last_error",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "last_error": {
-          "name": "last_error",
+        "modified_time": {
+          "name": "modified_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "web_url": {
+          "name": "web_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false

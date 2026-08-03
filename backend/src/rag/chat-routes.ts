@@ -11,14 +11,19 @@ import { db } from "../db/index.js";
 import { conversations, messages, attachments } from "../db/schema.js";
 import { requireAuth } from "../auth/middleware.js";
 import { requireCsrf } from "../auth/csrf.js";
-import { queryRag, ingestFile } from "./provider.js";
-import { downloadDriveFile } from "./n8n-client.js";
-import type { QueryResult, QuerySource } from "./types.js";
+import { randomUUID } from "node:crypto";
+import { queryRag, downloadDriveFile, type QueryResult, type QuerySource } from "./n8n-client.js";
+import { subscribeProgress } from "./progress-bus.js";
 import { searchLibrary, shouldSearchLibrary, librarySufficient } from "../library/retrieve.js";
+import { selectContext } from "./context-selection.js";
 import { findIndexedDriveByFilename } from "../library/repo.js";
+import { startBackgroundRead } from "./attachment-reader.js";
+import { deleteAttachmentVectors } from "./attachment-vectors.js";
 import { locateChunkPage } from "./pdf-locate.js";
+import { config } from "../config.js";
 import { titleFromQuestion, summarizeTitle } from "./title-generator.js";
 import { isAllowedUpload } from "./upload-allowlist.js";
+import { indexDriveSourcesInBackground } from "../library/drive-index.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -31,7 +36,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
 });
-
 
 // Types we are willing to render inline (Content-Disposition: inline) in the
 // browser. These are non-scripting in the document context — a PDF is shown by
@@ -345,6 +349,11 @@ router.delete(
           eq(attachments.id, req.params.attachmentId),
         ),
       );
+    // Best-effort: drop the attachment's chunks from the per-chat vector store.
+    // Never block or fail the response on this.
+    void deleteAttachmentVectors(req.params.attachmentId).catch((err) =>
+      console.error("[chat] failed to delete attachment vectors", err),
+    );
     res.status(204).end();
   },
 );
@@ -394,7 +403,6 @@ router.delete(
 
 const askSchema = z.object({
   question: z.string().trim().min(1).max(4000),
-  useLibrary: z.boolean().optional(),
 });
 
 router.post(
@@ -412,50 +420,102 @@ router.post(
       res.status(400).json({ error: "A non-empty question is required" });
       return;
     }
-    const { question, useLibrary } = parsed.data;
+    const { question } = parsed.data;
 
     // Recent turns for multi-turn memory, oldest→newest. The current question
     // isn't persisted yet, so this is purely the PRIOR conversation. Capped so
     // the prompt stays bounded.
     const priorRows = await db
-      .select({ role: messages.role, content: messages.content })
+      .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
       .from(messages)
       .where(eq(messages.conversationId, req.params.id))
       .orderBy(desc(messages.createdAt))
       .limit(10);
-    const history = priorRows.reverse();
+    // Newest first here — the most recent turn dates the conversation, which is
+    // what tells us whether an attachment was added for the question being asked.
+    const lastTurnAt = priorRows[0]?.createdAt ?? null;
+    const history = priorRows
+      .slice()
+      .reverse()
+      .map(({ role, content }) => ({ role, content }));
 
     // The first message titles the conversation. Ask the workflow to summarize
     // a title only on that first turn (no prior history yet).
     const isFirstMessage = history.length === 0;
 
-    // Gate: an explicit useLibrary flag wins; otherwise a cheap intent check
-    // decides. Library retrieval must never break a normal answer, so any
-    // failure degrades to no library results.
-    let libraryDocs: QuerySource[] = [];
-    let skipDrive = false;
-    try {
-      const doSearch = useLibrary ?? (await shouldSearchLibrary(question));
-      if (doSearch) {
-        libraryDocs = await searchLibrary(question);
-        // Skip the slow live Drive read only when the library provably answers
-        // the question; on any doubt, fall through to the live read.
-        skipDrive = await librarySufficient(question, libraryDocs);
+    // Gather per-chat uploaded documents. A large/image-heavy file is read by
+    // Gemini in the background (status "processing"); rather than block the
+    // request until it finishes (or fail on a slow read), give it a short grace
+    // window and then return 202 "reading" so the client can show a progress
+    // hint and auto-retry. Reads that finish flip to "ready"/"failed".
+    const selectAtt = () =>
+      db
+        .select({
+          id: attachments.id,
+          filename: attachments.filename,
+          status: attachments.status,
+          extractedText: attachments.extractedText,
+          createdAt: attachments.createdAt,
+        })
+        .from(attachments)
+        .where(eq(attachments.conversationId, req.params.id));
+    const isReading = (a: { status: string }) =>
+      a.status !== "ready" && a.status !== "failed";
+
+    let attRows = await selectAtt();
+    // Brief grace so a fast read answers immediately without a client round-trip.
+    if (attRows.some(isReading)) {
+      const graceEnd = Date.now() + 7000;
+      while (Date.now() < graceEnd && attRows.some(isReading)) {
+        await new Promise((r) => setTimeout(r, 1000));
+        attRows = await selectAtt();
       }
-    } catch {
-      libraryDocs = [];
-      skipDrive = false;
     }
+    // Still reading → let the client retry shortly (auto-retry UX).
+    if (attRows.some(isReading)) {
+      res.status(202).json({ status: "reading" });
+      return;
+    }
+
+    const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+
+    // Files were attached but none could be read → say so plainly instead of
+    // falling through to a generic/web-searched answer that ignores the file.
+    if (attRows.length > 0 && readyDocs.length === 0) {
+      const answer =
+        "Maaf, saya belum berhasil membaca file yang Anda lampirkan. Coba unggah ulang filenya (pastikan gambar atau dokumennya cukup jelas), lalu tanyakan lagi.";
+      await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "user", content: question });
+      const [stored] = await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] })
+        .returning({ id: messages.id });
+      res.json({ answer, sources: [], messageId: stored?.id });
+      return;
+    }
+
+    // Attachment vs shared library/Drive. Shared with the streaming route so
+    // the two can never drift apart; see rag/context-selection.ts for why a
+    // fixed similarity threshold cannot make this call.
+    const { docs, libraryDocs, skipDrive } = await selectContext({
+      conversationId: req.params.id,
+      question,
+      readyDocs,
+      lastTurnAt,
+    });
 
     // Query first; persist the turn only after a successful answer so a
     // failure leaves no orphaned message.
-    let result: QueryResult;
+    let result;
     try {
-      result = await queryRag(req.params.id, question, history, isFirstMessage, libraryDocs, skipDrive);
+      result = await queryRag(req.params.id, question, history, isFirstMessage, docs, libraryDocs, skipDrive);
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
     }
+
+    indexDriveSourcesInBackground(result.sources);
 
     // Persist the user's message, then the assistant answer with its sources.
     await db.insert(messages).values({
@@ -463,12 +523,18 @@ router.post(
       role: "user",
       content: question,
     });
-    await db.insert(messages).values({
-      conversationId: req.params.id,
-      role: "assistant",
-      content: result.answer,
-      sources: result.sources,
-    });
+    // Hand the answer's id back below: without it the client knows this turn
+    // only by the placeholder id it invented, and can't name the row it wants
+    // when regenerating.
+    const [storedAnswer] = await db
+      .insert(messages)
+      .values({
+        conversationId: req.params.id,
+        role: "assistant",
+        content: result.answer,
+        sources: result.sources,
+      })
+      .returning({ id: messages.id });
 
     // Title a fresh conversation from its first message (only while the title
     // is still the default, so later messages don't overwrite it). Prefer a
@@ -491,15 +557,255 @@ router.post(
         );
     }
 
-    res.json({ answer: result.answer, sources: result.sources });
+    res.json({
+      answer: result.answer,
+      sources: result.sources,
+      messageId: storedAnswer?.id,
+    });
   },
 );
 
-// Regenerate the most recent assistant answer IN PLACE: re-run the query for the
-// last user question and overwrite the existing assistant message, so the answer
-// is replaced rather than a new turn appended. There is no streaming regenerate;
-// this mirrors the ask path (queryRag) and updates the row by id so the client
-// can refresh that one message.
+// Streaming twin of the ask route. Same pipeline (attachment relevance gate →
+// shared library / Drive gate → queryRag), but delivered over Server-Sent Events
+// so the UI can show REAL per-step progress instead of a timed guess. Backend-
+// side steps emit `status` events directly; n8n emits its own (web search,
+// writing) by POSTing to /internal/progress, correlated by `jobId` and relayed
+// here via the progress bus. The final answer arrives as a `complete` event.
+//
+// Kept as a separate handler (a deliberate near-duplicate of the JSON route) so
+// the proven non-streaming path stays untouched and remains a safe fallback.
+router.post(
+  "/conversations/:id/messages/stream",
+  requireCsrf,
+  async (req: Request<{ id: string }>, res: Response) => {
+    const userId = req.session.userId as string;
+    const owned = await ownedConversation(userId, req.params.id);
+    if (!owned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const parsed = askSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "A non-empty question is required" });
+      return;
+    }
+    const { question } = parsed.data;
+
+    // ── SSE setup ──
+    const jobId = randomUUID();
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    // Stop the reverse proxy (nginx) from buffering the stream — without this the
+    // events queue up and arrive all at once with the final answer.
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    let closed = false;
+    const send = (event: string, data: unknown): void => {
+      if (closed) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const status = (message: string, statusKey = "processing"): void =>
+      send("status", { status: statusKey, message });
+
+    // Relay n8n's per-stage events (posted to /internal/progress for this jobId).
+    const unsubscribe = subscribeProgress(jobId, (ev) => send("status", ev));
+
+    // Keep-alive comments so proxies don't drop the connection while we await the
+    // buffered n8n answer (which can take a couple of minutes on a cold Drive read).
+    const heartbeat = setInterval(() => {
+      if (!closed) res.write(`: ping\n\n`);
+    }, 15000);
+
+    const cleanup = (): void => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    // Client navigated away / aborted: stop relaying and drop subscriptions.
+    req.on("close", () => {
+      closed = true;
+      cleanup();
+    });
+
+    try {
+      send("connected", { jobId });
+      status("Understanding your question…", "understanding");
+
+      const priorRows = await db
+        .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
+        .from(messages)
+        .where(eq(messages.conversationId, req.params.id))
+        .orderBy(desc(messages.createdAt))
+        .limit(10);
+      // Newest first here — dates the conversation, so we can tell whether an
+      // attachment was added for the question being asked.
+      const lastTurnAt = priorRows[0]?.createdAt ?? null;
+      const history = priorRows
+        .slice()
+        .reverse()
+        .map(({ role, content }) => ({ role, content }));
+      const isFirstMessage = history.length === 0;
+
+      // Attachment reading: unlike the JSON route (7s grace then 202 for the client
+      // to retry), stream a "reading…" status and wait inline for the background
+      // read to finish, bounded so a stuck read can't hang the request forever.
+      const selectAtt = () =>
+        db
+          .select({
+            id: attachments.id,
+            filename: attachments.filename,
+            status: attachments.status,
+            extractedText: attachments.extractedText,
+          })
+          .from(attachments)
+          .where(eq(attachments.conversationId, req.params.id));
+      const isReading = (a: { status: string }) =>
+        a.status !== "ready" && a.status !== "failed";
+
+      let attRows = await selectAtt();
+      if (attRows.some(isReading)) {
+        status("Reading your attached file…", "reading");
+        const readDeadline = Date.now() + 150_000;
+        while (Date.now() < readDeadline && attRows.some(isReading) && !closed) {
+          await new Promise((r) => setTimeout(r, 1000));
+          attRows = await selectAtt();
+        }
+      }
+      if (closed) {
+        cleanup();
+        return;
+      }
+      if (attRows.some(isReading)) {
+        send("error", {
+          message:
+            "File masih diproses dan memakan waktu lebih lama dari biasanya. Silakan coba tanyakan lagi sebentar lagi.",
+        });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+
+      // Files attached but none readable → answer plainly (mirror JSON route).
+      if (attRows.length > 0 && readyDocs.length === 0) {
+        const answer =
+          "Maaf, saya belum berhasil membaca file yang Anda lampirkan. Coba unggah ulang filenya (pastikan gambar atau dokumennya cukup jelas), lalu tanyakan lagi.";
+        await db
+          .insert(messages)
+          .values({ conversationId: req.params.id, role: "user", content: question });
+        await db
+          .insert(messages)
+          .values({ conversationId: req.params.id, role: "assistant", content: answer, sources: [] });
+        send("complete", { answer, sources: [] });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      // Attachment vs shared library/Drive — the same decision the JSON route
+      // makes, sharing its progress reporting through onStatus.
+      const { docs, libraryDocs, skipDrive } = await selectContext({
+        conversationId: req.params.id,
+        question,
+        readyDocs,
+        lastTurnAt,
+        onStatus: status,
+      });
+
+      if (closed) {
+        cleanup();
+        return;
+      }
+
+      // n8n runs the rest (intent, web search, generation) and streams its own
+      // progress via jobId → /internal/progress → the bus → the relay above.
+      let result: QueryResult;
+      try {
+        result = await queryRag(
+          req.params.id,
+          question,
+          history,
+          isFirstMessage,
+          docs,
+          libraryDocs,
+          skipDrive,
+          jobId,
+        );
+      } catch {
+        send("error", { message: "The assistant is unavailable right now" });
+        cleanup();
+        res.end();
+        return;
+      }
+
+      if (closed) {
+        cleanup();
+        return;
+      }
+
+      indexDriveSourcesInBackground(result.sources);
+
+      await db
+        .insert(messages)
+        .values({ conversationId: req.params.id, role: "user", content: question });
+      await db.insert(messages).values({
+        conversationId: req.params.id,
+        role: "assistant",
+        content: result.answer,
+        sources: result.sources,
+      });
+
+      if (isFirstMessage) {
+        const title =
+          result.title?.trim() ||
+          (await summarizeTitle(question, result.answer)) ||
+          titleFromQuestion(question);
+        await db
+          .update(conversations)
+          .set({ title })
+          .where(
+            and(
+              eq(conversations.id, req.params.id),
+              eq(conversations.title, "New chat"),
+            ),
+          );
+      }
+
+      send("complete", { answer: result.answer, sources: result.sources });
+      cleanup();
+      res.end();
+    } catch (err) {
+      console.error("[chat] stream handler failed", err);
+      send("error", { message: "Something went wrong" });
+      cleanup();
+      try {
+        res.end();
+      } catch {
+        /* already closed */
+      }
+    }
+  },
+);
+
+const regenerateSchema = z.object({
+  /** Which assistant answer to redo. Omitted by older clients → the latest one. */
+  messageId: z.string().uuid().optional(),
+});
+
+// Regenerate one assistant answer IN PLACE: re-run the query for the question
+// that produced it and overwrite that message, so the answer is replaced rather
+// than a new turn appended. There is no streaming regenerate; this mirrors the
+// ask path (queryRag) and updates the row by id so the client can refresh that
+// one message.
+//
+// The client names the row it wants. It used to be whatever was newest, which
+// silently addressed the wrong turn whenever the client's view and the table
+// disagreed — most destructively when a turn failed mid-query and so was never
+// stored at all: the retry button under the failed bubble rewrote the PREVIOUS
+// answer instead.
 router.post(
   "/conversations/:id/messages/regenerate",
   requireCsrf,
@@ -510,32 +816,48 @@ router.post(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    const parsed = regenerateSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid message id" });
+      return;
+    }
+    const { messageId } = parsed.data;
 
-    // The latest assistant message is the one to replace; the latest user
-    // message is the question to re-ask.
-    const [lastAssistant] = await db
-      .select({ id: messages.id })
+    // The answer to replace: the one named, else the latest.
+    const [target] = await db
+      .select({ id: messages.id, createdAt: messages.createdAt })
       .from(messages)
       .where(
         and(
           eq(messages.conversationId, req.params.id),
           eq(messages.role, "assistant"),
+          ...(messageId ? [eq(messages.id, messageId)] : []),
         ),
       )
       .orderBy(desc(messages.createdAt))
       .limit(1);
-    const [lastUser] = await db
-      .select({ content: messages.content, createdAt: messages.createdAt })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.conversationId, req.params.id),
-          eq(messages.role, "user"),
-        ),
-      )
-      .orderBy(desc(messages.createdAt))
-      .limit(1);
-    if (!lastAssistant || !lastUser) {
+    // A named row that isn't here is a stale client, not an empty conversation.
+    if (!target && messageId) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    // The question that produced it: the last user turn BEFORE that answer.
+    const [askedBy] = target
+      ? await db
+          .select({ content: messages.content, createdAt: messages.createdAt })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, req.params.id),
+              eq(messages.role, "user"),
+              lt(messages.createdAt, target.createdAt),
+            ),
+          )
+          .orderBy(desc(messages.createdAt))
+          .limit(1)
+      : [];
+    if (!target || !askedBy) {
       res.status(400).json({ error: "Nothing to regenerate" });
       return;
     }
@@ -543,47 +865,72 @@ router.post(
     // Prior turns (everything before the question being regenerated), oldest→
     // newest and capped — same memory window as the ask route.
     const priorRows = await db
-      .select({ role: messages.role, content: messages.content })
+      .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
       .from(messages)
       .where(
         and(
           eq(messages.conversationId, req.params.id),
-          lt(messages.createdAt, lastUser.createdAt),
+          lt(messages.createdAt, askedBy.createdAt),
         ),
       )
       .orderBy(desc(messages.createdAt))
       .limit(10);
-    const history = priorRows.reverse();
+    // Newest-first here: dates the conversation as of the question being redone,
+    // which is what tells selectContext whether the file was attached for it.
+    const lastTurnAt = priorRows[0]?.createdAt ?? null;
+    const history = priorRows
+      .slice()
+      .reverse()
+      .map(({ role, content }) => ({ role, content }));
 
-    // Same gated library retrieval as the ask path (regenerate has no explicit
-    // useLibrary flag, so it always uses the intent gate). Failure degrades to
-    // no library results so a regenerate never breaks on a library outage.
-    let libraryDocs: QuerySource[] = [];
-    let skipDrive = false;
-    try {
-      if (await shouldSearchLibrary(lastUser.content)) {
-        libraryDocs = await searchLibrary(lastUser.content);
-        skipDrive = await librarySufficient(lastUser.content, libraryDocs);
-      }
-    } catch {
-      libraryDocs = [];
-      skipDrive = false;
-    }
+    // Same context selection as the ask route. Regenerating has to see the
+    // chat's files too — otherwise retrying a question about an attachment
+    // answers as if no file were there ("I cannot see images").
+    //
+    // Unlike ask, a still-reading attachment isn't waited on: this is a redo of
+    // an old turn, whose files have long since finished reading.
+    const attRows = await db
+      .select({
+        filename: attachments.filename,
+        extractedText: attachments.extractedText,
+        status: attachments.status,
+        createdAt: attachments.createdAt,
+      })
+      .from(attachments)
+      .where(eq(attachments.conversationId, req.params.id));
+    const readyDocs = attRows.filter((a) => a.status === "ready" && a.extractedText);
+
+    const { docs, libraryDocs, skipDrive } = await selectContext({
+      conversationId: req.params.id,
+      question: askedBy.content,
+      readyDocs,
+      lastTurnAt,
+    });
 
     let result: QueryResult;
     try {
-      result = await queryRag(req.params.id, lastUser.content, history, false, libraryDocs, skipDrive);
+      result = await queryRag(
+        req.params.id,
+        askedBy.content,
+        history,
+        false,
+        docs,
+        libraryDocs,
+        skipDrive,
+      );
     } catch {
       res.status(502).json({ error: "The assistant is unavailable right now" });
       return;
     }
 
-    // Overwrite the existing assistant message in place (id stable), so the
-    // client replaces that bubble instead of appending a new turn.
+    indexDriveSourcesInBackground(result.sources);
+
+    // Overwrite that assistant message in place (id stable), so the client
+    // replaces that bubble instead of appending a new turn.
     await db
       .update(messages)
       .set({ content: result.answer, sources: result.sources })
-      .where(eq(messages.id, lastAssistant.id));
+      .where(eq(messages.id, target.id));
 
     res.json({ answer: result.answer, sources: result.sources });
   },
@@ -606,47 +953,24 @@ router.post(
       return;
     }
 
-    // A failed ingest must leave no persisted attachment: if ingestFile throws
-    // (n8n unreachable / non-ok HTTP) or returns a non-ok status, we skip the
-    // insert entirely. The endpoint still answers 200 with status:"failed" so
-    // the frontend keeps its contract and drops the chip; attachmentId is unused
-    // by the client in that case.
-    let result;
-    try {
-      result = await ingestFile(
-        req.params.id,
-        file.originalname,
-        file.buffer,
-        file.mimetype,
-      );
-    } catch {
-      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
-      return;
-    }
-
-    if (result.status !== "ok") {
-      res.status(200).json({ attachmentId: "", status: "failed", chunkCount: 0 });
-      return;
-    }
-
+    // Insert immediately with status "processing" (DB default is "indexing",
+    // so we must set it explicitly). The file bytes are stored now so the
+    // background reader can fetch them without the request still being alive.
     const rows = await db
       .insert(attachments)
       .values({
         conversationId: req.params.id,
         filename: file.originalname,
-        status: "ready",
-        chunkCount: result.chunkCount,
-        // Keep the original so the file can be opened/previewed later.
+        status: "processing",
         mimeType: file.mimetype,
         data: file.buffer,
       })
       .returning({ id: attachments.id });
 
-    res.status(202).json({
-      attachmentId: rows[0].id,
-      status: "ready",
-      chunkCount: result.chunkCount,
-    });
+    // Fire-and-forget: the reader fetches the file, extracts text via Gemini,
+    // and flips status to "ready" (or "failed") in the background.
+    startBackgroundRead(rows[0].id);
+    res.status(202).json({ attachmentId: rows[0].id, status: "processing" });
   },
 );
 

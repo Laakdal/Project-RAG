@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { queryRag, ingestFile, downloadDriveFile } from "./n8n-client.js";
+import { queryRag, ingestFile, readFile, downloadDriveFile } from "./n8n-client.js";
 
 describe("n8n-client", () => {
   beforeEach(() => {
@@ -24,13 +24,14 @@ describe("n8n-client", () => {
     expect(result.sources[0].filename).toBe("geo.pdf");
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(String(url)).toContain("/webhook/rag-query");
-    // generateTitle defaults to false when not requested; libraryDocs defaults
-    // to []; skipDrive defaults to false (do the live Drive read).
+    // generateTitle defaults to false when not requested; docs and libraryDocs
+    // default to []; skipDrive defaults to false (do the live Drive read).
     expect(JSON.parse(init.body)).toEqual({
       conversationId: "conv-1",
       question: "What is the capital of France?",
       history: [],
       generateTitle: false,
+      docs: [],
       libraryDocs: [],
       skipDrive: false,
     });
@@ -101,32 +102,80 @@ describe("n8n-client", () => {
     ).rejects.toThrow();
   });
 
-  it("includes libraryDocs in the query body", async () => {
+  it("readFile posts multipart to rag-read and returns text", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ answer: "a", sources: [] }),
+      json: async () => ({ text: "# hello" }),
     });
-    await queryRag("c1", "q", [], false, [{ filename: "a.pdf", chunkIndex: 0, text: "ctx" }]);
+    const out = await readFile("a.pdf", Buffer.from("x"), "application/pdf");
+    expect(out).toEqual({ text: "# hello" });
+    const [calledUrl, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(String(calledUrl)).toMatch(/\/webhook\/rag-read$/);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get("filename")).toBe("a.pdf");
+  });
+
+  it("queryRag includes docs in the request body", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ answer: "ok", sources: [] }),
+    });
+    await queryRag("c1", "q", [], false, [{ filename: "a.pdf", text: "body" }]);
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = JSON.parse(init.body as string);
-    expect(body.libraryDocs).toEqual([{ filename: "a.pdf", chunkIndex: 0, text: "ctx" }]);
+    expect(body.docs).toEqual([{ filename: "a.pdf", text: "body" }]);
+  });
+
+  it("queryRag includes libraryDocs in the request body when passed as the 6th arg", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ answer: "ok", sources: [] }),
+    });
+    const libDocs = [{ filename: "lib.pdf", chunkIndex: 0, text: "library chunk" }];
+    await queryRag("c1", "q", [], false, [], libDocs);
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.libraryDocs).toEqual(libDocs);
+  });
+
+  it("readFile sends an abort timeout signal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ text: "x" }), { status: 200 }),
+    );
+    const { readFile } = await import("./n8n-client.js");
+    await readFile("a.pdf", Buffer.from("x"), "application/pdf");
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("queryRag sends an abort timeout signal", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ answer: "ok", sources: [] }), { status: 200 }),
+    );
+    const { queryRag } = await import("./n8n-client.js");
+    await queryRag("c1", "q", [], false, []);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("downloadDriveFile posts the id and returns the bytes with content type", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      headers: { get: (h: string) => (h === "content-type" ? "application/pdf" : null) },
-      arrayBuffer: async () => new TextEncoder().encode("%PDF-1.4").buffer,
-    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new TextEncoder().encode("%PDF-1.4"), {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      }),
+    );
     const out = await downloadDriveFile("drive-123");
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({ driveFileId: "drive-123" });
     expect(out.contentType).toBe("application/pdf");
     expect(out.buffer.toString()).toBe("%PDF-1.4");
   });
 
   it("downloadDriveFile throws on a non-ok response", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 404 });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("no", { status: 404 }));
     await expect(downloadDriveFile("missing")).rejects.toThrow();
   });
 });

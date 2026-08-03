@@ -51,7 +51,7 @@ describe("librarySufficient", () => {
     expect(await librarySufficient("q", docs)).toBe(true);
   });
 
-  it("returns false when the judge says it is a wrong/different document", async () => {
+  it("returns false when the judge says the context is a wrong/different document", async () => {
     invoke.mockResolvedValue({ content: "no" });
     expect(await librarySufficient("q", docs)).toBe(false);
   });

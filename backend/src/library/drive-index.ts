@@ -1,11 +1,20 @@
 import { chunkText } from "./chunker.js";
 import { upsertChunks, deleteBySource } from "./vector-store.js";
 import { insertDocument, updateDocument, existsBySourceRef } from "./repo.js";
+import type { QuerySource } from "../rag/n8n-client.js";
 
-// Index a single Drive file (already OCR-extracted to text) into the Qdrant
-// library, once. Skips if this driveFileId is already successfully indexed.
-// Used by the bulk backfill (n8n → /library/index-drive) to give questions
-// semantic coverage across the whole Drive tree, not just per-chat reads.
+export function pickDriveSources(sources: QuerySource[]): QuerySource[] {
+  return sources.filter(
+    (s) =>
+      s.origin === "Drive" &&
+      s.driveFileId &&
+      !s.driveFileId.startsWith("library:") &&
+      s.text,
+  );
+}
+
+// Index a single Drive file (from a query's sources) into the Qdrant library,
+// once. Skips if this driveFileId is already indexed.
 export async function indexDriveSource(src: {
   driveFileId: string;
   filename: string;
@@ -29,5 +38,17 @@ export async function indexDriveSource(src: {
   } catch (err) {
     const lastError = err instanceof Error ? err.message : String(err);
     await updateDocument(id, { status: "failed", chunkCount: 0, lastError });
+  }
+}
+
+// Fire-and-forget: index any 'Drive'-origin sources from a query. Never throws;
+// each failure is swallowed so it can't affect the chat response.
+export function indexDriveSourcesInBackground(sources: QuerySource[]): void {
+  for (const s of pickDriveSources(sources)) {
+    void indexDriveSource({
+      driveFileId: s.driveFileId!,
+      filename: s.filename,
+      text: s.text,
+    }).catch(() => {});
   }
 }

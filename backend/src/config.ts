@@ -24,10 +24,6 @@ const envSchema = z.object({
   // Base URL of the n8n instance the backend forwards RAG requests to.
   // Private Docker hostname in deployment (http://n8n:5678).
   N8N_BASE_URL: z.string().url().default("http://localhost:5678"),
-  // Optional per-endpoint override for the rag-read (Read Document) webhook.
-  // Falls back to N8N_BASE_URL when unset — lets the read workflow live on a
-  // different n8n instance (e.g. a staged migration) without moving the rest.
-  N8N_READ_URL: z.string().url().optional(),
 
   // RAG backend selector. n8n (default) keeps the existing webhook path;
   // langgraph routes to the in-process LangChain/LangGraph implementation.
@@ -44,13 +40,48 @@ const envSchema = z.object({
   EMBED_MODEL: z.string().min(1).default("text-embedding-3-small"),
   GENERATE_MODEL: z.string().min(1).default("gpt-4o-mini"),
 
+  // Local-first PDF extraction (src/rag/pdf-extract.ts): pull the text layer with
+  // pdftotext and OCR only image pages via Gemini. Set false to fall back to the
+  // whole-file rag-read path for every PDF.
+  LOCAL_PDF_EXTRACT: booleanFromString.default("true"),
+  // Parallel per-page OCR calls — bounds load on the n8n/Gemini egress.
+  OCR_PAGE_CONCURRENCY: z.coerce.number().int().positive().default(4),
+  // A page whose extracted text is shorter than this is treated as an image page
+  // that needs OCR.
+  PDF_TEXT_MIN_CHARS: z.coerce.number().int().nonnegative().default(16),
+  // pdftoppm render resolution (DPI) for pages sent to OCR.
+  PDF_RENDER_DPI: z.coerce.number().int().positive().default(150),
+
   // Phase 2 — Drive library. Optional because the library is disabled until
   // configured; the sync path validates presence at use and errors clearly.
   DRIVE_FOLDER_ID: z.string().min(1).optional(),
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   QDRANT_COLLECTION_LIBRARY: z.string().min(1).default("project_rag_library"),
-  // Shared token authenticating the internal Drive-library backfill endpoints
-  // (n8n → backend). Endpoints return 503 until this is set.
+
+  // Per-chat retrieval (RAG) for uploaded docs — see src/rag/attachment-vectors.ts.
+  // Chunks are embedded into this collection, scoped by conversationId.
+  QDRANT_COLLECTION_CHAT: z.string().min(1).default("rag_chat_chunks"),
+  // Top-k chunks retrieved per query when a conversation's docs are large.
+  CHAT_RETRIEVE_TOP_K: z.coerce.number().int().positive().default(8),
+  // Below this total extracted-text size (chars) across a conversation's ready
+  // docs, inject the whole text (no retrieval miss on a short doc); above it,
+  // retrieve only the top-k relevant chunks so a big book fits the context window.
+  CHAT_WHOLE_DOC_MAX_CHARS: z.coerce.number().int().positive().default(24000),
+  // Score at or above which the attached file is taken as obviously on-topic,
+  // without weighing it against the library. Below it the question may still be
+  // answered from the attachment — see CHAT_ATTACHMENT_FLOOR and the demonstrative
+  // / just-uploaded signals in rag/attachment-intent.ts, which outrank the score.
+  // Cosine-ish score in ~[0,1]; tune against real docs.
+  CHAT_RELEVANCE_THRESHOLD: z.coerce.number().default(0.35),
+  // Absolute floor for winning on score alone. A file that beats the library but
+  // sits under this is noise for both, so let the library answer. Deliberately
+  // low: keyword-dense extracts (diagrams, spreadsheets, code) score ~0.2 even
+  // when the question is squarely about them.
+  CHAT_ATTACHMENT_FLOOR: z.coerce.number().default(0.1),
+
+  // Shared secret for the internal Drive-backfill endpoints (n8n -> backend).
+  // The bulk indexer authenticates with this token via the x-index-token header
+  // instead of an admin session. Endpoints refuse to run when it is unset.
   LIBRARY_INDEX_TOKEN: z.string().min(1).optional(),
 });
 

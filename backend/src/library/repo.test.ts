@@ -4,8 +4,15 @@ import { makeDbMock } from "../test/app-harness.js";
 const { db, setResult } = makeDbMock();
 vi.mock("../db/index.js", () => ({ db }));
 
-const { insertDocument, updateDocument, deleteDocument, listIndexed, summary, findIndexedDriveByFilename } =
-  await import("./repo.js");
+const {
+  insertDocument,
+  updateDocument,
+  deleteDocument,
+  listIndexed,
+  summary,
+  existsBySourceRef,
+  findIndexedDriveByFilename,
+} = await import("./repo.js");
 
 describe("library repo", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -40,6 +47,18 @@ describe("library repo", () => {
     setResult([]);
     await expect(updateDocument("doc-1", { status: "indexed" })).resolves.toBeUndefined();
     await expect(deleteDocument("doc-1")).resolves.toBeUndefined();
+  });
+
+  it("existsBySourceRef returns true when a matching row exists", async () => {
+    setResult([{ id: "doc-1" }]);
+    const found = await existsBySourceRef("file-abc");
+    expect(found).toBe(true);
+  });
+
+  it("existsBySourceRef returns false when no matching row", async () => {
+    setResult([]);
+    const found = await existsBySourceRef("file-xyz");
+    expect(found).toBe(false);
   });
 
   it("findIndexedDriveByFilename returns the drive id for a matching row", async () => {
