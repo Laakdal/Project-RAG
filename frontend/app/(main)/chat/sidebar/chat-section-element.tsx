@@ -7,13 +7,10 @@ import { ChatStarIcon } from '@/app/components/ui/chat-star-icon';
 import { Box, Flex } from '@radix-ui/themes';
 import { Conversation } from '@/chat/types';
 import { useChatStore, isConversationStreamingInScope } from '@/chat/store';
-import { ChatApi } from '@/chat/api';
-import { AgentsApi } from '@/app/(main)/agents/api';
 import { deleteConversation, renameConversation as renameConversationApi } from '@/chat/rag-api';
 import { ICON_SIZE_DEFAULT, CHAT_ITEM_HEIGHT } from '@/app/components/sidebar';
 import { SidebarItem } from './sidebar-item';
 import { ChatItemMenu } from './chat-item-menu';
-import { DeleteChatDialog } from './dialogs';
 import { Spinner } from '@/app/components/ui/spinner';
 
 /** Duration must match `typing-reveal` animation duration in globals.css */
@@ -50,24 +47,17 @@ interface ChatSectionElementProps {
   conversation: Conversation;
   isActive: boolean;
   onClick: () => void;
-  /**
-   * When set, this row is an agent conversation — use agent delete API only
-   * (rename/archive are not supported for agent chats).
-   */
-  agentId?: string;
 }
 
 /**
  * A single conversation item in the chat sidebar.
  */
-export function ChatSectionElement({ conversation, isActive, onClick, agentId }: ChatSectionElementProps) {
+export function ChatSectionElement({ conversation, isActive, onClick }: ChatSectionElementProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(conversation.title);
   const [isSavingRename, setIsSavingRename] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isTypingTitle, setIsTypingTitle] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -75,14 +65,14 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
   const urlConversationId = searchParams?.get('conversationId') ?? null;
 
   const isConversationStreaming = useChatStore((s) =>
-    isConversationStreamingInScope(s.slots, conversation.id, agentId ?? null),
+    isConversationStreamingInScope(s.slots, conversation.id, null),
   );
 
   const convStreamingBlocksSidebarMutation = () =>
     isConversationStreamingInScope(
       useChatStore.getState().slots,
       conversation.id,
-      agentId ?? null,
+      null,
     );
 
   const newlyResolvedIds = useChatStore((s) => s.newlyResolvedIds);
@@ -128,11 +118,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
     }
     setIsSavingRename(true);
     try {
-      if (agentId) {
-        await AgentsApi.renameAgentConversation(agentId, conversation.id, trimmed);
-      } else {
-        await renameConversationApi(conversation.id, trimmed);
-      }
+      await renameConversationApi(conversation.id, trimmed);
       renameConversation(conversation.id, trimmed);
       bumpConversationsVersion();
     } catch {
@@ -160,20 +146,18 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
     bumpConversationsVersion();
     if (urlConversationId === conversation.id) {
       const store = useChatStore.getState();
-      const found = agentId
-        ? store.getSlotByConvId(conversation.id, { forAgentId: agentId })
-        : store.getSlotByConvId(conversation.id, { forAgentId: null });
+      const found = store.getSlotByConvId(conversation.id, { forAgentId: null });
       if (found) {
         store.evictSlot(found.slotId);
       } else {
         store.clearActiveSlot();
       }
-      router.replace(agentId ? buildChatHref({ agentId }) : '/chat/');
+      router.replace('/chat/');
     }
   };
 
-  // Instant delete (no confirmation) for non-agent chats, against the rag
-  // backend. The row disappears immediately on success.
+  // Instant delete (no confirmation), against the rag backend. The row
+  // disappears immediately on success.
   const handleInstantDelete = async () => {
     if (convStreamingBlocksSidebarMutation()) return;
     try {
@@ -181,25 +165,6 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
       afterDeleted();
     } catch {
       // Leave the row in place on failure; nothing else to do.
-    }
-  };
-
-  // Agent chats keep the confirmation dialog (out of scope for instant delete).
-  const handleConfirmDelete = async () => {
-    if (convStreamingBlocksSidebarMutation()) return;
-    setIsDeleting(true);
-    try {
-      if (agentId) {
-        await AgentsApi.deleteAgentConversation(agentId, conversation.id);
-      } else {
-        await ChatApi.deleteConversation(conversation.id);
-      }
-      setDeleteDialogOpen(false);
-      afterDeleted();
-    } catch {
-      // keep dialog open on error
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -241,7 +206,7 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
     );
   }
 
-  const conversationHref = buildChatHref({ agentId, conversationId: conversation.id });
+  const conversationHref = buildChatHref({ conversationId: conversation.id });
 
   return (
     <>
@@ -268,26 +233,13 @@ export function ChatSectionElement({ conversation, isActive, onClick, agentId }:
               isParentHovered={isHovered}
               onOpenChange={setMenuOpen}
               onRename={handleStartRename}
-              onDelete={agentId ? () => setDeleteDialogOpen(true) : handleInstantDelete}
+              onDelete={handleInstantDelete}
               showRename={true}
             />
           ) : undefined
         }
       />
 
-      {/*
-        Confirmation dialog is kept only for agent chats. Non-agent chats
-        delete instantly (no dialog) via handleInstantDelete.
-      */}
-      {agentId && (
-        <DeleteChatDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          onConfirm={handleConfirmDelete}
-          chatTitle={conversation.title}
-          isDeleting={isDeleting}
-        />
-      )}
     </>
   );
 }
@@ -313,17 +265,15 @@ export function GeneratingTitleItem({ slotId }: { slotId: string }) {
     ? currentConversationId === slotConvId
     : activeSlotId === slotId;
 
-  const rawAgent = searchParams?.get('agentId') ?? null;
-  const agentId = rawAgent?.trim() ? rawAgent : null;
   const href =
     slotConvId != null && slotConvId !== ''
-      ? buildChatHref({ agentId, conversationId: slotConvId })
+      ? buildChatHref({ conversationId: slotConvId })
       : undefined;
 
   const handleClick = () => {
     useChatStore.getState().setActiveSlot(slotId);
     if (!slotConvId) {
-      router.push(agentId ? buildChatHref({ agentId }) : '/chat/');
+      router.push('/chat/');
     }
   };
 

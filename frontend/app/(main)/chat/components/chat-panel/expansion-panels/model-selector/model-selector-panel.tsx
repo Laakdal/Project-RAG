@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Flex, Text, Badge, Spinner, RadioGroup, Button } from '@radix-ui/themes';
-import { useRouter } from 'next/navigation';
+import { Flex, Text, Badge, Spinner, RadioGroup } from '@radix-ui/themes';
 import Image from 'next/image';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { useChatStore, ctxKeyFromAgent, ASSISTANT_CTX } from '@/chat/store';
+import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import {
   PROVIDER_FRIENDLY_NAMES,
@@ -22,8 +21,6 @@ interface ModelSelectorPanelProps {
   onModelSelect: (model: ModelOverride) => void;
   /** Hide the "Configured Models / Open Settings" header (used when embedded in a bottom sheet that provides its own header) */
   hideHeader?: boolean;
-  /** Optional agent ID - when provided, shows only agent-configured models */
-  agentId?: string | null;
 }
 
 function ModelLogo({ provider }: { provider: string }) {
@@ -42,11 +39,8 @@ export function ModelSelectorPanel({
   selectedModel,
   onModelSelect,
   hideHeader = false,
-  agentId,
 }: ModelSelectorPanelProps) {
-  const router = useRouter();
-
-  const ctxKey = ctxKeyFromAgent(agentId);
+  const ctxKey = ctxKeyFromAgent(null);
   // Read the shared cache so the panel re-renders as soon as the fetcher
   // writes results — no duplicate network calls.
   const cached = useChatStore((s) => s.settings.availableModels[ctxKey]);
@@ -61,29 +55,21 @@ export function ModelSelectorPanel({
     setIsLoading(!cached);
 
     // Force a refetch whenever the panel is (re)opened: the set of available
-    // models can change between visits (admin adds/removes an LLM, an agent's
-    // configuration is edited elsewhere), and clicking the AI Models button
+    // models can change between visits (admin adds/removes an LLM), and
+    // clicking the AI Models button
     // is an explicit user signal that they want to see the current list.
     // The util still dedupes concurrent in-flight calls, so this is safe.
     fetchModelsForContext(ctxKey, { force: true })
       .then((fresh) => {
         if (cancelled) return;
         if (fresh.length === 0) {
-          setError(
-            ctxKey === ASSISTANT_CTX
-              ? 'No models available'
-              : 'No models configured for this agent',
-          );
+          setError('No models available');
         }
       })
       .catch((err) => {
         if (cancelled) return;
         console.error('Failed to fetch models:', err);
-        setError(
-          ctxKey === ASSISTANT_CTX
-            ? 'Failed to load models'
-            : 'Failed to load agent configuration',
-        );
+        setError('Failed to load models');
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -101,8 +87,7 @@ export function ModelSelectorPanel({
   // The chat-input pill already falls back to `defaultModels[ctxKey]` when
   // `selectedModels[ctxKey]` is null, so there is no need to mutate the
   // user's selection slot. Writing default into the selection on mount used
-  // to leak between contexts (e.g. picking default in assistant silently
-  // locked that model into every agent the user visited).
+  // to leak between contexts.
 
   const handleSelect = useCallback(
     (model: AvailableLlmModel) => {
@@ -169,18 +154,6 @@ export function ModelSelectorPanel({
             >
               {error}
             </Text>
-            {error === 'No models configured for this agent' && agentId && (
-              <Button
-                variant="soft"
-                size="2"
-                onClick={() => {
-                  router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId)}`);
-                }}
-              >
-                <MaterialIcon name="settings" size={16} />
-                {"Configure Models"}
-              </Button>
-            )}
           </Flex>
         )}
 

@@ -32,8 +32,6 @@ interface ChatSectionBaseProps {
   pendingConversations?: PendingConversation[];
   /** When provided, show this text as the empty state instead of StartChatButton */
   emptyStateText?: string;
-  /** Agent sidebar: agent-scoped row actions (delete only) */
-  agentId?: string;
   /** When true, a chevron toggle is shown and the section body can be collapsed */
   isCollapsible?: boolean;
   /** Initial collapsed state (defaults to false) */
@@ -79,7 +77,6 @@ export function ChatSection({
   onMore,
   pendingConversations = [],
   emptyStateText,
-  agentId,
   isCollapsible = false,
   defaultCollapsed = false,
 }: ChatSectionProps) {
@@ -152,7 +149,6 @@ export function ChatSection({
                   currentConversationId={currentConversationId}
                   onSelectConversation={onSelectConversation}
                   pendingConversations={label === 'Today' ? pendingConversations : undefined}
-                  agentId={agentId}
                 />
               ))}
               {/* If generating but no groups yet, show a standalone generating group */}
@@ -163,7 +159,6 @@ export function ChatSection({
                   currentConversationId={currentConversationId}
                   onSelectConversation={onSelectConversation}
                   pendingConversations={pendingConversations}
-                  agentId={agentId}
                 />
               )}
             </Flex>
@@ -176,7 +171,6 @@ export function ChatSection({
                   conversation={conv}
                   isActive={currentConversationId === conv.id}
                   onClick={() => onSelectConversation(conv.id)}
-                  agentId={agentId}
                 />
               ))}
             </Flex>

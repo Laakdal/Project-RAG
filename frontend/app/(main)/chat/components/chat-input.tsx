@@ -8,17 +8,10 @@ import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { ChatInputExpansionPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-expansion-panel';
 import { ChatInputOverlayPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-overlay-panel';
 import { ConnectorsCollectionsPanel } from '@/chat/components/chat-panel/expansion-panels/connectors-collections/connectors-collections-panel';
-import { AgentScopedResourcesPanel } from '@/chat/components/chat-panel/expansion-panels/agent-scoped-resources-panel';
-import { UniversalAgentResourcesPanel } from '@/chat/components/chat-panel/expansion-panels/universal-agent-resources-panel';
 import { MessageActionIndicator } from '@/chat/components/chat-panel/expansion-panels/message-actions';
 import { ModelSelectorPanel } from '@/chat/components/chat-panel/expansion-panels/model-selector/model-selector-panel';
 import { SelectedCollections } from '@/chat/components/selected-collections';
 import { resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
-import {
-  AgentStrategyModeSwitcher,
-  AgentStrategyModePanel,
-} from '@/chat/components/chat-panel';
-import { AgentStrategyDropdown } from '@/chat/components/agent-strategy-dropdown';
 import { getQueryModeConfig } from '@/chat/constants';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
@@ -63,10 +56,6 @@ interface ChatInputProps {
   widgetPlaceholder?: string;
   variant?: ChatInputVariant;
   expandable?: boolean;
-  /** `?agentId=` agent conversation — query-mode + web search controls are hidden */
-  isAgentChat?: boolean;
-  /** Agent ID for filtering models to only those configured for the agent */
-  agentId?: string | null;
 }
 
 // Attachment types the RAG pipeline can read (documents, Office files, images,
@@ -123,11 +112,7 @@ export function ChatInput({
   widgetPlaceholder,
   variant = 'full',
   expandable = false,
-  isAgentChat = false,
-  agentId,
 }: ChatInputProps) {
-  const router = useRouter();
-  const agentDeprecatedToolNames = useChatStore((s) => s.agentDeprecatedToolNames);
   const [message, setMessage] = useState('');
   const [showUploadArea, setShowUploadArea] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -136,10 +121,7 @@ export function ChatInput({
   const [isExpanded, setIsExpanded] = useState(variant === 'full');
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const [isModePanelOpen, setIsModePanelOpen] = useState(false);
-  const [isAgentStrategyPanelOpen, setIsAgentStrategyPanelOpen] = useState(false);
   const [isCollectionsPanelOpen, setIsCollectionsPanelOpen] = useState(false);
-  /** Agent chat: Connectors / Collections / Actions (Figma agent input). */
-  const [isAgentResourcesPanelOpen, setIsAgentResourcesPanelOpen] = useState(false);
   const [isModelPanelOpen, setIsModelPanelOpen] = useState(false);
   const [isMobileModesOpen, setIsMobileModesOpen] = useState(false);
   const [isCompactToolbar, setIsCompactToolbar] = useState(false);
@@ -193,24 +175,13 @@ export function ChatInput({
 
   // Read all chat settings directly from the shared store
   const settings = useChatStore((s) => s.settings);
-  const setAgentStrategy = useChatStore((s) => s.setAgentStrategy);
   const setFilters = useChatStore((s) => s.setFilters);
   const setSelectedModelForCtx = useChatStore((s) => s.setSelectedModelForCtx);
   const collectionNamesCache = useChatStore((s) => s.collectionNamesCache);
   const collectionMetaCache = useChatStore((s) => s.collectionMetaCache);
-  const agentKnowledgeScope = useChatStore((s) => s.agentKnowledgeScope);
-  const agentKnowledgeDefaults = useChatStore((s) => s.agentKnowledgeDefaults);
-  const setAgentKnowledgeScope = useChatStore((s) => s.setAgentKnowledgeScope);
-  const agentStreamToolsSel = useChatStore((s) => s.agentStreamTools);
-  const agentChatToolGroups = useChatStore((s) => s.agentChatToolGroups);
-  const universalAgentStreamTools = useChatStore((s) => s.universalAgentStreamTools);
-  const universalAgentToolsLoading = useChatStore((s) => s.universalAgentToolsLoading);
-  const universalAgentToolGroups = useChatStore((s) => s.universalAgentToolGroups);
-
-  // Context key for the active (agent-scoped or assistant) chat. All
-  // model-related reads/writes below are keyed by this so assistant selections
-  // don't leak into agents and vice-versa.
-  const modelCtxKey = ctxKeyFromAgent(agentId);
+  // Context key for the assistant chat. Model reads/writes below are keyed by
+  // this.
+  const modelCtxKey = ctxKeyFromAgent(null);
   const contextSelectedModel = settings.selectedModels[modelCtxKey] ?? null;
   const contextDefaultModel = settings.defaultModels[modelCtxKey] ?? null;
   const handleModelSelect = useCallback(
@@ -254,31 +225,21 @@ export function ChatInput({
   const showFullUI = variant === 'full' || isExpanded;
   const resolvedWidgetPlaceholder = widgetPlaceholder || resolvedPlaceholder;
 
-  const isSearchMode = settings.mode === 'search' && !isAgentChat;
+  const isSearchMode = settings.mode === 'search';
   const canAcceptDrop = !isRegenerateMode && !isSearchMode && settings.queryMode !== 'web-search';
-  /** True when universal agent tool data is loading (disable send while loading). */
-  const isUniversalAgentLoading =
-    !isAgentChat && settings.queryMode === 'agent' && universalAgentToolsLoading;
   const activeQueryConfig = getQueryModeConfig(settings.queryMode) ?? getQueryModeConfig('chat')!;
   /** Internal-search / chat modes: `settings.filters` drives the connectors & collections picker. */
-  const hubFilterQueryMode =
-    !isAgentChat && settings.queryMode !== 'agent' && settings.queryMode !== 'web-search';
+  const hubFilterQueryMode = settings.queryMode !== 'web-search';
   /** Assistant collections overlay is active (web search never uses this chrome). */
   const assistantCollectionsOverlayActive =
-    !isAgentChat && isCollectionsPanelOpen && settings.queryMode !== 'web-search';
+    isCollectionsPanelOpen && settings.queryMode !== 'web-search';
   const modeColors = activeQueryConfig.colors;
-  const agentQueryToolbarConfig = getQueryModeConfig('agent')!;
-  const agentStrategyToolbarColors = agentQueryToolbarConfig.colors;
-  /** Query-mode, agent-strategy, or agent resources panel — chrome + outside click. */
-  const modeChromeOpen = isAgentChat
-    ? isAgentStrategyPanelOpen || isAgentResourcesPanelOpen
-    : isModePanelOpen;
+  /** Query-mode panel — chrome + outside click. */
+  const modeChromeOpen = isModePanelOpen;
 
   const dismissExpansionPanels = useCallback(() => {
     setIsModePanelOpen(false);
-    setIsAgentStrategyPanelOpen(false);
     setIsCollectionsPanelOpen(false);
-    setIsAgentResourcesPanelOpen(false);
     setIsModelPanelOpen(false);
     setShowUploadArea(false);
   }, []);
@@ -290,7 +251,6 @@ export function ChatInput({
 
   // Build selected collections from store (roots → apps API; record groups → kb API).
   // Includes connector metadata so pills show the right icon per source type.
-  // In agent mode, read from the effective agent knowledge scope instead of settings.filters.
   // In regenerate mode, read from the original message's appliedFilters (locked, non-removable).
   const regenAppliedFilters = isRegenerateMode && activeMessageAction?.type === 'regenerate'
     ? activeMessageAction.appliedFilters
@@ -316,13 +276,11 @@ export function ChatInput({
       ];
     }
 
-    if (!isAgentChat && settings.queryMode === 'web-search') {
+    if (settings.queryMode === 'web-search') {
       return [];
     }
 
-    const source = isAgentChat
-      ? (agentKnowledgeScope ?? agentKnowledgeDefaults)
-      : settings.filters;
+    const source = settings.filters;
     const hubApps = source?.apps ?? [];
     const groups = source?.kb ?? [];
     return [
@@ -348,9 +306,6 @@ export function ChatInput({
     ];
   }, [
     regenAppliedFilters,
-    isAgentChat,
-    agentKnowledgeScope,
-    agentKnowledgeDefaults,
     settings.filters,
     settings.queryMode,
     collectionNamesCache,
@@ -362,35 +317,21 @@ export function ChatInput({
 
   const handleRemoveCollection = useCallback(
     (id: string) => {
-      if (isAgentChat) {
-        const eff = agentKnowledgeScope ?? agentKnowledgeDefaults;
-        const nextApps = eff.apps.filter((aid) => aid !== id);
-        const nextKb = eff.kb.filter((gid) => gid !== id);
-        // Normalize to null when result matches defaults (no customization applied)
-        const appsMatch =
-          new Set(nextApps).size === new Set(agentKnowledgeDefaults.apps).size &&
-          nextApps.every((x) => agentKnowledgeDefaults.apps.includes(x));
-        const kbMatch =
-          new Set(nextKb).size === new Set(agentKnowledgeDefaults.kb).size &&
-          nextKb.every((x) => agentKnowledgeDefaults.kb.includes(x));
-        setAgentKnowledgeScope(appsMatch && kbMatch ? null : { apps: nextApps, kb: nextKb });
+      const hubApps = settings.filters?.apps ?? [];
+      const groups = settings.filters?.kb ?? [];
+      if (hubApps.includes(id)) {
+        setFilters({
+          ...settings.filters,
+          apps: hubApps.filter((aid) => aid !== id),
+        });
       } else {
-        const hubApps = settings.filters?.apps ?? [];
-        const groups = settings.filters?.kb ?? [];
-        if (hubApps.includes(id)) {
-          setFilters({
-            ...settings.filters,
-            apps: hubApps.filter((aid) => aid !== id),
-          });
-        } else {
-          setFilters({
-            ...settings.filters,
-            kb: groups.filter((gid) => gid !== id),
-          });
-        }
+        setFilters({
+          ...settings.filters,
+          kb: groups.filter((gid) => gid !== id),
+        });
       }
     },
-    [isAgentChat, agentKnowledgeScope, agentKnowledgeDefaults, setAgentKnowledgeScope, settings.filters, setFilters]
+    [settings.filters, setFilters]
   );
 
   // Toolbar icon color follows the active query mode so it stays consistent with ModeSwitcher.
@@ -494,7 +435,7 @@ export function ChatInput({
 
     if (isListening) stopSpeech();
 
-    if (isStreaming || isUniversalAgentLoading) return;
+    if (isStreaming) return;
     // Block submit while any chip is still uploading — every chip must be
     // either `uploaded` (forwarded as a ref) or removed by the user before
     // we hand off to the runtime.
@@ -504,91 +445,6 @@ export function ChatInput({
     if (activeMessageAction) {
       executeMessageAction();
       return;
-    }
-
-    // ── Agent tool validation ─────────────────────────────────
-    const isUrlAgent = Boolean(agentId);
-    const isUniversalAgentMode = !agentId && settings.queryMode === 'agent';
-    if (isUrlAgent && agentDeprecatedToolNames.length > 0) {
-      toast.error("This agent has tools that are no longer available. Open the Agent Builder to remove them.", {
-        action: {
-          label: "Open Agent Builder",
-          onClick: () =>
-            router.push(`/agents/edit?agentKey=${encodeURIComponent(agentId!)}`),
-        },
-      });
-      return;
-    }
-    if (isUrlAgent || isUniversalAgentMode) {
-      const groups = isUniversalAgentMode ? universalAgentToolGroups : agentChatToolGroups;
-      const toolsSel = isUniversalAgentMode ? universalAgentStreamTools : agentStreamToolsSel;
-
-      const stripPrefix = (key: string) => {
-        const colon = key.indexOf(':');
-        return colon >= 0 ? key.slice(colon + 1) : key;
-      };
-
-      // Count resolved (stripped + deduped) tools — mirrors the wire format
-      // in runtime.ts where prefixed keys are stripped then deduped via Set.
-      const resolvedCount =
-        toolsSel === null
-          ? new Set(groups.flatMap((g) => g.fullNames).map(stripPrefix)).size
-          : new Set(toolsSel.map(stripPrefix)).size;
-
-      if (resolvedCount > 128) {
-        toast.error(
-          'Too many tools selected. Maximum 128 tools are allowed per request due to performance limits.'
-        );
-        return;
-      }
-
-      // Detect multiple selected instances of the same toolset type.
-      // Key format differs by mode:
-      //   universal agent  → `${instanceId}:${fullName}` (prefixed)
-      //   URL-scoped agent → bare `fullName`
-      //
-      // When toolsSel === null (default "all tools") and the groups list is empty
-      // (panel hasn't loaded yet), skip the check — the user hasn't had a chance
-      // to curate, and blocking without an actionable path is confusing.
-      const instanceCountBySlug = new Map<string, number>();
-      if (toolsSel === null) {
-        if (groups.length === 0) {
-          // Groups not loaded yet — let the request through; the backend will
-          // use its own full set and handle any conflicts server-side.
-        } else {
-          for (const group of groups) {
-            instanceCountBySlug.set(
-              group.toolsetSlug,
-              (instanceCountBySlug.get(group.toolsetSlug) ?? 0) + 1
-            );
-          }
-        }
-      } else {
-        const selectedKeys = new Set(toolsSel);
-        for (const group of groups) {
-          const hasSelected = isUniversalAgentMode
-            // Universal: keys are `${instanceId}:${fullName}`
-            ? group.fullNames.some((fn) => selectedKeys.has(`${group.instanceId ?? ''}:${fn}`))
-            // URL-scoped: keys are bare fullNames
-            : group.fullNames.some((fn) => selectedKeys.has(fn));
-          if (hasSelected) {
-            instanceCountBySlug.set(
-              group.toolsetSlug,
-              (instanceCountBySlug.get(group.toolsetSlug) ?? 0) + 1
-            );
-          }
-        }
-      }
-      const multiTypes = [...instanceCountBySlug.entries()]
-        .filter(([, n]) => n > 1)
-        .map(([slug]) => slug);
-      if (multiTypes.length > 0) {
-        const typeNames = multiTypes.join(', ');
-        toast.error(
-          `Multiple instances of the same action type (${typeNames}) cannot be used together. Open the Actions panel and select only one instance per type.`
-        );
-        return;
-      }
     }
 
     // ── Normal send flow ──────────────────────────────────────
@@ -896,9 +752,7 @@ export function ChatInput({
   const hasUploadingAttachments = uploadedFiles.some((f) => f.status === 'uploading');
 
   const canSubmit =
-    (hasContent || activeMessageAction !== null) &&
-    !isUniversalAgentLoading &&
-    !hasUploadingAttachments;
+    (hasContent || activeMessageAction !== null) && !hasUploadingAttachments;
 
   // Display value combines committed text with interim speech so users see real-time feedback
   const displayValue = interimTranscript
@@ -961,22 +815,13 @@ export function ChatInput({
     }
   }, [isExpanded, variant]);
 
-  useEffect(() => {
-    if (isAgentChat) {
-      setIsModePanelOpen(false);
-    } else {
-      setIsAgentStrategyPanelOpen(false);
-      setIsAgentResourcesPanelOpen(false);
-    }
-  }, [isAgentChat]);
-
   // Dismiss collections chrome when it no longer applies (stale panel / overlay).
   const prevQueryModeRef = useRef(settings.queryMode);
   useEffect(() => {
     const prev = prevQueryModeRef.current;
     prevQueryModeRef.current = settings.queryMode;
     if (!isCollectionsPanelOpen) return;
-    if ((prev === 'agent' && settings.queryMode !== 'agent') || settings.queryMode === 'web-search') {
+    if (settings.queryMode === 'web-search') {
       setIsCollectionsPanelOpen(false);
       setExpansionViewMode('inline');
     }
@@ -995,18 +840,8 @@ export function ChatInput({
           padding: 'var(--space-1)',
         }}
       >
-        {/* Single row: (agent strategy) + input + send */}
+        {/* Single row: input + send */}
         <Flex align="center" justify="between" gap="3">
-          {isAgentChat && (
-            <AgentStrategyModeSwitcher
-              activeStrategy={settings.agentStrategy}
-              modeColors={agentStrategyToolbarColors}
-              isPanelOpen={false}
-              showFullUI={false}
-              onClick={handleExpand}
-            />
-          )}
-
           {/* Input field */}
           <input
             type="text"
@@ -1148,7 +983,6 @@ export function ChatInput({
         // uploaded files preview, or the action pill bar) to avoid a double-radius gap.
         borderRadius:
           (selectedCollections.length > 0 &&
-            !isAgentChat &&
             !isCollectionsPanelOpen &&
             !modeChromeOpen) ||
           uploadedFiles.length > 0 ||
@@ -1220,22 +1054,7 @@ export function ChatInput({
       )}
 
       {/* Input or expansion panel (mutually exclusive) */}
-      {isAgentChat && isAgentStrategyPanelOpen ? (
-        <ChatInputExpansionPanel
-          open={isAgentStrategyPanelOpen}
-          onClose={() => setIsAgentStrategyPanelOpen(false)}
-          minHeight="0px"
-          height="fit-content"
-        >
-          <AgentStrategyModePanel
-            activeStrategy={settings.agentStrategy}
-            onSelect={(strategy) => {
-              setAgentStrategy(strategy);
-              setIsAgentStrategyPanelOpen(false);
-            }}
-          />
-        </ChatInputExpansionPanel>
-      ) : isModelPanelOpen ? (
+      {isModelPanelOpen ? (
         <ChatInputExpansionPanel
           open={isModelPanelOpen}
           onClose={() => setIsModelPanelOpen(false)}
@@ -1243,28 +1062,7 @@ export function ChatInput({
           <ModelSelectorPanel
             selectedModel={contextSelectedModel ?? contextDefaultModel}
             onModelSelect={handleModelSelect}
-            agentId={agentId}
           />
-        </ChatInputExpansionPanel>
-      ) : isAgentChat && isAgentResourcesPanelOpen && expansionViewMode === 'inline' ? (
-        <ChatInputExpansionPanel
-          open={isAgentResourcesPanelOpen}
-          onClose={() => {
-            setIsAgentResourcesPanelOpen(false);
-            setExpansionViewMode('inline');
-          }}
-        >
-          <AgentScopedResourcesPanel viewMode="inline" onToggleView={handleToggleView} />
-        </ChatInputExpansionPanel>
-      ) : !isAgentChat && settings.queryMode === 'agent' && isCollectionsPanelOpen && expansionViewMode === 'inline' ? (
-        <ChatInputExpansionPanel
-          open={isCollectionsPanelOpen}
-          onClose={() => {
-            setIsCollectionsPanelOpen(false);
-            setExpansionViewMode('inline');
-          }}
-        >
-          <UniversalAgentResourcesPanel viewMode="inline" onToggleView={handleToggleView} />
         </ChatInputExpansionPanel>
       ) : hubFilterQueryMode && isCollectionsPanelOpen && expansionViewMode === 'inline' ? (
         <ChatInputExpansionPanel
@@ -1288,8 +1086,7 @@ export function ChatInput({
             onToggleView={handleToggleView}
           />
         </ChatInputExpansionPanel>
-      ) : ((isAgentChat && isAgentResourcesPanelOpen) || assistantCollectionsOverlayActive) &&
-        expansionViewMode === 'overlay' ? (
+      ) : assistantCollectionsOverlayActive && expansionViewMode === 'overlay' ? (
         /* Render textarea underneath while overlay is open */
         <textarea
           value={message}
@@ -1358,8 +1155,7 @@ export function ChatInput({
 
       {/* Bottom controls */}
       <Flex align="center" justify="between">
-        {/* Left side — attach control, then the agent-strategy switcher (agent
-            chats only); the assistant chat has no mode switcher. */}
+        {/* Left side — attach control. */}
         <Flex align="center" gap="2">
           {/* Attach files. Sits on the left of the composer; in the compact
               toolbar it moves into the overflow popover instead. */}
@@ -1378,27 +1174,6 @@ export function ChatInput({
             </Tooltip>
           )}
 
-          <Box style={isRegenerateMode && !isAgentChat ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-            {isAgentChat && (
-              <AgentStrategyModeSwitcher
-                activeStrategy={settings.agentStrategy}
-                modeColors={agentStrategyToolbarColors}
-                isPanelOpen={isMobile ? isMobileModesOpen : isAgentStrategyPanelOpen}
-                showFullUI={showFullUI}
-                onClick={() => {
-                  if (isMobile) {
-                    setIsMobileModesOpen(true);
-                    return;
-                  }
-                  setIsAgentStrategyPanelOpen((prev) => !prev);
-                  setIsCollectionsPanelOpen(false);
-                  setIsAgentResourcesPanelOpen(false);
-                  setIsModelPanelOpen(false);
-                  setShowUploadArea(false);
-                }}
-              />
-            )}
-          </Box>
         </Flex>
 
         {/* Right side - Controls */}
@@ -1432,17 +1207,6 @@ export function ChatInput({
                 }}
               >
                 <Flex direction="column" gap="1">
-                  {/* Agent Strategy (when applicable) */}
-                  {settings.queryMode === 'agent' && !isAgentChat && (
-                    <Box style={{ padding: 'var(--space-1) var(--space-2)' }}>
-                      <AgentStrategyDropdown
-                        value={settings.agentStrategy}
-                        onChange={setAgentStrategy}
-                        accentColor={activeToggleColor}
-                      />
-                    </Box>
-                  )}
-
                   {/* Attach file */}
                   {!isSearchMode && settings.queryMode !== 'web-search' && (
                     <Flex
@@ -1473,16 +1237,7 @@ export function ChatInput({
             </Popover.Root>
           ) : (
             /* Desktop: full controls */
-            <>
-              {settings.queryMode === 'agent' && !isAgentChat ? (
-                <AgentStrategyDropdown
-                  value={settings.agentStrategy}
-                  onChange={setAgentStrategy}
-                  accentColor={activeToggleColor}
-                />
-              ) : null}
-
-            </>
+            <></>
           )}
 
           {/* Send / Stop button */}
@@ -1564,19 +1319,12 @@ export function ChatInput({
     )}
     </Flex>
 
-    {/* Overlay panel — collections (assistant) or agent resources (overlay mode) */}
+    {/* Overlay panel — collections (overlay mode) */}
     <ChatInputOverlayPanel
-      open={
-        expansionViewMode === 'overlay' &&
-        (assistantCollectionsOverlayActive || (isAgentChat && isAgentResourcesPanelOpen))
-      }
+      open={expansionViewMode === 'overlay' && assistantCollectionsOverlayActive}
       onCollapse={() => setExpansionViewMode('inline')}
     >
-      {isAgentChat ? (
-        <AgentScopedResourcesPanel viewMode="overlay" onToggleView={handleToggleView} />
-      ) : settings.queryMode === 'agent' ? (
-        <UniversalAgentResourcesPanel viewMode="overlay" onToggleView={handleToggleView} />
-      ) : hubFilterQueryMode ? (
+      {hubFilterQueryMode ? (
         <ConnectorsCollectionsPanel
           apps={settings.filters?.apps ?? []}
           kb={settings.filters?.kb ?? []}

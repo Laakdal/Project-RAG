@@ -56,8 +56,6 @@ interface TimeGroupProps {
   onSelectConversation: (id: string) => void;
   /** Pending conversations to show as clickable "Generating Title…" shimmers */
   pendingConversations?: PendingConversation[];
-  /** Agent sidebar: use agent delete API and hide rename/archive on rows */
-  agentId?: string;
 }
 
 /**
@@ -70,7 +68,6 @@ export function TimeGroup({
   currentConversationId,
   onSelectConversation,
   pendingConversations = [],
-  agentId,
 }: TimeGroupProps) {
   const pendingSortedNewestFirst = [...pendingConversations].sort(
     (a, b) => b.createdAt - a.createdAt
@@ -109,7 +106,6 @@ export function TimeGroup({
             conversation={conv}
             isActive={currentConversationId === conv.id}
             onClick={() => onSelectConversation(conv.id)}
-            agentId={agentId}
           />
         ))}
       </Flex>

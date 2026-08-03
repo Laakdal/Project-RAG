@@ -42,8 +42,7 @@ interface ChatSearchProps {
 export function ChatSearch({ open, onClose }: ChatSearchProps) {
   const { appearance } = useThemeAppearance();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const agentId = searchParams.get('agentId');
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -142,13 +141,10 @@ export function ChatSearch({ open, onClose }: ChatSearchProps) {
     (id: string) => {
       onClose();
       router.push(
-        buildChatHref({
-          agentId: agentId || undefined,
-          conversationId: id,
-        })
+        buildChatHref({ conversationId: id })
       );
     },
-    [onClose, router, agentId]
+    [onClose, router]
   );
 
   const handleSearchSubmit = useCallback((e: React.FormEvent) => {

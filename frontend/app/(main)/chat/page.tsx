@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { AssistantRuntimeProvider, useExternalStoreRuntime, useThreadRuntime } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
 import { MessageList, ChatInputWrapper, SearchResultsView } from './components';
-import { AgentChatHeader } from './components/agent-chat-header';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import {
   applyConversationModelInfoToStore,
@@ -1086,15 +1085,6 @@ function ChatContent() {
             </IconButton>
           </Tooltip>
         </Box>
-      )}
-
-      {historyAndShareAgentId && (
-        <AgentChatHeader
-          agentId={historyAndShareAgentId}
-          displayName={agentContextDisplayName}
-          isMobile={isMobile}
-          hasExpandButton={!isMobile && isNavCollapsed}
-        />
       )}
 
       {/* Agent creator chip */}

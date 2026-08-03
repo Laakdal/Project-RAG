@@ -14,7 +14,6 @@ import {
 } from './types';
 import type { RecordDetailsResponse } from '@/knowledge-base/types';
 import type { PreviewCitation } from '@/app/components/file-preview/types';
-import type { AgentSidebarRowMenuAccess } from './sidebar/agent-sidebar-row-access';
 
 /**
  * File preview state for citation preview in chat.
@@ -251,7 +250,6 @@ interface ChatState {
   /** MongoDB user ID of the agent creator from GET agent `createdBy` */
   agentContextCreatedBy: string | null;
   /** Access flags (canEdit / showViewAgent / …) for the agent in context — drives the chat header menu */
-  agentContextAccess: AgentSidebarRowMenuAccess | null;
   /** Tool display names marked deprecated on the last GET /agents/:id for the URL agent context. */
   agentDeprecatedToolNames: string[];
 
@@ -406,7 +404,6 @@ interface ChatState {
   setAgentKnowledgeScope: (scope: { apps: string[]; kb: string[] } | null) => void;
   setAgentContextDisplayName: (name: string | null) => void;
   setAgentContextCreatedBy: (mongoUserId: string | null) => void;
-  setAgentContextAccess: (access: AgentSidebarRowMenuAccess | null) => void;
 
   // ── Universal agent actions ──
   setUniversalAgentStreamTools: (tools: string[] | null) => void;
@@ -513,7 +510,6 @@ const initialState = {
   agentKnowledgeScope: null as { apps: string[]; kb: string[] } | null,
   agentContextDisplayName: null as string | null,
   agentContextCreatedBy: null as string | null,
-  agentContextAccess: null as AgentSidebarRowMenuAccess | null,
   agentDeprecatedToolNames: [] as string[],
 
   universalAgentStreamTools: null as string[] | null,
@@ -759,7 +755,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           agentKnowledgeScope: null,
           agentContextDisplayName: null,
           agentContextCreatedBy: null,
-          agentContextAccess: null,
           agentDeprecatedToolNames: [],
           isAgentsSidebarOpen: false,
         };
@@ -784,7 +779,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         agentKnowledgeScope: null,
         agentContextDisplayName: null,
         agentContextCreatedBy: null,
-        agentContextAccess: null,
         agentDeprecatedToolNames: [],
         isAgentsSidebarOpen: false,
       };
@@ -893,7 +887,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setAgentContextCreatedBy: (mongoUserId) => set({ agentContextCreatedBy: mongoUserId }),
 
-  setAgentContextAccess: (access) => set({ agentContextAccess: access }),
 
   setUniversalAgentStreamTools: (tools) => set({ universalAgentStreamTools: tools }),
 
@@ -1200,7 +1193,6 @@ if (typeof window !== 'undefined') {
     'agentKnowledgeScope',
     'agentContextDisplayName',
     'agentContextCreatedBy',
-    'agentContextAccess',
     'universalAgentStreamTools',
     'universalAgentToolCatalogFullNames',
     'universalAgentToolGroups',

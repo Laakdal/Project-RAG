@@ -6,7 +6,6 @@ import { ChatInput } from '../chat-input';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useCommandStore } from '@/lib/store/command-store';
 import { toast } from '@/lib/store/toast-store';
-import { useEffectiveAgentId } from '@/chat/hooks/use-effective-agent-id';
 import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { ChatApi } from '@/chat/api';
 import {
@@ -31,7 +30,6 @@ import { useServicesHealthStore } from '@/lib/store/services-health-store';
 let currentSearchAbort: AbortController | null = null;
 /** Increments on each submit so superseded requests never clear loading for a newer search. */
 let searchSubmitGeneration = 0;
-let lastEffectiveAgentIdForQueryMode: string | null = null;
 
 /**
  * Wrapper component that connects ChatInput to assistant-ui runtime.
@@ -39,40 +37,18 @@ let lastEffectiveAgentIdForQueryMode: string | null = null;
  */
 export function ChatInputWrapper() {
   const threadRuntime = useThreadRuntime();
-  const effectiveAgentId = useEffectiveAgentId();
-  const isAgentChat = Boolean(effectiveAgentId);
 
+  // Make sure models for the assistant context are loaded and validated,
+  // regardless of which URL the page was opened on. The fetch util dedupes
+  // so this is cheap when page.tsx already ran.
   useEffect(() => {
-    if (effectiveAgentId) {
-      lastEffectiveAgentIdForQueryMode = effectiveAgentId;
-      const store = useChatStore.getState();
-      store.setQueryMode('agent');
-      if (store.settings.mode === 'search') {
-        store.setMode('chat');
-        store.clearSearchResults();
-      }
-      return;
-    }
-
-    if (lastEffectiveAgentIdForQueryMode !== null) {
-      lastEffectiveAgentIdForQueryMode = null;
-      useChatStore.getState().setQueryMode('chat');
-    }
-  }, [effectiveAgentId]);
-
-  // Make sure models for the EFFECTIVE context (URL or slot agent) are loaded
-  // and validated, regardless of which URL the page was opened on. This keeps
-  // the pill + submit in sync when the active slot carries an agent that the
-  // URL doesn't reflect (e.g. navigating into an existing agent conversation).
-  // The fetch util dedupes so this is cheap when page.tsx already ran.
-  useEffect(() => {
-    const ctxKey = ctxKeyFromAgent(effectiveAgentId);
+    const ctxKey = ctxKeyFromAgent(null);
     fetchModelsForContext(ctxKey).catch((err) => {
       if (useServicesHealthStore.getState().apiServerReachable) {
         console.error('Failed to fetch models for effective context', ctxKey, err);
       }
     });
-  }, [effectiveAgentId]);
+  }, []);
 
   const handleSearchSubmit = async (query: string) => {
     const store = useChatStore.getState();
@@ -184,11 +160,11 @@ export function ChatInputWrapper() {
   const handleDeleteFile = useCallback(
     (recordId: string) => {
       // Fire and forget — must never block the UI.
-      ChatApi.deleteAttachment(recordId, { agentId: effectiveAgentId }).catch(() => {
+      ChatApi.deleteAttachment(recordId, {}).catch(() => {
         // Swallow silently: an orphan record is acceptable; blocking the UI is not.
       });
     },
-    [effectiveAgentId],
+    [],
   );
 
   const handleSend = async (message: string, attachments?: AttachmentRef[]) => {
@@ -196,9 +172,9 @@ export function ChatInputWrapper() {
 
     const store = useChatStore.getState();
 
-    // Search mode: direct API call, no slots/runtime (disabled for agent-scoped chat)
+    // Search mode: direct API call, no slots/runtime.
     // Attachments are not supported in search mode — silently ignored.
-    if (store.settings.mode === 'search' && !isAgentChat) {
+    if (store.settings.mode === 'search') {
       if (message.trim()) handleSearchSubmit(message.trim());
       return;
     }
@@ -213,18 +189,6 @@ export function ChatInputWrapper() {
     if (!activeSlotId) {
       activeSlotId = store.createSlot(null);
       store.setActiveSlot(activeSlotId);
-      const rawAgentId =
-        typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).get('agentId')
-          : null;
-      const agentIdFromUrl = rawAgentId?.trim() ? rawAgentId : null;
-      if (agentIdFromUrl) {
-        store.updateSlot(activeSlotId, {
-          threadAgentId: agentIdFromUrl,
-          agentStreamTools:
-            store.agentStreamTools === null ? null : [...store.agentStreamTools],
-        });
-      }
     }
 
     const { settings, collectionNamesCache } = store;
@@ -348,8 +312,6 @@ export function ChatInputWrapper() {
       onSend={handleSend}
       onUploadFile={handleUploadFile}
       onDeleteFile={handleDeleteFile}
-      isAgentChat={isAgentChat}
-      agentId={effectiveAgentId}
     />
   );
 }
