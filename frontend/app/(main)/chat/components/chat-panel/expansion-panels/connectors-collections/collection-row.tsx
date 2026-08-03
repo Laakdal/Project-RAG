@@ -5,7 +5,9 @@ import { Flex, Text, Checkbox } from '@radix-ui/themes';
 import { KnowledgeItemIcon } from '@/app/components/ui/knowledge-item-icon';
 import { ConnectorIcon, resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
 import { ThemeableAssetIcon, themeableAssetIconPresets } from '@/app/components/ui/themeable-asset-icon';
-import { AGENT_KNOWLEDGE_FALLBACK_ICON } from '@/app/(main)/agents/agent-builder/display-utils';
+
+/** Fallback icon for a knowledge-base row. */
+const KNOWLEDGE_FALLBACK_ICON = '/icons/connectors/collections-gray.svg';
 
 interface CollectionRowProps {
   id: string;
@@ -37,7 +39,7 @@ export function CollectionLeadingIcon({ sourceType, size = 20 }: { sourceType?: 
   if (normalized.toUpperCase() === 'KB') {
     return (
       <ThemeableAssetIcon
-        src={AGENT_KNOWLEDGE_FALLBACK_ICON}
+        src={KNOWLEDGE_FALLBACK_ICON}
         size={size}
         {...themeableAssetIconPresets.agentBuilderCategoryRow}
       />
