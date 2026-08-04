@@ -17,7 +17,6 @@ import { safeHttpUrl, isWebSource, fileExtensionOf } from '../../utils/source-he
 import { useInlineCitationPopoverStore } from './response-tabs/citations/citation-popover-store';
 import { InlineCitationPopoverHost } from './response-tabs/citations/inline-citation-popover-host';
 import { LottieLoader } from '@/app/components/ui/lottie-loader';
-import { loadOlderMessagesForSlot } from '../../streaming';
 import { listAttachments } from '../../rag-api';
 
 // Stable empty references to avoid re-renders from selector fallbacks.
@@ -309,14 +308,6 @@ export function MessageList() {
   // if the atomic content replacement (streaming→final) causes a position jump.
   const streamingScrollTopRef = useRef<number>(0);
 
-  // ── Load-older refs ────────────────────────────────────────────────
-  // Stale-closure-safe mirrors for the scroll handler (no re-render on change)
-  const hasOlderMessagesRef = useRef(hasOlderMessages);
-  hasOlderMessagesRef.current = hasOlderMessages;
-  const isLoadingOlderRef = useRef(isLoadingOlder);
-  isLoadingOlderRef.current = isLoadingOlder;
-  /** True while an async loadOlderMessagesForSlot call is in-flight. */
-  const loadOlderInFlightRef = useRef(false);
   /**
    * Key of the first message pair from the previous render.
    * Compared in Effect #4 to distinguish a prepend (first key changes)
@@ -722,21 +713,6 @@ export function MessageList() {
     [scheduleResumeTailSync],
   );
 
-  // ── Load older messages trigger ────────────────────────────────────
-  // Fires the async load. The browser's native CSS scroll anchoring
-  // (overflow-anchor: auto) keeps the viewport stable when messages are
-  // prepended — no manual scrollTop adjustment needed.
-  const triggerLoadOlderMessages = useCallback(() => {
-    if (loadOlderInFlightRef.current) return;
-    if (!hasOlderMessagesRef.current || isLoadingOlderRef.current) return;
-    const targetSlotId = useChatStore.getState().activeSlotId;
-    if (!targetSlotId) return;
-
-    loadOlderInFlightRef.current = true;
-    loadOlderMessagesForSlot(targetSlotId).finally(() => {
-      loadOlderInFlightRef.current = false;
-    });
-  }, []);
 
   // ── User scroll detection ─────────────────────────────────────────
   // Streaming: opt out when `scrollTop` drops meaningfully below the last
@@ -786,15 +762,7 @@ export function MessageList() {
       }
     }
 
-    // Load older messages when scrolled near the top (after initial scroll done)
-    if (
-      scrollTop < LOAD_OLDER_THRESHOLD_PX &&
-      hasPerformedInitialScrollRef.current &&
-      !isStreamingRef.current
-    ) {
-      triggerLoadOlderMessages();
-    }
-  }, [runStreamingBottomResume, triggerLoadOlderMessages]);
+  }, [runStreamingBottomResume]);
 
   // Stream start: clear scroll lock in layout phase (before paint), not in useEffect,
   // so the first tail sync is not skipped. On every streaming commit, pin the tail

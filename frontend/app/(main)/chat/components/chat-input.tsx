@@ -13,7 +13,7 @@ import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { useCommandStore } from '@/lib/store/command-store';
 import { toast } from '@/lib/store/toast-store';
-import { streamRegenerateForSlot, cancelStreamForSlot } from '@/chat/streaming';
+import { cancelStreamForSlot } from '@/chat/streaming';
 import { useChatSpeechRecognition } from '@/lib/hooks/use-chat-speech-recognition';
 import type {
   UploadedFile,
@@ -297,20 +297,7 @@ export function ChatInput({
   // Both handlers are registered on the global command bus (useCommandStore) so
   // ChatResponse / MessageActions can trigger them without prop drilling.
 
-  // Regenerate: sets activeMessageAction and pre-fills the textarea with the
-  // original question text (dispatched from message-actions.tsx
-  // as { messageId, text: question }).
-  const handleShowRegenBar = useCallback((payload?: unknown) => {
-    if (typeof payload !== 'object' || payload === null) return;
-    const { messageId, text, appliedFilters } = payload as { messageId: string; text?: string; appliedFilters?: AppliedFilters };
-    if (!messageId) return;
-    setRegenModelOverride(null);
-    setActiveMessageAction({ type: 'regenerate', messageId, appliedFilters });
-    // Pre-fill textarea so user can see what will be regenerated (shown dimmed/disabled)
-    setMessage(text ?? '');
-  }, []);
-
-  // Edit query: same as regenerate but the textarea is editable so the user can
+  // Edit query: the textarea is editable so the user can
   // amend the question before resending. Also focuses the textarea immediately.
   const handleShowEditQuery = useCallback((payload?: unknown) => {
     if (
@@ -333,16 +320,14 @@ export function ChatInput({
     setMessage('');
   }, []);
 
-  // Register showRegenBar / showEditQuery commands
+  // Register the showEditQuery command
   useEffect(() => {
     const { register, unregister } = useCommandStore.getState();
-    register('showRegenBar', handleShowRegenBar);
     register('showEditQuery', handleShowEditQuery);
     return () => {
-      unregister('showRegenBar');
       unregister('showEditQuery');
     };
-  }, [handleShowRegenBar, handleShowEditQuery]);
+  }, [handleShowEditQuery]);
 
   // Dismiss message action on slot switch
   useEffect(() => {
@@ -354,20 +339,6 @@ export function ChatInput({
   const executeMessageAction = useCallback((_editedText?: string) => {
     if (!activeMessageAction) return;
 
-    if (activeMessageAction.type === 'regenerate') {
-      const modelOverride = regenModelOverride ?? undefined;
-      const af = activeMessageAction.appliedFilters;
-      const originalFilters = af
-        ? { apps: af.apps.map((a) => a.id), kb: af.kb.map((k) => k.id) }
-        : undefined;
-      setActiveMessageAction(null);
-      setRegenModelOverride(null);
-      if (activeSlotId) {
-        streamRegenerateForSlot(activeSlotId, activeMessageAction.messageId, modelOverride, originalFilters);
-      }
-      return;
-    }
-
     if (activeMessageAction.type === 'editQuery') {
       toast.info("Coming Soon", {
         description: "We're building out support for edit",
@@ -376,7 +347,7 @@ export function ChatInput({
       setRegenModelOverride(null);
       return;
     }
-  }, [activeMessageAction, regenModelOverride, activeSlotId]);
+  }, [activeMessageAction]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

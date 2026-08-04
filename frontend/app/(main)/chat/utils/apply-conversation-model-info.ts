@@ -1,5 +1,4 @@
 import { useChatStore, ASSISTANT_CTX } from '@/chat/store';
-import { fetchModelsForContext } from './fetch-models-for-context';
 import type {
   AgentStrategy,
   AvailableLlmModel,
@@ -167,33 +166,17 @@ function applyModeAndStrategy(
   store.setMode('chat');
 }
 
+/**
+ * There is no model catalog to validate against: the org LLM-config endpoint
+ * is not served here, so the list was always empty and every stored selection
+ * was therefore treated as stale. Clearing the selection preserves that
+ * behaviour without the round-trip.
+ */
 async function refreshSelectedModelFromCatalog(
-  modelInfo: ModelInfo,
+  _modelInfo: ModelInfo,
   ctxKey: string
 ): Promise<void> {
-  try {
-    const models = await fetchModelsForContext(ctxKey);
-    const k = modelInfo.modelKey?.trim();
-    const n = modelInfo.modelName?.trim();
-    const valid =
-      k &&
-      n &&
-      models.some((m) => m.modelKey === k && m.modelName === n);
-
-    if (!valid) {
-      // Conversation still references a model that was removed from the org/agent
-      // list — clear selection so the toolbar shows the default from the catalog.
-      useChatStore.getState().setSelectedModelForCtx(ctxKey, null);
-      return;
-    }
-
-    useChatStore.getState().setSelectedModelForCtx(
-      ctxKey,
-      buildModelOverrideFromInfoAndCatalog(modelInfo, models)
-    );
-  } catch {
-    // Keep optimistic value from cached catalog if refresh fails.
-  }
+  useChatStore.getState().setSelectedModelForCtx(ctxKey, null);
 }
 
 /**

@@ -3,4 +3,3 @@
 // here just created a second, unused path.
 export { ChatInputWrapper } from './chat-panel';
 export { MessageList } from './message-area';
-export { SearchResultsView } from './search-results';

@@ -4,7 +4,7 @@ import React, { useEffect, useCallback, useLayoutEffect, useRef, useMemo, useSta
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AssistantRuntimeProvider, useExternalStoreRuntime, useThreadRuntime } from '@assistant-ui/react';
 import type { ThreadMessageLike } from '@assistant-ui/react';
-import { MessageList, ChatInputWrapper, SearchResultsView } from './components';
+import { MessageList, ChatInputWrapper } from './components';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import {
   applyConversationModelInfoToStore,
@@ -16,7 +16,6 @@ import {
   listMessages as ragListMessages,
 } from '@/chat/rag-api';
 import { buildChatHref } from '@/chat/build-chat-url';
-import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
 import { buildExternalStoreConfig } from '@/chat/runtime';
 import { debugLog } from '@/chat/debug-logger';
 import { useCommandStore } from '@/lib/store/command-store';
@@ -38,7 +37,6 @@ const CHAT_INPUT_OFFSET = { mobile: 120, desktop: 128 };
 // Space reserved when input is hidden — just enough to clear the footer links.
 const FOOTER_ONLY_OFFSET = { mobile: 48, desktop: 48 };
 // Extra breathing room above the chat input for the search results list.
-const SEARCH_RESULTS_EXTRA_OFFSET = { mobile: 0, desktop: 70 };
 
 /**
  * Inner content component that uses assistant-ui hooks.
@@ -148,11 +146,6 @@ function ChatContent() {
     register('newChat', () => {
       const store = useChatStore.getState();
 
-      // 0. Reset search mode if active (URL won't change since both are /chat)
-      if (store.settings.mode === 'search') {
-        store.setMode('chat');
-        store.clearSearchResults();
-      }
 
       const rawAgentInUrl =
         typeof window !== 'undefined'
@@ -264,30 +257,6 @@ function ChatContent() {
     }
   }, [conversationsVersion, loadConversations]);
 
-  // Populate agent side-effects (tools, display name) and kick off the model
-  // fetch for the current context. The shared `fetchModelsForContext` handles
-  // caching, default resolution, and stale-selection invalidation per ctxKey.
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      const ctxKey = ctxKeyFromAgent(null);
-
-      try {
-        await fetchModelsForContext(ctxKey);
-      } catch (error) {
-        if (!cancelled && useServicesHealthStore.getState().apiServerReachable) {
-          console.error('Failed to fetch models for context', ctxKey, error);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [agentId, router]);
 
   // ── URL → Store sync ──────────────────────────────────────────────
   // When URL changes (sidebar click, browser back), create/reuse a slot.
@@ -298,11 +267,6 @@ function ChatContent() {
     urlSyncingRef.current = true;
     const store = useChatStore.getState();
 
-    // Exit search mode on any navigation (sidebar click, new chat, etc.)
-    if (store.settings.mode === 'search') {
-      store.setMode('chat');
-      store.clearSearchResults();
-    }
 
     if (!conversationId) {
       // Clear any filters left over from the previous conversation so that
@@ -695,9 +659,6 @@ function ChatContent() {
 
   // Search mode: show results view when in search mode with results/in-progress search
   const mode = useChatStore((s) => s.settings.mode);
-  const hasSearchResults = useChatStore((s) => s.searchResults.length > 0);
-  const isSearching = useChatStore((s) => s.isSearching);
-  const showSearchView = mode === 'search' && (hasSearchResults || isSearching) && !conversationId;
 
   // ── Split-pane layout: chat left | drag handle | preview right ────────────
   // Active on desktop when a file preview is open in 'sidebar' mode.
@@ -882,20 +843,6 @@ function ChatContent() {
           style={{ flex: 1, position: 'relative', zIndex: 10, width: '100%' }}
         >
           <LottieLoader variant="loader" size={48} showLabel />
-        </Flex>
-      ) : showSearchView ? (
-        <Flex
-          direction="column"
-          style={{
-            flex: 1,
-            width: '100%',
-            overflow: 'hidden',
-            marginBottom: showChatInput
-              ? `${(isMobile ? CHAT_INPUT_OFFSET.mobile : CHAT_INPUT_OFFSET.desktop) + (isMobile ? SEARCH_RESULTS_EXTRA_OFFSET.mobile : SEARCH_RESULTS_EXTRA_OFFSET.desktop)}px`
-              : `${isMobile ? FOOTER_ONLY_OFFSET.mobile : FOOTER_ONLY_OFFSET.desktop}px`,
-          }}
-        >
-          <SearchResultsView />
         </Flex>
       ) : showNewChatView ? (
         <Flex

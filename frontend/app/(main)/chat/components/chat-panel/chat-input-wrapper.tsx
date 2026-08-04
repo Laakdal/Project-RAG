@@ -6,8 +6,6 @@ import { ChatInput } from '../chat-input';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
 import { useCommandStore } from '@/lib/store/command-store';
 import { toast } from '@/lib/store/toast-store';
-import { fetchModelsForContext } from '@/chat/utils/fetch-models-for-context';
-import { ChatApi } from '@/chat/api';
 import {
   ensureSlotConversation,
   regenerateAnswer,
@@ -18,18 +16,12 @@ import {
   buildAssistantApiFilters,
   type AttachmentRef,
   type ChatCollectionAttachment,
-  type SearchRequest,
 } from '@/chat/types';
 import {
   isRequestCancelledError,
-  isSearchNoAccessibleDocumentsNotFound,
 } from '@/lib/api';
 import { useServicesHealthStore } from '@/lib/store/services-health-store';
 
-// Module-level abort controller for cancelling in-flight searches
-let currentSearchAbort: AbortController | null = null;
-/** Increments on each submit so superseded requests never clear loading for a newer search. */
-let searchSubmitGeneration = 0;
 
 /**
  * Wrapper component that connects ChatInput to assistant-ui runtime.
@@ -38,65 +30,7 @@ let searchSubmitGeneration = 0;
 export function ChatInputWrapper() {
   const threadRuntime = useThreadRuntime();
 
-  // Make sure models for the assistant context are loaded and validated,
-  // regardless of which URL the page was opened on. The fetch util dedupes
-  // so this is cheap when page.tsx already ran.
-  useEffect(() => {
-    const ctxKey = ctxKeyFromAgent(null);
-    fetchModelsForContext(ctxKey).catch((err) => {
-      if (useServicesHealthStore.getState().apiServerReachable) {
-        console.error('Failed to fetch models for effective context', ctxKey, err);
-      }
-    });
-  }, []);
 
-  const handleSearchSubmit = async (query: string) => {
-    const store = useChatStore.getState();
-
-    // Cancel any in-flight search
-    if (currentSearchAbort) {
-      currentSearchAbort.abort();
-    }
-    const myGeneration = ++searchSubmitGeneration;
-    const searchController = new AbortController();
-    currentSearchAbort = searchController;
-
-    store.setIsSearching(true);
-    store.setSearchError(null);
-
-    const streamFilters = buildAssistantApiFilters(store.settings.filters);
-    const request: SearchRequest = {
-      query,
-      limit: 10,
-      filters: {
-        apps: streamFilters.apps,
-        kb: streamFilters.kb,
-      },
-    };
-
-    try {
-      const response = await ChatApi.search(request, searchController.signal);
-      store.setSearchResults(
-        response.searchResponse.searchResults,
-        response.searchId,
-        query
-      );
-    } catch (error: unknown) {
-      if (isRequestCancelledError(error)) return;
-      if (isSearchNoAccessibleDocumentsNotFound(error)) {
-        store.setSearchResults([], null, query);
-        return;
-      }
-      store.setSearchError((error as Error)?.message || 'Search failed');
-    } finally {
-      if (currentSearchAbort === searchController) {
-        currentSearchAbort = null;
-      }
-      if (myGeneration === searchSubmitGeneration) {
-        store.setIsSearching(false);
-      }
-    }
-  };
 
   /**
    * Per-file upload, fired by `ChatInput` the moment a chip is added to the
@@ -157,27 +91,11 @@ export function ChatInputWrapper() {
     [],
   );
 
-  const handleDeleteFile = useCallback(
-    (recordId: string) => {
-      // Fire and forget — must never block the UI.
-      ChatApi.deleteAttachment(recordId, {}).catch(() => {
-        // Swallow silently: an orphan record is acceptable; blocking the UI is not.
-      });
-    },
-    [],
-  );
 
   const handleSend = async (message: string, attachments?: AttachmentRef[]) => {
     if (!message.trim() && (!attachments || attachments.length === 0)) return;
 
     const store = useChatStore.getState();
-
-    // Search mode: direct API call, no slots/runtime.
-    // Attachments are not supported in search mode — silently ignored.
-    if (store.settings.mode === 'search') {
-      if (message.trim()) handleSearchSubmit(message.trim());
-      return;
-    }
 
     // ── Chat mode ──
     if (store.activeSlotId && store.slots[store.activeSlotId]?.isStreaming) {
@@ -311,7 +229,6 @@ export function ChatInputWrapper() {
     <ChatInput
       onSend={handleSend}
       onUploadFile={handleUploadFile}
-      onDeleteFile={handleDeleteFile}
     />
   );
 }

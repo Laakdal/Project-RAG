@@ -11,7 +11,6 @@ import { ChatSidebarHeader } from './header';
 import { ChatSidebarFooter } from './footer';
 import { StaticNavSection } from './static-nav-section';
 import { ChatSections } from './chat-sections';
-import { MoreChatsSidebar } from './more-chats-sidebar';
 
 /**
  * Chat sidebar — uses SidebarBase shell with header, footer, and custom content.
@@ -24,29 +23,18 @@ import { MoreChatsSidebar } from './more-chats-sidebar';
 function ChatSidebar() {
   debugLog.tick('[sidebar] [ChatSidebar]');
 
-  const isMoreChatsPanelOpen = useChatStore((s) => s.isMoreChatsPanelOpen);
-  const moreChatsSectionType = useChatStore((s) => s.moreChatsSectionType);
   const toggleMoreChatsPanel = useChatStore((s) => s.toggleMoreChatsPanel);
-  const closeMoreChatsPanel = useChatStore((s) => s.closeMoreChatsPanel);
 
   const isMobileOpen = useMobileSidebarStore((s) => s.isOpen);
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
   const isMobile = useIsMobile();
 
-  const secondaryPanel =
-    isMoreChatsPanelOpen && moreChatsSectionType ? (
-      <MoreChatsSidebar
-        sectionType={moreChatsSectionType}
-        onBack={closeMoreChatsPanel}
-      />
-    ) : undefined;
 
   return (
     <SidebarBase
       header={<ChatSidebarHeader />}
       footer={<ChatSidebarFooter />}
-      secondaryPanel={secondaryPanel}
-      onDismissSecondaryPanel={isMoreChatsPanelOpen ? closeMoreChatsPanel : undefined}
+
       isMobile={isMobile}
       mobileOpen={isMobileOpen}
       onMobileClose={closeMobileSidebar}

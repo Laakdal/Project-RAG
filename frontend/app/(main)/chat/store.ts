@@ -9,7 +9,6 @@ import {
   ConversationsListResponse,
   ChatSlot,
   MAX_SLOTS,
-  SearchResultItem,
   type ModelInfo,
 } from './types';
 import type { PreviewCitation } from '@/app/components/file-preview/types';
@@ -235,11 +234,6 @@ interface ChatState {
   collectionMetaCache: Record<string, { name: string; nodeType: string; connector: string }>;
 
   // ── Search state ──
-  searchResults: SearchResultItem[];
-  searchQuery: string;
-  searchId: string | null;
-  isSearching: boolean;
-  searchError: string | null;
 
   // ── Composer uploads + files panel ──
   /** Mirror of the active composer's in-flight uploads, surfaced in the right files panel. */
@@ -392,10 +386,6 @@ interface ChatState {
   setAvailableModelsForCtx: (ctxKey: string, models: import('./types').AvailableLlmModel[]) => void;
 
   // ── Search actions ──
-  setSearchResults: (results: SearchResultItem[], searchId: string | null, query: string) => void;
-  setIsSearching: (loading: boolean) => void;
-  setSearchError: (error: string | null) => void;
-  clearSearchResults: () => void;
 
   // ── Cache actions ──
   setCollectionNamesCache: (cache: Record<string, string>) => void;
@@ -483,11 +473,6 @@ const initialState = {
   collectionNamesCache: {} as Record<string, string>,
   collectionMetaCache: {} as Record<string, { name: string; nodeType: string; connector: string }>,
 
-  searchResults: [] as SearchResultItem[],
-  searchQuery: '' as string,
-  searchId: null as string | null,
-  isSearching: false,
-  searchError: null as string | null,
 
   composerUploads: [] as Array<{ id: string; name: string; status: 'uploading' | 'uploaded' | 'error' }>,
   composerUploadsConvId: null as string | null,
@@ -1043,17 +1028,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
   })),
 
-  // ── Search actions ──────────────────────────────────────────────
-
-  setSearchResults: (results, searchId, query) =>
-    set({ searchResults: results, searchId, searchQuery: query }),
-
-  setIsSearching: (loading) => set({ isSearching: loading }),
-
-  setSearchError: (error) => set({ searchError: error }),
-
-  clearSearchResults: () =>
-    set({ searchResults: [], searchQuery: '', searchId: null, searchError: null }),
 
   // ── Cache ────────────────────────────────────────────────────────
 
@@ -1128,7 +1102,6 @@ if (typeof window !== 'undefined') {
     'universalAgentToolsError',
     'settings', 'expansionViewMode',
     'collectionNamesCache', 'collectionMetaCache', 'conversationsVersion',
-    'searchResults', 'searchQuery', 'searchId', 'isSearching', 'searchError',
   ] as const;
 
   useChatStore.subscribe((state, prev) => {
