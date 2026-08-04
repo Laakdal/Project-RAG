@@ -5,7 +5,6 @@ import "../globals.css";
 import { ToastContainer } from '@/app/components/feedback';
 import { ThemeProvider, ThemeScript } from '@/app/components/theme-provider';
 import { AuthHydrator } from '@/lib/store/auth-hydrator';
-import { ServerUrlGuard } from '@/app/components/electron/server-url-setup';
 
 export default function PublicLayout({
   children,
@@ -28,7 +27,7 @@ export default function PublicLayout({
       <body style={{ backgroundColor: 'var(--olive-1, #f8f8f5)' }}>
         <ThemeProvider>
           <AuthHydrator />
-          <ServerUrlGuard>{children}</ServerUrlGuard>
+          {children}
           <ToastContainer />
         </ThemeProvider>
       </body>

@@ -1,6 +1,5 @@
 'use client';
 
-import { isElectron } from '@/lib/electron';
 
 import { useChatSpeechConfig } from './use-chat-speech-config';
 import { useSpeechRecognition } from './use-speech-recognition';
@@ -29,11 +28,10 @@ interface UseChatSpeechRecognitionReturn {
   resetTranscript: () => void;
   /**
    * Voice input requires a configured server STT provider when the browser
-   * path is unavailable: Electron's packaged `app://` origin cannot use
-   * Chrome's upstream speech service, Brave/Edge should always use our
-   * server STT path, and some browsers do not expose the Web Speech
-   * recognizer at all. `'stt-not-configured'` when no provider is set;
-   * `null` when voice input is available.
+   * path is unavailable: Brave/Edge should always use a server STT path, and
+   * some browsers do not expose the Web Speech recognizer at all.
+   * `'stt-not-configured'` when no provider is set; `null` when voice input
+   * is available.
    */
   unavailableReason: 'stt-not-configured' | null;
 }
@@ -64,17 +62,12 @@ export function useChatSpeechRecognition(
 
   const active = useSpeechRecognition(options);
 
-  // In Electron the browser path is non-functional regardless of what
-  // `window.SpeechRecognition` reports: Chromium ships the API surface,
-  // but the upstream Google speech endpoint rejects requests from the
-  // `app://` origin / missing API key, so the recognizer ends ~instantly
-  // after `start()`. Brave and Edge should also use a configured server STT
-  // route instead of the browser recognizer. Some browsers expose no
-  // recognizer at all. Surface these cases to the UI so the mic button can be
-  // disabled with an explanatory "configure STT" tooltip instead of silently
-  // failing.
+  // Brave and Edge should use a configured server STT route rather than the
+  // browser recognizer, and some browsers expose no recognizer at all. Surface
+  // these cases to the UI so the mic button can be disabled with an explanatory
+  // "configure STT" tooltip instead of silently failing.
   const requiresServerStt =
-    isElectron() || isBraveBrowser() || isEdgeBrowser() || !active.isSupported;
+    isBraveBrowser() || isEdgeBrowser() || !active.isSupported;
   const unavailableReason: UseChatSpeechRecognitionReturn['unavailableReason'] =
     requiresServerStt && !hasStt ? 'stt-not-configured' : null;
 

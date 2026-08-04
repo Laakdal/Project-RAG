@@ -1,11 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import { isElectron } from '@/lib/electron';
-import {
-  clearElectronLogoutServerState,
-  persistElectronServerUrlOnLogin,
-} from '@/lib/electron/api-base-url-storage';
 
 export interface User {
   id: string;
@@ -73,7 +68,6 @@ export const useAuthStore = create<AuthStore>()(
       setTokens: (accessToken, refreshToken) => {
         writeAccessToken(accessToken);
         writeRefreshToken(refreshToken);
-        persistElectronServerUrlOnLogin();
         set((state) => {
           state.accessToken = accessToken;
           state.refreshToken = refreshToken;
@@ -123,42 +117,20 @@ export const useAuthStore = create<AuthStore>()(
 /** Dispatched after logout; AuthHydrator listens and runs client-side navigation. */
 export const LOGIN_NAVIGATION_EVENT = 'request-login-navigation';
 
-/** Electron: after explicit workspace logout, show server URL screen then sign-in (see AuthHydrator). */
-export const ELECTRON_SERVER_URL_NAVIGATION_EVENT = 'electron-goto-server-url-flow';
-
 /**
  * Clears all auth state and redirects the user to the login page.
  * Single source of truth used by the axios interceptor (session expiry / 401).
  *
- * Web: hard navigation via `window.location.href = '/login'` (original behavior).
- * Electron: dispatch a CustomEvent that AuthHydrator consumes to do a soft
- * `router.replace('/login')` — a hard navigation under `app://` reloads into an
- * empty shell.
+ * Hard navigation via `window.location.href = '/login'`.
  */
 export function logoutAndRedirect(): void {
   useAuthStore.getState().logout();
   if (typeof window === 'undefined') return;
-  if (isElectron()) {
-    window.dispatchEvent(new CustomEvent(LOGIN_NAVIGATION_EVENT));
-    return;
-  }
   window.location.href = '/login';
 }
 
-/**
- * Workspace menu logout: web → same as session-expiry logout; Electron → clear
- * server URL ack (keep last URL for pre-fill), then route through ServerUrlGuard's
- * add-URL screen so the user can confirm or change the server before signing in.
- */
+/** Workspace menu logout — identical to the 401 / session-expiry flow. */
 export function logoutFromWorkspaceMenu(): void {
-  if (typeof window !== 'undefined' && isElectron()) {
-    useAuthStore.getState().logout();
-    clearElectronLogoutServerState();
-    window.dispatchEvent(new CustomEvent(ELECTRON_SERVER_URL_NAVIGATION_EVENT));
-    return;
-  }
-  // Web path is identical to the 401 / session-expiry flow — delegate so the
-  // two paths stay in lockstep.
   logoutAndRedirect();
 }
 

@@ -3,7 +3,6 @@ import { logoutAndRedirect } from '@/lib/store/auth-store';
 import { processError } from './api-error';
 import { showErrorToast } from './error-toast';
 import { getApiBaseUrl } from '@/lib/utils/api-base-url';
-import { applyElectronOverrides } from '@/lib/electron';
 import { readCsrfCookie, CSRF_HEADER_NAME } from './csrf';
 
 declare module 'axios' {
@@ -52,12 +51,11 @@ export const apiClient = axios.create({
 
 // ── Request interceptor ────────────────────────────────────────────────────
 // Auth rides on the httpOnly session cookie (sent automatically via
-// withCredentials). We only need to align the baseURL, apply Electron
-// overrides, and attach the double-submit CSRF token on state-changing calls.
+// withCredentials). We only need to align the baseURL and attach the
+// double-submit CSRF token on state-changing calls.
 apiClient.interceptors.request.use(
   (config) => {
     config.baseURL = getApiBaseUrl();
-    applyElectronOverrides(config);
 
     const method = (config.method ?? 'get').toLowerCase();
     if (MUTATING_METHODS.has(method)) {

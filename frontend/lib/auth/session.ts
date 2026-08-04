@@ -79,5 +79,5 @@ export async function signOut(): Promise<void> {
     // Session may already be gone; clear locally regardless.
   }
   clearSession();
-  logoutFromWorkspaceMenu(); // existing nav/electron handling + auth-store.logout()
+  logoutFromWorkspaceMenu(); // existing nav handling + auth-store.logout()
 }

@@ -20,7 +20,6 @@ import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import { AuthGuard } from '@/app/components/ui/auth-guard'
 import { AuthHydrator } from '@/lib/store/auth-hydrator'
-import { ServerUrlGuard } from '@/app/components/electron/server-url-setup'
 
 // Extra pixels beyond sidebarWidth needed to accommodate the "More Chats"
 // secondary panel that SidebarBase adds when open (it widens the cluster).
@@ -63,13 +62,11 @@ export default function RootLayout({
                 {"Rotate your device for the best experience"}
               </Text>
             </div>
-            <ServerUrlGuard>
-              <AuthGuard>
-                <AppLayout sidebar={sidebar}>
-                  {children}
-                </AppLayout>
-              </AuthGuard>
-            </ServerUrlGuard>
+            <AuthGuard>
+              <AppLayout sidebar={sidebar}>
+                {children}
+              </AppLayout>
+            </AuthGuard>
             <ToastContainer />
           </ThemeProvider>
       </body>
