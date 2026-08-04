@@ -141,32 +141,3 @@ export function formatEnabledDate(timestamp?: number): string {
   });
 }
 
-/*
- * Converts a raw name to a slug suitable for icon filenames.
- * Lowercases everything and replaces spaces / special characters with hyphens.
- *
- * Examples:
- *   toIconSlug('openAI')        → 'openai'
- *   toIconSlug('Google Gemini') → 'google-gemini'
- *   toIconSlug('anthropic')     → 'anthropic'
- */
-export function toIconSlug(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_.,/\\]+/g, '-')  // spaces / separators → hyphen
-    .replace(/[^a-z0-9-]/g, '')    // strip remaining non-alphanumeric
-    .replace(/-+/g, '-')            // collapse consecutive hyphens
-    .replace(/^-+|-+$/g, '');       // trim leading / trailing hyphens
-}
-
-/**
- * Returns the canonical public path for an icon.
- *
- * @param subfolder - The subfolder inside public/icons/ (e.g. 'logos', 'connectors')
- * @param name      - The raw name to slugify (e.g. 'openAI', 'Google Gemini')
- * @returns Path like `/icons/logos/openai.svg`
- */
-export function toIconPath(subfolder: string, name: string): string {
-  return `/icons/${subfolder}/${toIconSlug(name)}.svg`;
-}
