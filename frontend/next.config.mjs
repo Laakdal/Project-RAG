@@ -20,12 +20,6 @@ const nextConfig = {
         // `proxyClientMaxBodySize` in Next 16; this is the Next 15 name.
         middlewareClientMaxBodySize: '60mb',
     },
-    /**
-     * Static export does not emit per-slug callback HTML. Rewrites map
-     * `/connectors/oauth/callback/:slug` → the corresponding static callback
-     * page so `next dev` matches Netlify `_redirects`.
-     * (Rewrites are not applied to `next export` output; production static hosts still need host rules.)
-     */
     async rewrites() {
         // Same-origin proxy for the split deployment (frontend local, backend on the
         // VPS). The browser only ever talks to THIS origin, so the session + CSRF
@@ -48,21 +42,6 @@ const nextConfig = {
                 // Drive library sync/status API — admin-only, kept same-origin like /admin.
                 { source: '/library/:path*', destination: `${backendOrigin}/library/:path*` },
                 { source: '/health', destination: `${backendOrigin}/health` },
-            ],
-            afterFiles: [
-                { source: '/connectors/oauth/callback/:slug', destination: '/connectors/oauth/callback/' },
-                { source: '/connectors/oauth/callback/:slug/', destination: '/connectors/oauth/callback/' },
-                // `/record/<recordId>` URLs can't ship a dynamic `[recordId]` segment
-                // under `output: 'export'`, so the build emits a single `/record/` shell.
-                // Rewrite every `/record/:id` to that shell for `next dev`; the page reads
-                // the id from `window.location.pathname`. Production static hosts get the
-                // same behavior from the Node.js backend SPA fallback.
-                // `/record/:id/preview` URLs (e.g. citation deep-links) are rewritten to
-                // the same shell; the client then redirects to the canonical `/record/:id`.
-                { source: '/record/:recordId', destination: '/record/' },
-                { source: '/record/:recordId/', destination: '/record/' },
-                { source: '/record/:recordId/preview', destination: '/record/' },
-                { source: '/record/:recordId/preview/', destination: '/record/' },
             ],
         };
     },
