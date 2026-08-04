@@ -1089,7 +1089,7 @@ function ChatContent() {
             }}
           >
             <Text size="4" weight="medium" style={{ color: 'var(--slate-12)' }}>
-              {"What do you want to explore today?"}
+              {"Apa yang ingin Anda jelajahi hari ini?"}
             </Text>
           </Box>
 
