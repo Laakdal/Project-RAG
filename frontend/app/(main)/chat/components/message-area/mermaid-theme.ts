@@ -56,6 +56,134 @@ const SECTIONS: ReadonlyArray<{ h: number; s: number; light: number }> = [
  */
 const DARK_SECTION_LIGHTNESS = 28;
 
+/**
+ * Hues for the DATA diagrams — pie slices and xychart plots.
+ *
+ * The `SECTIONS` series above cannot be reused here. It exists to reproduce
+ * mermaid's own derived mindmap colours byte-for-byte, so three of its twelve
+ * entries sit within 2° of each other (150/150/152) and differ only in
+ * saturation. Branches of a mindmap can carry that — they are labelled and
+ * spatially separated — but adjacent pie slices touch, so two low-saturation
+ * near-jades read as one wedge.
+ *
+ * These are spaced 40° apart instead, starting from the jade the rest of the UI
+ * is built on, so slice 1 stays on-brand and every neighbour is unmistakably
+ * different.
+ */
+const CHART_HUES = [152, 182, 212, 242, 272, 302, 332, 2, 32, 62, 92, 122] as const;
+
+/**
+ * Tones for the two data series.
+ *
+ * The constraints pull in opposite directions, which is why these are not one
+ * palette:
+ *
+ * - PIE carries its percentage label ON the slice, so every slice must clear
+ *   4.5:1 against `pieSectionTextColor`. Twelve slices that are all dark enough
+ *   for near-white labels cannot also stay far enough apart from one another —
+ *   a search over the whole hsl space returns no solution. Bright slices with
+ *   DARK labels is the only combination that satisfies both, and it satisfies
+ *   them identically in light and dark mode, so pie uses one series for both.
+ *   `l` alternates by `delta` so neighbouring wedges differ in lightness as
+ *   well as hue.
+ * - BAR carries no text, so it has no label-contrast constraint at all. What it
+ *   needs instead is to stand out from the PAGE — and the page is white in one
+ *   mode and near-black in the other. So bars, unlike slices, must flip.
+ */
+const PIE_TONE = { s: 62, l: 78, delta: -10 } as const;
+const BAR_TONE = {
+  light: { s: 62, l: 38, delta: -8 },
+  dark: { s: 62, l: 78, delta: -10 },
+} as const;
+
+/** hsl → #rrggbb. mermaid splits `plotColorPalette` on ',', which shatters any
+ *  `hsl(h, s%, l%)` value into three unusable fragments, so every chart colour
+ *  has to reach mermaid comma-free. */
+function hslToHex(h: number, s: number, l: number): string {
+  const sat = s / 100;
+  const lig = l / 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = sat * Math.min(lig, 1 - lig);
+  const f = (n: number) => lig - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const hex = (n: number) =>
+    Math.round(255 * f(n))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${hex(0)}${hex(8)}${hex(4)}`;
+}
+
+/** The chart series as hex, in mermaid's `pie1..pieN` order. */
+function chartSeries(tone: { s: number; l: number; delta: number }): string[] {
+  return CHART_HUES.map((h, i) => hslToHex(h, tone.s, tone.l + (i % 2 ? tone.delta : 0)));
+}
+
+/**
+ * Pie slice colours plus the surrounding text/stroke colours.
+ *
+ * `pieOpacity` is pinned to 1 because mermaid defaults it to 0.7 — at that
+ * opacity the rendered slice is a blend of the palette colour and whatever sits
+ * behind it, so the contrast guaranteed against `pieSectionTextColor` would not
+ * be the contrast actually on screen.
+ */
+function pieScale(mode: 'light' | 'dark'): Record<string, string> {
+  const out: Record<string, string> = {};
+  chartSeries(PIE_TONE).forEach((hex, i) => {
+    out[`pie${i + 1}`] = hex;
+  });
+
+  // Section labels sit ON a slice, so they stay dark in BOTH modes. Title and
+  // legend sit on the page, so they follow the appearance.
+  out.pieSectionTextColor = '#1c2024';
+  const pageText = mode === 'light' ? '#1c2024' : '#e2e8f0';
+  out.pieTitleTextColor = pageText;
+  out.pieLegendTextColor = pageText;
+  out.pieStrokeColor = mode === 'light' ? '#ffffff' : '#111113';
+  out.pieOuterStrokeColor = mode === 'light' ? '#ffffff' : '#111113';
+  out.pieStrokeWidth = '2px';
+  out.pieOuterStrokeWidth = '2px';
+  out.pieOpacity = '1';
+  return out;
+}
+
+/** Theme for `xychart-beta`. mermaid reads these from a NESTED `xyChart` object,
+ *  not from the flat variable namespace the other diagram types use. */
+export interface XyChartPalette {
+  backgroundColor: string;
+  titleColor: string;
+  xAxisLabelColor: string;
+  xAxisTitleColor: string;
+  xAxisTickColor: string;
+  xAxisLineColor: string;
+  yAxisLabelColor: string;
+  yAxisTitleColor: string;
+  yAxisTickColor: string;
+  yAxisLineColor: string;
+  plotColorPalette: string;
+}
+
+/**
+ * `backgroundColor` is transparent so the chart sits on the chat surface.
+ * mermaid's default is an opaque `#f4f4f4` card, which in dark mode reads as a
+ * hole punched in the page.
+ */
+function xyChartScale(mode: 'light' | 'dark'): XyChartPalette {
+  const text = mode === 'light' ? '#1c2024' : '#e2e8f0';
+  const axis = mode === 'light' ? '#208368' : '#4cc38a';
+  return {
+    backgroundColor: 'transparent',
+    titleColor: text,
+    xAxisLabelColor: text,
+    xAxisTitleColor: text,
+    xAxisTickColor: axis,
+    xAxisLineColor: axis,
+    yAxisLabelColor: text,
+    yAxisTitleColor: text,
+    yAxisTickColor: axis,
+    yAxisLineColor: axis,
+    plotColorPalette: chartSeries(BAR_TONE[mode]).join(', '),
+  };
+}
+
 function sectionScale(mode: 'light' | 'dark'): Record<string, string> {
   const out: Record<string, string> = {};
   SECTIONS.forEach((c, i) => {
@@ -74,12 +202,17 @@ function sectionScale(mode: 'light' | 'dark'): Record<string, string> {
   return out;
 }
 
-export const MERMAID_THEMES: Record<'light' | 'dark', Record<string, string>> = {
+/** A palette is flat string variables plus the one nested `xyChart` object. */
+export type MermaidPalette = Record<string, string | XyChartPalette>;
+
+export const MERMAID_THEMES: Record<'light' | 'dark', MermaidPalette> = {
   // Radix jade / olive on a light surface. Values match the pre-change render
   // exactly, including the two that mermaid previously derived for us
   // (mainBkg from primaryColor, edgeLabelBackground from secondaryColor).
   light: {
     ...sectionScale('light'),
+    ...pieScale('light'),
+    xyChart: xyChartScale('light'),
     primaryColor: '#e7f6ef',
     primaryBorderColor: '#29a383',
     primaryTextColor: '#1c2024',
@@ -99,6 +232,8 @@ export const MERMAID_THEMES: Record<'light' | 'dark', Record<string, string>> = 
   // The same jade identity inverted onto a dark surface.
   dark: {
     ...sectionScale('dark'),
+    ...pieScale('dark'),
+    xyChart: xyChartScale('dark'),
     primaryColor: '#0c2a22',
     primaryBorderColor: '#29a383',
     primaryTextColor: '#e2e8f0',
