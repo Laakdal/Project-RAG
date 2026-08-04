@@ -9,15 +9,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
-    // parse-download-markers.test.ts was authored as "executable the moment a
-    // unit-test runner is added" and never actually ran (the config previously
-    // had include:[] / globals:false). Two of its isTrustedApiUrl cases assume
-    // a jsdom origin of http://localhost/ (vitest's is port-bearing) and treat
-    // a relative same-origin string as "malformed", so it is excluded until
-    // triaged.
     exclude: [
       '**/node_modules/**',
-      '**/__tests__/parse-download-markers.test.ts',
     ],
     passWithNoTests: true,
   },

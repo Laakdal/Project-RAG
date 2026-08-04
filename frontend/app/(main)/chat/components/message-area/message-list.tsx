@@ -8,7 +8,7 @@ import { extractIdssBlocks, isIdssFollowup } from './idss-followup';
 import { useChatStore } from '../../store';
 import { debugLog } from '../../debug-logger';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
-import type { AppliedFilters, AttachmentRef, ChatArtifact, ChatSource } from '../../types';
+import type { AppliedFilters, AttachmentRef, ChatSource } from '../../types';
 import type { ConfidenceLevel, ModelInfo } from '../../types';
 import type { Source as RagSource } from '../../rag-api';
 import type { CitationMaps, CitationData } from './response-tabs/citations';
@@ -24,7 +24,6 @@ import { listAttachments } from '../../rag-api';
 // `?? []` or `?? null` in a selector body creates a new ref every call,
 // defeating Object.is comparison.
 const EMPTY_ARRAY: never[] = [];
-const STABLE_EMPTY_ARTIFACTS: ChatArtifact[] = [];
 const CHAT_INPUT_RESERVED = 160; // height reserved for the chat input overlay
 /** Streaming: distance from bottom (px) to count as flush for resuming tail-follow */
 const STREAMING_RESUME_DIST_FLUSH_PX = 4;
@@ -236,9 +235,6 @@ export function MessageList() {
   );
   const currentStatusMessage = useChatStore((s) =>
     s.activeSlotId ? s.slots[s.activeSlotId]?.currentStatusMessage ?? null : null
-  );
-  const streamingArtifacts = useChatStore((s) =>
-    s.activeSlotId ? s.slots[s.activeSlotId]?.artifacts ?? STABLE_EMPTY_ARTIFACTS : STABLE_EMPTY_ARTIFACTS
   );
   const messagePagination = useChatStore((s) =>
     s.activeSlotId ? s.slots[s.activeSlotId]?.messagePagination ?? null : null
@@ -1254,7 +1250,6 @@ export function MessageList() {
                   streamingContent={pair.isStreaming ? streamingContent : undefined}
                   currentStatusMessage={pair.isStreaming ? currentStatusMessage : undefined}
                   streamingCitationMaps={pair.isStreaming ? streamingCitationMaps : undefined}
-                  streamingArtifacts={pair.isStreaming ? streamingArtifacts : undefined}
                 />
 
               </div>

@@ -18,7 +18,6 @@ import {
   SSEAnswerChunkEvent,
   SSECompleteEvent,
   SSEErrorEvent,
-  SSEArtifactEvent,
   AvailableLlmModel,
   SearchRequest,
   SearchResponse,
@@ -41,7 +40,6 @@ export interface StreamMessageCallbacks {
   onStatus?: (data: SSEStatusEvent) => void;
   onChunk?: (data: SSEAnswerChunkEvent) => void;
   onComplete?: (data: SSECompleteEvent) => void;
-  onArtifact?: (data: SSEArtifactEvent) => void;
   /** Backend is discarding partial output (citation verify / re-parse) — clear UI buffer */
   onRestreaming?: () => void;
   onError?: (error: Error) => void;
@@ -320,9 +318,6 @@ export const ChatApi = {
               break;
             case 'metadata':
               // Citations / enrichment hints — UI uses answer_chunk + complete; ignore payload
-              break;
-            case 'artifact':
-              callbacks.onArtifact?.(event.data as SSEArtifactEvent);
               break;
             case 'error':
               // SSE error events may be non-fatal — the backend might still

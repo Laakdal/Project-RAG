@@ -28,8 +28,6 @@ import {
   type StatusMessage,
   type ModelOverride,
   type SSEConnectedEvent,
-  type ChatArtifact,
-  type SSEArtifactEvent,
 } from './types';
 import {
   buildCitationMapsFromStreaming,
