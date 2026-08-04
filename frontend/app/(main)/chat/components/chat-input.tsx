@@ -5,11 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { Flex, Box, Text, IconButton, Tooltip, Popover } from '@radix-ui/themes';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
-import { ChatInputExpansionPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-expansion-panel';
-import { ChatInputOverlayPanel } from '@/chat/components/chat-panel/expansion-panels/chat-input-overlay-panel';
-import { ConnectorsCollectionsPanel } from '@/chat/components/chat-panel/expansion-panels/connectors-collections/connectors-collections-panel';
 import { MessageActionIndicator } from '@/chat/components/chat-panel/expansion-panels/message-actions';
-import { ModelSelectorPanel } from '@/chat/components/chat-panel/expansion-panels/model-selector/model-selector-panel';
 import { SelectedCollections } from '@/chat/components/selected-collections';
 import { resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
 import { getQueryModeConfig } from '@/chat/constants';
@@ -114,16 +110,10 @@ export function ChatInput({
   expandable = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
-  const [showUploadArea, setShowUploadArea] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(variant === 'full');
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
-  const [isModePanelOpen, setIsModePanelOpen] = useState(false);
-  const [isCollectionsPanelOpen, setIsCollectionsPanelOpen] = useState(false);
-  const [isModelPanelOpen, setIsModelPanelOpen] = useState(false);
-  const [isMobileModesOpen, setIsMobileModesOpen] = useState(false);
   const [isCompactToolbar, setIsCompactToolbar] = useState(false);
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -176,24 +166,8 @@ export function ChatInput({
   // Read all chat settings directly from the shared store
   const settings = useChatStore((s) => s.settings);
   const setFilters = useChatStore((s) => s.setFilters);
-  const setSelectedModelForCtx = useChatStore((s) => s.setSelectedModelForCtx);
   const collectionNamesCache = useChatStore((s) => s.collectionNamesCache);
   const collectionMetaCache = useChatStore((s) => s.collectionMetaCache);
-  // Context key for the assistant chat. Model reads/writes below are keyed by
-  // this.
-  const modelCtxKey = ctxKeyFromAgent(null);
-  const contextSelectedModel = settings.selectedModels[modelCtxKey] ?? null;
-  const contextDefaultModel = settings.defaultModels[modelCtxKey] ?? null;
-  const handleModelSelect = useCallback(
-    (model: ModelOverride | null) => {
-      setSelectedModelForCtx(modelCtxKey, model);
-    },
-    [setSelectedModelForCtx, modelCtxKey],
-  );
-
-  // Expansion panel view mode (inline vs overlay) from store
-  const expansionViewMode = useChatStore((s) => s.expansionViewMode);
-  const setExpansionViewMode = useChatStore((s) => s.setExpansionViewMode);
   const setComposerUploads = useChatStore((s) => s.setComposerUploads);
 
   // Active slot ID for regenerate/edit flows
@@ -218,36 +192,13 @@ export function ChatInput({
     });
   }, []);
 
-  const handleToggleView = useCallback(() => {
-    setExpansionViewMode(expansionViewMode === 'inline' ? 'overlay' : 'inline');
-  }, [expansionViewMode, setExpansionViewMode]);
-
   const showFullUI = variant === 'full' || isExpanded;
   const resolvedWidgetPlaceholder = widgetPlaceholder || resolvedPlaceholder;
 
   const isSearchMode = settings.mode === 'search';
   const canAcceptDrop = !isRegenerateMode && !isSearchMode && settings.queryMode !== 'web-search';
   const activeQueryConfig = getQueryModeConfig(settings.queryMode) ?? getQueryModeConfig('chat')!;
-  /** Internal-search / chat modes: `settings.filters` drives the connectors & collections picker. */
-  const hubFilterQueryMode = settings.queryMode !== 'web-search';
-  /** Assistant collections overlay is active (web search never uses this chrome). */
-  const assistantCollectionsOverlayActive =
-    isCollectionsPanelOpen && settings.queryMode !== 'web-search';
   const modeColors = activeQueryConfig.colors;
-  /** Query-mode panel — chrome + outside click. */
-  const modeChromeOpen = isModePanelOpen;
-
-  const dismissExpansionPanels = useCallback(() => {
-    setIsModePanelOpen(false);
-    setIsCollectionsPanelOpen(false);
-    setIsModelPanelOpen(false);
-    setShowUploadArea(false);
-  }, []);
-
-  const dismissExpansionPanelsRef = useRef(dismissExpansionPanels);
-  useEffect(() => {
-    dismissExpansionPanelsRef.current = dismissExpansionPanels;
-  }, [dismissExpansionPanels]);
 
   // Build selected collections from store (roots → apps API; record groups → kb API).
   // Includes connector metadata so pills show the right icon per source type.
@@ -312,8 +263,7 @@ export function ChatInput({
     collectionMetaCache,
   ]);
 
-  const showSelectedCollectionsRow =
-    selectedCollections.length > 0 && !isCollectionsPanelOpen && !modeChromeOpen;
+  const showSelectedCollectionsRow = selectedCollections.length > 0;
 
   const handleRemoveCollection = useCallback(
     (id: string) => {
@@ -347,19 +297,18 @@ export function ChatInput({
   // Both handlers are registered on the global command bus (useCommandStore) so
   // ChatResponse / MessageActions can trigger them without prop drilling.
 
-  // Regenerate: closes all panels, sets activeMessageAction, and pre-fills the
-  // textarea with the original question text (dispatched from message-actions.tsx
+  // Regenerate: sets activeMessageAction and pre-fills the textarea with the
+  // original question text (dispatched from message-actions.tsx
   // as { messageId, text: question }).
   const handleShowRegenBar = useCallback((payload?: unknown) => {
     if (typeof payload !== 'object' || payload === null) return;
     const { messageId, text, appliedFilters } = payload as { messageId: string; text?: string; appliedFilters?: AppliedFilters };
     if (!messageId) return;
-    dismissExpansionPanels();
     setRegenModelOverride(null);
     setActiveMessageAction({ type: 'regenerate', messageId, appliedFilters });
     // Pre-fill textarea so user can see what will be regenerated (shown dimmed/disabled)
     setMessage(text ?? '');
-  }, [dismissExpansionPanels]);
+  }, []);
 
   // Edit query: same as regenerate but the textarea is editable so the user can
   // amend the question before resending. Also focuses the textarea immediately.
@@ -370,13 +319,12 @@ export function ChatInput({
       typeof (payload as Record<string, unknown>).messageId !== 'string'
     ) return;
     const { messageId, text } = payload as { messageId: string; text: string };
-    dismissExpansionPanels();
     setRegenModelOverride(null);
     setActiveMessageAction({ type: 'editQuery', messageId, text });
     // Populate the textarea with the original question so the user can edit it
     setMessage(text ?? '');
     setTimeout(() => textareaRef.current?.focus(), 0);
-  }, [dismissExpansionPanels]);
+  }, []);
 
   // Dismissing either action clears the pill bar and resets the textarea to empty.
   const handleDismissAction = useCallback(() => {
@@ -459,7 +407,6 @@ export function ChatInput({
       onSend(message, refs.length > 0 ? refs : undefined);
       setMessage('');
       setUploadedFiles([]);
-      setShowUploadArea(false);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -596,8 +543,6 @@ export function ChatInput({
     for (const file of newFiles) {
       startUpload(file);
     }
-
-    setShowUploadArea(false);
   }, [startUpload, uploadedFiles]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -606,29 +551,6 @@ export function ChatInput({
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    setIsPanelDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
     }
   };
 
@@ -787,20 +709,6 @@ export function ChatInput({
     setUploadedFiles([]);
   }, [activeConvId]);
 
-  // Close panels on outside click
-  useEffect(() => {
-    if (!modeChromeOpen && !isCollectionsPanelOpen && !isModelPanelOpen && !showUploadArea) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (expansionViewMode === 'overlay') return;
-
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        dismissExpansionPanelsRef.current();
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [modeChromeOpen, isCollectionsPanelOpen, isModelPanelOpen, showUploadArea, expansionViewMode]);
-
   const handleExpand = () => {
     if (expandable && !isExpanded) {
       setIsAnimatingIn(true);
@@ -814,18 +722,6 @@ export function ChatInput({
       textareaRef.current.focus();
     }
   }, [isExpanded, variant]);
-
-  // Dismiss collections chrome when it no longer applies (stale panel / overlay).
-  const prevQueryModeRef = useRef(settings.queryMode);
-  useEffect(() => {
-    const prev = prevQueryModeRef.current;
-    prevQueryModeRef.current = settings.queryMode;
-    if (!isCollectionsPanelOpen) return;
-    if (settings.queryMode === 'web-search') {
-      setIsCollectionsPanelOpen(false);
-      setExpansionViewMode('inline');
-    }
-  }, [settings.queryMode, isCollectionsPanelOpen, setExpansionViewMode]);
 
   if (!showFullUI) {
     return (
@@ -982,9 +878,7 @@ export function ChatInput({
         // Flatten top corners whenever there is an element directly above (collections bar,
         // uploaded files preview, or the action pill bar) to avoid a double-radius gap.
         borderRadius:
-          (selectedCollections.length > 0 &&
-            !isCollectionsPanelOpen &&
-            !modeChromeOpen) ||
+          selectedCollections.length > 0 ||
           uploadedFiles.length > 0 ||
           isActionMode
             ? '0 0 var(--radius-2) var(--radius-2)'
@@ -1005,123 +899,10 @@ export function ChatInput({
         style={{ display: 'none' }}
       />
 
-      {/* Upload Area */}
-      {showUploadArea && (
-        <Flex direction="column" gap="2">
-          <Text size="2" style={{ color: 'var(--slate-12)' }}>{"Upload your File"}</Text>
-          <Box
-            style={{
-              // Sits above the panel-level drop overlay (zIndex:10) so the
-              // dedicated upload box owns drag/drop directly while it's open.
-              position: 'relative',
-              zIndex: 11,
-              border: `2px dashed ${isDragging ? 'var(--accent-8)' : 'var(--slate-6)'}`,
-              borderRadius: 'var(--radius-4)',
-              padding: 'var(--space-7)',
-              transition: 'all 0.15s',
-              backgroundColor: isDragging ? 'var(--accent-2)' : 'transparent',
-              cursor: 'pointer',
-            }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Flex direction="column" align="center" gap="2">
-              <MaterialIcon
-                name={isDragging ? 'file_upload' : 'add'}
-                size={isDragging ? 32 : 24}
-                color={isDragging ? 'var(--accent-9)' : 'var(--slate-9)'}
-              />
-              <Text
-                size="2"
-                weight={isDragging ? 'medium' : 'regular'}
-                style={{ color: isDragging ? 'var(--accent-11)' : 'var(--slate-12)' }}
-              >
-                {isDragging ? "Drop files here" : "Upload"}
-              </Text>
-              <Text size="1" style={{ color: 'var(--slate-11)' }}>
-                {`Supports: ${SUPPORTED_FILE_TYPES.join(', ')}.`}
-              </Text>
-              <Text size="1" style={{ color: 'var(--slate-10)' }}>
-                {uploadedFiles.length > 0
-                  ? `${CHAT_ATTACHMENT_MAX_FILES - uploadedFiles.length} of ${CHAT_ATTACHMENT_MAX_FILES} files remaining`
-                  : `Up to ${CHAT_ATTACHMENT_MAX_FILES} files per message`}
-              </Text>
-            </Flex>
-          </Box>
-        </Flex>
-      )}
-
-      {/* Input or expansion panel (mutually exclusive) */}
-      {isModelPanelOpen ? (
-        <ChatInputExpansionPanel
-          open={isModelPanelOpen}
-          onClose={() => setIsModelPanelOpen(false)}
-        >
-          <ModelSelectorPanel
-            selectedModel={contextSelectedModel ?? contextDefaultModel}
-            onModelSelect={handleModelSelect}
-          />
-        </ChatInputExpansionPanel>
-      ) : hubFilterQueryMode && isCollectionsPanelOpen && expansionViewMode === 'inline' ? (
-        <ChatInputExpansionPanel
-          open={isCollectionsPanelOpen}
-          onClose={() => {
-            setIsCollectionsPanelOpen(false);
-            setExpansionViewMode('inline');
-          }}
-        >
-          <ConnectorsCollectionsPanel
-            apps={settings.filters?.apps ?? []}
-            kb={settings.filters?.kb ?? []}
-            onSelectionChange={(next) => {
-              setFilters({
-                ...settings.filters,
-                apps: next.apps,
-                kb: next.kb,
-              });
-            }}
-            viewMode="inline"
-            onToggleView={handleToggleView}
-          />
-        </ChatInputExpansionPanel>
-      ) : assistantCollectionsOverlayActive && expansionViewMode === 'overlay' ? (
-        /* Render textarea underneath while overlay is open */
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsInputFocused(true)}
-          onBlur={() => setIsInputFocused(false)}
-          placeholder={resolvedPlaceholder}
-          rows={1}
-          style={{
-            width: '100%',
-            backgroundColor: 'transparent',
-            outline: 'none',
-            border: 'none',
-            fontSize: 'var(--font-size-2)',
-            color: 'var(--slate-11)',
-            resize: 'none',
-            minHeight: '24px',
-            maxHeight: '120px',
-            fontFamily: 'Manrope, sans-serif',
-            height: 'auto',
-            overflow: 'auto',
-          }}
-          onInput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = 'auto';
-            target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
-          }}
-        />
-      ) : !showUploadArea || isActionMode ? (
-        // isActionMode keeps the textarea visible even when showUploadArea is true,
-        // so the user can see / edit their query during edit or regenerate flows.
-        // In regenerate mode the textarea is disabled and text is rendered dimmed;
-        // in edit mode it is fully editable (focused immediately on activation).
-        <textarea
+      {/* Input. In regenerate mode the textarea is disabled and text is rendered
+          dimmed; in edit mode it is fully editable (focused immediately on
+          activation). */}
+      <textarea
           ref={textareaRef}
           value={displayValue}
           onChange={(e) => setMessage(e.target.value)}
@@ -1150,8 +931,7 @@ export function ChatInput({
             target.style.height = 'auto';
             target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
           }}
-        />
-      ) : null}
+      />
 
       {/* Bottom controls */}
       <Flex align="center" justify="between">
@@ -1162,7 +942,7 @@ export function ChatInput({
           {!isCompactToolbar && !isSearchMode && settings.queryMode !== 'web-search' && (
             <Tooltip content={"Attach files"} side="top">
               <IconButton
-                variant={showUploadArea ? 'soft' : 'ghost'}
+                variant="ghost"
                 color="gray"
                 size="2"
                 disabled={isRegenerateMode}
@@ -1222,7 +1002,7 @@ export function ChatInput({
                         borderRadius: 'var(--radius-2)',
                         cursor: isRegenerateMode ? 'default' : 'pointer',
                         opacity: isRegenerateMode ? 0.5 : 1,
-                        backgroundColor: showUploadArea ? 'var(--olive-3)' : 'transparent',
+                        backgroundColor: 'transparent',
                       }}
                     >
                       <MaterialIcon name="add" size={ICON_SIZES.PRIMARY} color={isRegenerateMode ? 'var(--slate-5)' : activeIconColor} />
@@ -1318,29 +1098,6 @@ export function ChatInput({
       </Box>
     )}
     </Flex>
-
-    {/* Overlay panel — collections (overlay mode) */}
-    <ChatInputOverlayPanel
-      open={expansionViewMode === 'overlay' && assistantCollectionsOverlayActive}
-      onCollapse={() => setExpansionViewMode('inline')}
-    >
-      {hubFilterQueryMode ? (
-        <ConnectorsCollectionsPanel
-          apps={settings.filters?.apps ?? []}
-          kb={settings.filters?.kb ?? []}
-          onSelectionChange={(next) => {
-            setFilters({
-              ...settings.filters,
-              apps: next.apps,
-              kb: next.kb,
-            });
-          }}
-          viewMode="overlay"
-          onToggleView={handleToggleView}
-        />
-      ) : null}
-    </ChatInputOverlayPanel>
-
     </>
   );
 }
