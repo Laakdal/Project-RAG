@@ -1,37 +1,3 @@
-import { FILE_ICON_MAP } from '@/lib/constants/file-icons';
-import type { FileIconStyle, FileIconExtension } from '@/lib/constants/file-icons';
-
-// For now, always use light mode (TODO: use theme when dark icons available)
-const USE_LIGHT_MODE_ALWAYS = true;
-
-/**
- * Get the full path to a file icon
- * @param extension - File extension (e.g., 'pdf', 'jpg')
- * @param style - Icon style: 'color', 'flat', or 'line' (default: 'color')
- * @param theme - Theme mode: 'light' or 'dark' (default: 'light')
- * @returns Icon path or null if not found
- */
-export function getFileIconPath(
-  extension: string,
-  style: FileIconStyle = 'color',
-  theme: 'light' | 'dark' = 'light'
-): string | null {
-  const normalizedExt = normalizeExtension(extension);
-
-  if (!FILE_ICON_MAP[normalizedExt as FileIconExtension]) {
-    return null; // Icon not found
-  }
-
-  // For now, always use light mode icons (dark folder is empty)
-  const folder = USE_LIGHT_MODE_ALWAYS
-    ? 'light-file-icons'
-    : theme === 'dark'
-    ? 'dark-file-icons'
-    : 'light-file-icons';
-
-  return `/icons/${folder}/${normalizedExt}-text-${style}.svg`;
-}
-
 /**
  * Extract file extension from filename
  * @param filename - Full filename with extension
@@ -40,31 +6,6 @@ export function getFileIconPath(
 export function getFileExtension(filename: string): string | null {
   const match = filename.match(/\.([^.]+)$/);
   return match ? match[1].toLowerCase() : null;
-}
-
-/**
- * Normalize file extension (lowercase, remove dot, handle special cases)
- * @param ext - File extension
- * @returns Normalized extension
- */
-export function normalizeExtension(ext: string): string {
-  const normalized = ext.toLowerCase().replace(/^\./, '');
-
-  // Handle special cases - map to available icons
-  if (normalized === 'jpeg') return 'jpg';
-  if (normalized === 'docx') return 'doc'; // Use same icon for doc/docx
-
-  return normalized;
-}
-
-/**
- * Check if a file icon is available for the given extension
- * @param extension - File extension to check
- * @returns True if icon exists, false otherwise
- */
-export function isFileIconAvailable(extension: string): boolean {
-  const normalized = normalizeExtension(extension);
-  return normalized in FILE_ICON_MAP;
 }
 
 /**
