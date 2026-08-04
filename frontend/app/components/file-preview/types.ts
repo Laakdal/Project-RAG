@@ -1,6 +1,6 @@
 'use client';
 
-import type { RecordDetailsResponse } from '@/app/(main)/knowledge-base/types';
+
 
 /**
  * Source types that determine which tabs are available
@@ -128,9 +128,6 @@ export interface FilePreviewProps {
    */
   error?: string;
   
-  /** Record details from API */
-  recordDetails?: RecordDetailsResponse;
-
   /** Initial page to navigate to (e.g. from citation pageNum) */
   initialPage?: number;
 

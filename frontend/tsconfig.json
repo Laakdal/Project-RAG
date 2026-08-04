@@ -24,7 +24,6 @@
       "paths": {
         "@/*": ["./*"],
         "@/chat/*": ["./app/(main)/chat/*"],
-        "@/knowledge-base/*": ["./app/(main)/knowledge-base/*"],
         "@/workspace/*": ["./app/(main)/workspace/*"]
       }
     },

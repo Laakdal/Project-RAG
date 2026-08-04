@@ -15,11 +15,9 @@ export default defineConfig({
     passWithNoTests: true,
   },
   resolve: {
-    // Mirror the tsconfig path aliases. The more-specific @/chat, @/knowledge-base
     // and @/workspace entries MUST come before the catch-all @ so they win.
     alias: {
       '@/chat': path.resolve(__dirname, 'app/(main)/chat'),
-      '@/knowledge-base': path.resolve(__dirname, 'app/(main)/knowledge-base'),
       '@/workspace': path.resolve(__dirname, 'app/(main)/workspace'),
       '@': path.resolve(__dirname, '.'),
     },

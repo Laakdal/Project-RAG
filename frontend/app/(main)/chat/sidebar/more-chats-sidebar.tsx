@@ -14,7 +14,7 @@ import { ChatApi } from '@/chat/api';
 import { ChatSectionElement } from './chat-section-element';
 import { MORE_CHATS_PAGE_SIZE } from '../constants';
 import { buildChatHref } from '@/chat/build-chat-url';
-import { useDebouncedSearch } from '@/knowledge-base/hooks/use-debounced-search';
+import { useDebouncedSearch } from '@/lib/hooks/use-debounced-search';
 import type { Conversation } from '@/chat/types';
 
 interface MoreChatsSidebarProps {

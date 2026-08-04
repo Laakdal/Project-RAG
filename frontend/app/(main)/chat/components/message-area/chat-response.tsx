@@ -28,7 +28,6 @@ import {
   isLegacyWordDocFile,
   resolvePreviewMimeAfterStream,
 } from '@/app/components/file-preview/utils';
-import { KnowledgeBaseApi } from '@/knowledge-base/api';
 import { CitationMessageRowKeyContext } from './response-tabs/citations/citation-popover-control';
 
 // Stable empty reference — avoids creating new objects in default params
@@ -194,62 +193,6 @@ export const ChatResponse = React.memo(function ChatResponse({
   // eslint-disable-next-line react-hooks/refs -- intentional: update previous-props snapshot for next render diff
   prevCRRef.current = currentCRVals;
 
-  const setPreviewFile = useChatStore((s) => s.setPreviewFile);
-  const setPreviewMode = useChatStore((s) => s.setPreviewMode);
-
-  const handleAttachmentPreview = useCallback(
-    async (att: AttachmentRef) => {
-      setPreviewFile({
-        id: att.recordId,
-        name: att.recordName,
-        url: '',
-        type: att.mimeType,
-        isLoading: true,
-        hideFileDetails: true,
-        showDownload: true,
-      });
-      setPreviewMode('sidebar');
-
-      try {
-        const streamAsPdf =
-          isPresentationFile(att.mimeType, att.recordName) ||
-          isLegacyWordDocFile(att.mimeType, att.recordName);
-        const streamOptions = streamAsPdf ? { convertTo: 'application/pdf' } : undefined;
-        const blob = await KnowledgeBaseApi.streamRecord(att.recordId, streamOptions);
-        const resolvedType = resolvePreviewMimeAfterStream(
-          att.mimeType,
-          att.recordName,
-          blob,
-          !!streamOptions,
-        );
-        const isDocx = isDocxFile(att.mimeType, att.recordName, att.recordName, att.extension, att.extension);
-        const url = isDocx ? '' : URL.createObjectURL(blob);
-        setPreviewFile({
-          id: att.recordId,
-          name: att.recordName,
-          url,
-          blob: isDocx ? blob : undefined,
-          type: resolvedType,
-          isLoading: false,
-          previewRenderable: true,
-          hideFileDetails: true,
-          showDownload: true,
-        });
-      } catch (error) {
-        setPreviewFile({
-          id: att.recordId,
-          name: att.recordName,
-          url: '',
-          type: att.mimeType,
-          error: error instanceof Error ? error.message : 'Failed to load file',
-          isLoading: false,
-          hideFileDetails: true,
-          showDownload: true,
-        });
-      }
-    },
-    [setPreviewFile, setPreviewMode],
-  );
 
   // Merge streaming citations when streaming, fall back to metadata citations
   const effectiveCitationMaps = isStreaming && streamingCitationMaps
@@ -451,7 +394,6 @@ export const ChatResponse = React.memo(function ChatResponse({
               gap="1"
               role="button"
               title={att.recordName}
-              onClick={() => handleAttachmentPreview(att)}
               style={{
                 flexShrink: 0,
                 padding: 'var(--space-1) var(--space-2)',

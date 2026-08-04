@@ -24,7 +24,6 @@ import { usePendingChatStore } from '@/lib/store/pending-chat-store';
 import { useSidebarWidthStore } from '@/lib/store/sidebar-width-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { Flex, Box, Text, Avatar, Tooltip, IconButton } from '@radix-ui/themes';
-import { FilePreviewInlinePanel, FilePreviewFullscreen } from '@/app/components/file-preview';
 import { ShareSidebar, ShareHeaderGroup } from '@/app/components/share';
 import type { SharedAvatarMember } from '@/app/components/share';
 import { createChatShareAdapter } from './share-adapter';
@@ -78,16 +77,12 @@ function ChatContent() {
   // ── Narrow selectors: only re-render when the selected value changes ──
   // Actions are stable refs in Zustand — selecting them individually
   // prevents this component from re-rendering on background slot updates.
-  const previewFile = useChatStore((s) => s.previewFile);
-  const previewMode = useChatStore((s) => s.previewMode);
   const setConversations = useChatStore((s) => s.setConversations);
   const setSharedConversations = useChatStore((s) => s.setSharedConversations);
   const setIsConversationsLoading = useChatStore((s) => s.setIsConversationsLoading);
   const setConversationsError = useChatStore((s) => s.setConversationsError);
   const setPagination = useChatStore((s) => s.setPagination);
   const setSharedPagination = useChatStore((s) => s.setSharedPagination);
-  const setPreviewMode = useChatStore((s) => s.setPreviewMode);
-  const clearPreview = useChatStore((s) => s.clearPreview);
 
   // Nav sidebar collapse state — used to show the expand button when collapsed
   const isNavCollapsed = useSidebarWidthStore((s) => s.isNavCollapsed);
@@ -134,7 +129,7 @@ function ChatContent() {
   debugLog.tick('[chat] [ChatContent]');
   const prevChatContentRef = useRef<Record<string, unknown>>({});
   const currentChatContentVals: Record<string, unknown> = {
-    conversationId, agentId, previewFile, previewMode,
+    conversationId, agentId,
     activeSlotId, hasActiveSlot, activeSlotIsTemp,
     activeSlotIsInitialized, activeSlotIsStreaming, activeSlotConvId,
     activeSlotMsgCount,
@@ -803,7 +798,6 @@ function ChatContent() {
 
   // ── Split-pane layout: chat left | drag handle | preview right ────────────
   // Active on desktop when a file preview is open in 'sidebar' mode.
-  const showSplitPane = !!previewFile && previewMode === 'sidebar' && !isMobile;
 
   // ── Auto-close preview when the active conversation changes ──────────────
   // Tracks the previous conversationId so we only clear on actual changes,
@@ -817,10 +811,9 @@ function ChatContent() {
     }
     if (prevConversationIdRef.current !== conversationId) {
       prevConversationIdRef.current = conversationId;
-      clearPreview();
       setFilesPanelMobileOpen(false);
     }
-  }, [conversationId, clearPreview]);
+  }, [conversationId]);
 
   // The nav sidebar stays open when a split-pane preview opens — the user keeps
   // their chat history visible. (It previously auto-collapsed to make room; the
@@ -1193,8 +1186,7 @@ function ChatContent() {
           direction="column"
           align="center"
           style={{
-            flex: showSplitPane ? `0 0 ${chatPanelWidthPx}px` : '1',
-            minWidth: showSplitPane ? `${CHAT_PANEL_MIN_PX}px` : undefined,
+            flex: 1,
             height: '100%',
             position: 'relative',
             overflow: 'hidden',
@@ -1203,83 +1195,11 @@ function ChatContent() {
           {chatColumnBody}
         </Flex>
 
-        {/* Drag handle + preview panel — appear when split-pane is active */}
-        {showSplitPane && (
-          <>
-            {/* Drag handle — 8 px hit-area */}
-            <Box
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize chat and preview panels"
-              onPointerDown={beginSplitResize}
-              style={{
-                width: '8px',
-                flexShrink: 0,
-                alignSelf: 'stretch',
-                cursor: 'col-resize',
-                touchAction: 'none',
-                zIndex: 10,
-                position: 'relative',
-                backgroundColor: 'var(--olive-3)',
-              }}
-              onPointerEnter={(ev) => {
-                ev.currentTarget.style.backgroundColor = 'var(--olive-5)';
-              }}
-              onPointerLeave={(ev) => {
-                ev.currentTarget.style.backgroundColor = 'var(--olive-3)';
-              }}
-            />
-
-            {/* Right panel — slides in from right on mount */}
-            <Box
-              style={{
-                flex: 1,
-                minWidth: 0,
-                height: '100%',
-                overflow: 'hidden',
-                position: 'relative',
-                animation: 'slideInFromRight 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-            >
-              {/* previewFile is always truthy here because showSplitPane = !!previewFile && ...
-                  The extra guard is needed for TypeScript to narrow the type. */}
-              {previewFile && (
-                <FilePreviewInlinePanel
-                  source="chat"
-                  file={{
-                    id: previewFile.id,
-                    name: previewFile.name,
-                    url: previewFile.url,
-                    blob: previewFile.blob,
-                    type: previewFile.type,
-                    size: previewFile.size,
-                    webUrl: previewFile.webUrl,
-                    previewRenderable: previewFile.previewRenderable,
-                  }}
-                  isLoading={previewFile.isLoading}
-                  error={previewFile.error}
-                  recordDetails={previewFile.recordDetails}
-                  initialPage={previewFile.initialPage}
-                  highlightBox={previewFile.highlightBox}
-                  citations={previewFile.citations}
-                  initialCitationId={previewFile.initialCitationId}
-                  hideFileDetails={previewFile.hideFileDetails}
-                  showDownload={previewFile.showDownload}
-                  defaultTab="preview"
-                  onToggleFullscreen={() => setPreviewMode('fullscreen')}
-                  onClose={() => clearPreview()}
-                />
-              )}
-            </Box>
-          </>
-        )}
-
         {/* Files-in-this-chat side panel — collapsible + resizable, with a width
             slide animation on collapse/expand (matches the left sidebar). Desktop
-            only, when a conversation is open and the split-pane preview is NOT
-            showing (one right panel at a time). On mobile it opens as an overlay
+            only, when a conversation is open. On mobile it opens as an overlay
             (below) instead. */}
-        {conversationId && !showSplitPane && !isMobile && (
+        {conversationId && !isMobile && (
           <>
             {/* Resize handle — only when expanded; drag left/right to set width */}
             {!filesPanelCollapsed && (
@@ -1403,38 +1323,6 @@ function ChatContent() {
         </>
       )}
 
-      {/* File Preview - Fullscreen overlay.
-          Shown in two cases:
-          1. Desktop: user explicitly entered fullscreen mode.
-          2. Mobile: the split-pane is unavailable, so the sidebar-mode preview
-             falls back to this full-screen overlay automatically. */}
-      {previewFile && (previewMode === 'fullscreen' || (isMobile && previewMode === 'sidebar')) && (
-        <FilePreviewFullscreen
-          source="chat"
-          file={{
-            id: previewFile.id,
-            name: previewFile.name,
-            url: previewFile.url,
-            blob: previewFile.blob,
-            type: previewFile.type,
-            size: previewFile.size,
-            webUrl: previewFile.webUrl,
-            previewRenderable: previewFile.previewRenderable,
-          }}
-          isLoading={previewFile.isLoading}
-          error={previewFile.error}
-          recordDetails={previewFile.recordDetails}
-          initialPage={previewFile.initialPage}
-          highlightBox={previewFile.highlightBox}
-          citations={previewFile.citations}
-          initialCitationId={previewFile.initialCitationId}
-          hideFileDetails={previewFile.hideFileDetails}
-          showDownload={previewFile.showDownload}
-          defaultTab="preview"
-          onExitFullscreen={isMobile ? undefined : () => setPreviewMode('sidebar')}
-          onClose={() => clearPreview()}
-        />
-      )}
 
       {/* Share Sidebar */}
       {showConversationShare && chatShareAdapter && (

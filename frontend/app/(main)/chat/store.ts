@@ -12,62 +12,8 @@ import {
   SearchResultItem,
   type ModelInfo,
 } from './types';
-import type { RecordDetailsResponse } from '@/knowledge-base/types';
 import type { PreviewCitation } from '@/app/components/file-preview/types';
 
-/**
- * File preview state for citation preview in chat.
- */
-export interface ChatPreviewFile {
-  id: string;
-  name: string;
-  url: string;
-  /**
-   * Raw Blob for the streamed file. Populated only for renderers that are
-   * better fed the binary data directly (DOCX via `docx-preview`) — avoids
-   * the extra `URL.createObjectURL` + re-`fetch` roundtrip that was causing
-   * the DOCX preview pane to stay blank.
-   */
-  blob?: Blob;
-  type: string;
-  size?: number;
-  isLoading?: boolean;
-  error?: string;
-  recordDetails?: RecordDetailsResponse;
-  /** Initial page to navigate to (from citation pageNum) */
-  initialPage?: number;
-  /** Bounding box for highlighting the cited region (normalized 0-1 coordinates) */
-  highlightBox?: Array<{ x: number; y: number }>;
-  /** Citations for the previewed record (used by the CitationsPanel) */
-  citations?: PreviewCitation[];
-  /**
-   * Citation id the user actually clicked (from citation.citationId).
-   * Used to seed the CitationsPanel so clicking `[2]` highlights citation [2],
-   * not the first citation on the target page.
-   */
-  initialCitationId?: string;
-  /**
-   * External URL for the record (e.g. Jira ticket, Confluence page).
-   * Used by UnknownPreview to open the source in a new browser tab.
-   */
-  webUrl?: string;
-  /**
-   * Whether a downloadable file is available for this record.
-   * When false, the "Download File" button is hidden in UnknownPreview.
-   */
-  previewRenderable?: boolean;
-  /**
-   * Hide the "File Details" tab in the preview shell. Set for previews that
-   * don't correspond to a KB record (e.g. chat-generated artifacts).
-   */
-  hideFileDetails?: boolean;
-  /**
-   * Show a "Download" button in the preview header. Enabled for previews
-   * (e.g. chat attachments / artifacts) where the user is expected to be
-   * able to save the file locally.
-   */
-  showDownload?: boolean;
-}
 
 /**
  * Temporary sidebar entry created when a new chat stream begins.
@@ -280,8 +226,6 @@ interface ChatState {
   settings: ChatSettings;
 
   // ── File preview (global — only one preview open at a time) ──
-  previewFile: ChatPreviewFile | null;
-  previewMode: 'sidebar' | 'fullscreen';
 
   // ── Expansion panel (global — applies to the active chat input) ──
   expansionViewMode: 'inline' | 'overlay';
@@ -436,9 +380,6 @@ interface ChatState {
   setHasConsumedUrlNavigation: (consumed: boolean) => void;
 
   // ── Preview actions ──
-  setPreviewFile: (file: ChatPreviewFile | null) => void;
-  setPreviewMode: (mode: 'sidebar' | 'fullscreen') => void;
-  clearPreview: () => void;
 
   // ── Settings actions ──
   setMode: (mode: ChatMode) => void;
@@ -538,8 +479,6 @@ const initialState = {
     availableModels: {} as Record<string, { models: import('./types').AvailableLlmModel[]; fetchedAt: number }>,
   },
 
-  previewFile: null as ChatPreviewFile | null,
-  previewMode: 'sidebar' as 'sidebar' | 'fullscreen',
   expansionViewMode: 'inline' as 'inline' | 'overlay',
   collectionNamesCache: {} as Record<string, string>,
   collectionMetaCache: {} as Record<string, { name: string; nodeType: string; connector: string }>,
@@ -1054,20 +993,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // ── Settings actions ─────────────────────────────────────────────
 
-  setPreviewFile: (file) => set({ previewFile: file }),
 
-  setPreviewMode: (mode) => set({ previewMode: mode }),
 
   setExpansionViewMode: (mode) => set({ expansionViewMode: mode }),
 
-  clearPreview: () =>
-    set((state) => {
-      // Revoke blob URL if present
-      if (state.previewFile?.url?.startsWith('blob:')) {
-        URL.revokeObjectURL(state.previewFile.url);
-      }
-      return { previewFile: null, previewMode: 'sidebar' };
-    }),
 
   setMode: (mode) => set((state) => ({
     settings: { ...state.settings, mode },
@@ -1197,7 +1126,7 @@ if (typeof window !== 'undefined') {
     'universalAgentToolGroups',
     'universalAgentToolsLoading',
     'universalAgentToolsError',
-    'settings', 'previewFile', 'previewMode', 'expansionViewMode',
+    'settings', 'expansionViewMode',
     'collectionNamesCache', 'collectionMetaCache', 'conversationsVersion',
     'searchResults', 'searchQuery', 'searchId', 'isSearching', 'searchError',
   ] as const;
