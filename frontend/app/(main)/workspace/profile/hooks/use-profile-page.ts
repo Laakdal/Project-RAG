@@ -7,9 +7,7 @@ import { useProfileStore, isProfileFormDirty } from '../store';
 import { ProfileApi } from '../api';
 import { getUserIdFromToken, getUserEmailFromToken } from '@/lib/utils/jwt';
 import { isProcessedError } from '@/lib/api';
-import { getUserGroupsForProfile } from '@/lib/api/user-groups';
 import { USER_ROLES } from '@/lib/constants/user-roles';
-import { GroupType } from '@/lib/types/user-groups';
 
 // ========================================
 // Hook
@@ -82,17 +80,6 @@ export function useProfilePage() {
 
         setLoading(false);
 
-        // Fetch groups + derive role from group membership (best-effort, non-blocking)
-        getUserGroupsForProfile(uid).then((allGroups) => {
-          // Exclude system groups (admin, everyone) from the badge display
-          const displayGroups = allGroups.filter(
-            (g) => g.type !== GroupType.EVERYONE
-          );
-          setGroups(displayGroups);
-          // Role is derived from group membership: admin group → Admin
-          const isAdmin = allGroups.some((g) => g.type === GroupType.ADMIN);
-          setRole(isAdmin ? USER_ROLES.ADMIN : USER_ROLES.MEMBER);
-        });
       } catch {
         addToast({
           variant: 'error',

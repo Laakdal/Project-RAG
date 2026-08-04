@@ -24,9 +24,6 @@ import { usePendingChatStore } from '@/lib/store/pending-chat-store';
 import { useSidebarWidthStore } from '@/lib/store/sidebar-width-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { Flex, Box, Text, Avatar, Tooltip, IconButton } from '@radix-ui/themes';
-import { ShareSidebar, ShareHeaderGroup } from '@/app/components/share';
-import type { SharedAvatarMember } from '@/app/components/share';
-import { createChatShareAdapter } from './share-adapter';
 import { ChatSearch } from './components/search';
 import { ConversationFilesPanel } from './components/conversation-files-panel';
 import { isCommandKey } from '@/lib/utils/platform';
@@ -35,7 +32,6 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { toast } from '@/lib/store/toast-store';
 import { ServiceGate } from '@/app/components/ui/service-gate';
 import { useServicesHealthStore } from '@/lib/store/services-health-store';
-import { UsersApi } from '@/lib/api/users';
 
 // Space reserved below content views to clear the absolutely-positioned chat input.
 const CHAT_INPUT_OFFSET = { mobile: 120, desktop: 128 };
@@ -669,100 +665,7 @@ function ChatContent() {
 
   const isMobile = useIsMobile();
   const agentContextDisplayName = useChatStore((s) => s.agentContextDisplayName);
-  const agentContextCreatedBy = useChatStore((s) => s.agentContextCreatedBy);
-  const [agentCreatorName, setAgentCreatorName] = useState<string | null>(null);
-  const [agentCreatorAvatarUrl, setAgentCreatorAvatarUrl] = useState<string | undefined>(
-    undefined
-  );
 
-  useEffect(() => {
-    const mongoUserId = historyAndShareAgentId ? agentContextCreatedBy : null;
-    if (!mongoUserId) {
-      setAgentCreatorName(null);
-      setAgentCreatorAvatarUrl(undefined);
-      return;
-    }
-    let cancelled = false;
-    UsersApi.getUsersByIds([mongoUserId])
-      .then((users) => {
-        if (cancelled) return;
-        const user = users[0];
-        setAgentCreatorName(user?.name?.trim() || user?.email?.trim() || null);
-        setAgentCreatorAvatarUrl(user?.profilePicture ?? undefined);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAgentCreatorName(null);
-          setAgentCreatorAvatarUrl(undefined);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [historyAndShareAgentId, agentContextCreatedBy]);
-
-  // Share state
-  const [isShareSidebarOpen, setIsShareSidebarOpen] = useState(false);
-  const [sharedMembers, setSharedMembers] = useState<SharedAvatarMember[]>([]);
-
-  const chatShareAdapter = useMemo(() => {
-    if (!conversationId) return null;
-    return createChatShareAdapter(conversationId);
-  }, [conversationId]);
-
-  // Agent threads are not shareable by anyone (including the owner), so gate on
-  // historyAndShareAgentId (slot-scoped, set for both URL and restored agent threads).
-  const showConversationShare =
-    Boolean(
-      conversationId &&
-        chatShareAdapter &&
-        activeSlotIsOwner === true &&
-        !historyAndShareAgentId
-    );
-
-  useEffect(() => {
-    if (!showConversationShare && isShareSidebarOpen) {
-      setIsShareSidebarOpen(false);
-    }
-  }, [showConversationShare, isShareSidebarOpen]);
-
-  const handleShareClick = useCallback(() => {
-    if (!chatShareAdapter) return;
-    setIsShareSidebarOpen(true);
-  }, [chatShareAdapter]);
-
-  // ── Load shared members for header avatars ───────────────────────
-  // Fires whenever the active conversation changes. Uses the same
-  // getSharedMembers() path as the share sidebar so IDs stay consistent.
-  useEffect(() => {
-    if (!conversationId || !chatShareAdapter || !showConversationShare) {
-      setSharedMembers([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    chatShareAdapter.getSharedMembers().then((members) => {
-      if (cancelled) return;
-      // Exclude the owner from the avatar row (same shape as onShareSuccess)
-      setSharedMembers(
-        members
-          .filter((m) => !m.isOwner)
-          .map((m) => ({
-            id: m.id,
-            name: m.name,
-            avatarUrl: m.avatarUrl || undefined,
-            type: m.type,
-          }))
-      );
-    }).catch(() => {
-      // Non-fatal — header just shows without avatars
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [conversationId, chatShareAdapter, showConversationShare]);
 
   // Hide chat input when viewing a shared conversation the user does not own.
   // `null` means "not yet known" (loading) — keep input visible to avoid flash.
@@ -969,58 +872,7 @@ function ChatContent() {
         </Box>
       )}
 
-      {/* Agent creator chip */}
-      {historyAndShareAgentId && agentCreatorName && (
-        <Box
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: showConversationShare ? 200 : 16,
-            zIndex: 19,
-          }}
-        >
-          <Tooltip content={`Created by: ${agentCreatorName}`}>
-            <Flex
-              align="center"
-              gap="2"
-              px="2"
-              py="1"
-              style={{
-                background: 'var(--color-panel)',
-                borderRadius: 'var(--radius-2)',
-                maxWidth: isMobile ? 140 : 220,
-                cursor: 'default',
-              }}
-            >
-              <Avatar
-                size="1"
-                fallback={agentCreatorName.charAt(0).toUpperCase()}
-                src={agentCreatorAvatarUrl}
-                radius="full"
-                style={{ flexShrink: 0 }}
-              />
-              <Text
-                size="2"
-                style={{
-                  color: 'var(--gray-12)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {agentCreatorName}
-              </Text>
-            </Flex>
-          </Tooltip>
-        </Box>
-      )}
 
-      {/* Share header group — owners only */}
-      {showConversationShare && (
-        <Box style={{ position: 'absolute', top: 12, right: 16, zIndex: 20 }}>
-          <ShareHeaderGroup members={sharedMembers} onShareClick={handleShareClick} />
-        </Box>
-      )}
 
       {showInitialLoading ? (
         <Flex
@@ -1324,28 +1176,6 @@ function ChatContent() {
       )}
 
 
-      {/* Share Sidebar */}
-      {showConversationShare && chatShareAdapter && (
-        <ShareSidebar
-          open={isShareSidebarOpen}
-          onOpenChange={setIsShareSidebarOpen}
-          adapter={chatShareAdapter}
-          onShareSuccess={() => {
-            chatShareAdapter.getSharedMembers().then((members) => {
-              setSharedMembers(
-                members
-                  .filter((m) => !m.isOwner)
-                  .map((m) => ({
-                    id: m.id,
-                    name: m.name,
-                    avatarUrl: m.avatarUrl || undefined,
-                    type: m.type,
-                  }))
-              );
-            });
-          }}
-        />
-      )}
 
       {/* Command palette overlay (⌘+K) */}
       <ChatSearch
