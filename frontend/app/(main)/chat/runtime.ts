@@ -88,46 +88,6 @@ function readKbCollectionsFromMessage(
  *
  * Builds CitationMaps from CitationApiResponse for each bot_response.
  */
-export function loadHistoricalMessages(
-  messages: ConversationMessage[]
-): ThreadMessageLike[] {
-  return messages.map((msg) => ({
-    // Stable per-message id — keeps list keys and citation popovers from remounting
-    // on every `messages` ref replace (e.g. SSE complete or history refresh).
-    id: msg._id,
-    role: msg.messageType === 'user_query' ? ('user' as const) : ('assistant' as const),
-    content: [
-      {
-        type: 'text' as const,
-        text: msg.content,
-      },
-    ],
-    metadata:
-      msg.messageType === 'bot_response'
-        ? {
-            custom: {
-              messageId: msg._id,
-              citationMaps: buildCitationMapsFromApi(msg.citations || []),
-              confidence: msg.confidence,
-              modelInfo: msg.modelInfo,
-              // Feedback is stored server-side but intentionally not displayed in the UI
-            },
-          }
-        : msg.messageType === 'user_query'
-        ? {
-            custom: {
-              createdAt: msg.createdAt,
-              ...(msg.appliedFilters ? { appliedFilters: msg.appliedFilters } : {}),
-              ...(msg.attachments?.length ? { attachments: msg.attachments } : {}),
-            },
-          }
-        : {
-          custom: {
-            createdAt: msg.createdAt,
-          },
-        },
-  }));
-}
 
 /** Attachment refs attached on send (see chat input metadata). */
 function readAttachmentsFromMessage(

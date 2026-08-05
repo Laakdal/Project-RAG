@@ -23,7 +23,6 @@ import { ChatSections } from './chat-sections';
 function ChatSidebar() {
   debugLog.tick('[sidebar] [ChatSidebar]');
 
-  const toggleMoreChatsPanel = useChatStore((s) => s.toggleMoreChatsPanel);
 
   const isMobileOpen = useMobileSidebarStore((s) => s.isOpen);
   const closeMobileSidebar = useMobileSidebarStore((s) => s.close);
@@ -41,7 +40,7 @@ function ChatSidebar() {
     >
       <Flex direction="column" gap="3">
         <StaticNavSection />
-        <ChatSections onOpenMoreChats={toggleMoreChatsPanel} />
+        <ChatSections />
       </Flex>
     </SidebarBase>
   );

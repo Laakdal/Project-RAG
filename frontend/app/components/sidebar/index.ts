@@ -1,6 +1,5 @@
 export { SidebarBase } from './sidebar-base';
 export { SidebarBackHeader } from './sidebar-back-header';
-export { SecondaryPanel } from './secondary-panel';
 export type { SidebarBaseProps, SecondaryPanelProps } from './types';
 export {
   SIDEBAR_WIDTH,

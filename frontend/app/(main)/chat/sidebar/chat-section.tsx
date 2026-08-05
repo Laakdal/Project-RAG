@@ -1,117 +1,57 @@
 'use client';
 
-import { useState } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
-import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
-import { ICON_SIZE_DEFAULT } from '@/app/components/sidebar';
-import { ChatSectionHeader } from './chat-section-header';
-import { ChatSectionElement, StartChatButton, ChatItemSkeleton } from './chat-section-element';
-import { SidebarItem } from './sidebar-item';
+import { StartChatButton, ChatItemSkeleton } from './chat-section-element';
 import { TimeGroup } from './time-group';
 import type { Conversation } from '@/chat/types';
 import type { PendingConversation } from '@/chat/store';
 import type { TimeGroupKey } from './time-group';
 
-interface ChatSectionBaseProps {
-  /** Section label shown in the header. Omit to suppress the header entirely. */
-  title?: string;
+interface ChatSectionProps {
+  timeGroups: Array<[TimeGroupKey, Conversation[]]>;
   isLoading: boolean;
   hasError: boolean;
   currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
-  onAdd?: () => void;
   onNewChat: () => void;
   skeletonCount: number;
   /** When true, the section grows to fill available space and scrolls */
   isScrollable?: boolean;
-  /** Show "⋯ More" overflow button at the bottom */
-  hasMore?: boolean;
-  /** Called when "More" button is clicked */
-  onMore?: () => void;
   /** Pending conversations to show as "Generating Title…" shimmers in Today group */
   pendingConversations?: PendingConversation[];
-  /** When provided, show this text as the empty state instead of StartChatButton */
-  emptyStateText?: string;
-  /** When true, a chevron toggle is shown and the section body can be collapsed */
-  isCollapsible?: boolean;
-  /** Initial collapsed state (defaults to false) */
-  defaultCollapsed?: boolean;
 }
 
 /**
- * Props when time groups are provided (Your Chats mode).
- */
-interface TimeGroupedSectionProps extends ChatSectionBaseProps {
-  timeGroups: Array<[TimeGroupKey, Conversation[]]>;
-  conversations?: never;
-}
-
-/**
- * Props when flat conversation list is provided (Shared Chats mode).
- */
-interface FlatSectionProps extends ChatSectionBaseProps {
-  conversations: Conversation[];
-  timeGroups?: never;
-}
-
-type ChatSectionProps = TimeGroupedSectionProps | FlatSectionProps;
-
-/**
- * A single chat section — renders a header plus either a flat list
- * or time-grouped conversations, with loading/error/empty states
- * and an optional "More" overflow button.
+ * The chat list section — time-grouped conversations with loading, error and
+ * empty states.
  */
 export function ChatSection({
-  title,
-  conversations,
   timeGroups,
   isLoading,
   hasError,
   currentConversationId,
   onSelectConversation,
-  onAdd,
   onNewChat,
   skeletonCount,
   isScrollable = false,
-  hasMore = false,
-  onMore,
   pendingConversations = [],
-  emptyStateText,
-  isCollapsible = false,
-  defaultCollapsed = false,
 }: ChatSectionProps) {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-
-  const isTimeGrouped = !!timeGroups;
   const showGenerating = pendingConversations.length > 0;
-  const isEmpty = isTimeGrouped
-    ? timeGroups.length === 0 && !showGenerating
-    : !conversations || conversations.length === 0;
+  const isEmpty = timeGroups.length === 0 && !showGenerating;
 
   return (
     <Flex
       direction="column"
-      style={isScrollable && !isCollapsed ? { flex: 1, minHeight: 0 } : undefined}
+      style={isScrollable ? { flex: 1, minHeight: 0 } : undefined}
     >
-      {(title || onAdd || isCollapsible) && (
-        <ChatSectionHeader
-          title={title ?? ''}
-          onAdd={onAdd}
-          addAriaLabel={onAdd ? "New Chat" : undefined}
-          onTitleClick={!isCollapsible && hasMore ? onMore : undefined}
-          isCollapsed={isCollapsible ? isCollapsed : undefined}
-          onToggleCollapse={isCollapsible ? () => setIsCollapsed((c) => !c) : undefined}
-        />
-      )}
-
-      {!isCollapsed && hasError ? (
+      {hasError ? (
         <Flex direction="column" gap="2" style={{ padding: 'var(--space-2) var(--space-3)' }}>
           <Text size="1" style={{ color: '#ef4444' }}>
             {"Failed to load"}
           </Text>
           <StartChatButton onClick={onNewChat} />
         </Flex>
-      ) : !isCollapsed ? (
+      ) : (
         <Flex
           direction="column"
           className={isScrollable ? 'no-scrollbar' : undefined}
@@ -126,20 +66,9 @@ export function ChatSection({
                 <ChatItemSkeleton key={i} />
               ))}
             </Flex>
-          ) : isEmpty && !showGenerating ? (
-            /* Empty state */
-            emptyStateText ? (
-              <Text
-                size="1"
-                style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--slate-10)' }}
-              >
-                {emptyStateText}
-              </Text>
-            ) : (
-              <StartChatButton onClick={onNewChat} />
-            )
-          ) : isTimeGrouped ? (
-            /* Time-grouped list (Your Chats) */
+          ) : isEmpty ? (
+            <StartChatButton onClick={onNewChat} />
+          ) : (
             <Flex direction="column">
               {timeGroups.map(([label, convs]) => (
                 <TimeGroup
@@ -162,40 +91,9 @@ export function ChatSection({
                 />
               )}
             </Flex>
-          ) : (
-            /* Flat list (Shared Chats) */
-            <Flex direction="column" gap="1">
-              {conversations!.map((conv) => (
-                <ChatSectionElement
-                  key={conv.id}
-                  conversation={conv}
-                  isActive={currentConversationId === conv.id}
-                  onClick={() => onSelectConversation(conv.id)}
-                />
-              ))}
-            </Flex>
-          )}
-
-          {/* "⋯ More" overflow button */}
-          {hasMore && (
-            <MoreButton onClick={onMore} />
           )}
         </Flex>
-      ) : null}
+      )}
     </Flex>
-  );
-}
-
-/**
- * "⋯ More" button shown at the bottom of a section when there are
- * more chats than MAX_VISIBLE_CHATS.
- */
-function MoreButton({ onClick }: { onClick?: () => void }) {
-  return (
-    <SidebarItem
-      icon={<MaterialIcon name="more_horiz" size={ICON_SIZE_DEFAULT} color="var(--slate-11)" />}
-      label={"More"}
-      onClick={onClick}
-    />
   );
 }

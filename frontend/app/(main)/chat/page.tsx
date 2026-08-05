@@ -19,7 +19,6 @@ import { buildChatHref } from '@/chat/build-chat-url';
 import { buildExternalStoreConfig } from '@/chat/runtime';
 import { debugLog } from '@/chat/debug-logger';
 import { useCommandStore } from '@/lib/store/command-store';
-import { usePendingChatStore } from '@/lib/store/pending-chat-store';
 import { useSidebarWidthStore } from '@/lib/store/sidebar-width-store';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import { Flex, Box, Text, Avatar, Tooltip, IconButton } from '@radix-ui/themes';
@@ -549,83 +548,6 @@ function ChatContent() {
     });
   };
 
-  // ── Consume pending chat context from widget ──────────────────────
-  const pendingConsumedRef = useRef(false);
-  useEffect(() => {
-    if (conversationId || pendingConsumedRef.current) return;
-
-    const pending = usePendingChatStore.getState().consumePending();
-    if (!pending) return;
-    pendingConsumedRef.current = true;
-
-    const store = useChatStore.getState();
-
-    // Ensure we have a slot for the new chat
-    let slotId = store.activeSlotId;
-    if (!slotId) {
-      slotId = store.createSlot(null);
-      store.setActiveSlot(slotId);
-    }
-    if (agentId) {
-      store.updateSlot(slotId, {
-        threadAgentId: agentId,
-        agentStreamTools:
-          store.agentStreamTools === null ? null : [...store.agentStreamTools],
-      });
-    }
-
-    // 1. Set collection filters so they scope the AI query
-    const collections = pending.pageContext.collections ?? [];
-    if (collections.length > 0) {
-      const rootIds = collections.map((c) => c.id);
-      store.setFilters({
-        ...store.settings.filters,
-        apps: [...new Set([...(store.settings.filters.apps ?? []), ...rootIds])],
-        kb: [],
-      });
-
-      const cache = { ...store.collectionNamesCache };
-      collections.forEach((c) => {
-        cache[c.id] = c.name;
-      });
-      store.setCollectionNamesCache(cache);
-
-      // Store for the streaming UI (pending collection cards on the message)
-      store.updateSlot(slotId, {
-        pendingCollections: collections.map((c) => ({
-          id: c.id,
-          name: c.name,
-          kind: 'collectionRoot' as const,
-        })),
-      });
-    }
-
-    // 2. Apply any settings overrides from the widget
-    if (pending.settings) {
-      if (pending.settings.mode) store.setMode(pending.settings.mode);
-      if (pending.settings.queryMode) store.setQueryMode(pending.settings.queryMode);
-      if (pending.settings.agentStrategy) store.setAgentStrategy(pending.settings.agentStrategy);
-    }
-
-    // 3. Auto-send the message through the runtime. Attachments arrive
-    // pre-uploaded (the widget triggered the upload at attach-time), so we
-    // forward the refs verbatim — same shape as a regular send from the
-    // main composer.
-    threadRuntime.append({
-      role: 'user',
-      content: [{ type: 'text', text: pending.message }],
-      metadata: {
-        custom: {
-          collections: collections.length > 0 ? collections : undefined,
-          attachments:
-            pending.attachments && pending.attachments.length > 0
-              ? pending.attachments
-              : undefined,
-        },
-      },
-      startRun: true,
-    });
-  }, [conversationId, threadRuntime, activeSlotId, agentId]);
 
   const isMobile = useIsMobile();
   const agentContextDisplayName = useChatStore((s) => s.agentContextDisplayName);

@@ -14,7 +14,6 @@ import { SWRConfig } from "swr"
 import { axiosFetcher } from "@/lib/api"
 import { logoutAndRedirect } from "@/lib/store/auth-store"
 import { ToastContainer } from "../components/feedback"
-import { UserProfileInitializer } from './components/user-profile-initializer'
 import { useMobileSidebarStore } from "@/lib/store/mobile-sidebar-store"
 import { useSidebarWidthStore } from "@/lib/store/sidebar-width-store"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
@@ -101,7 +100,6 @@ function AppLayout({
       }}
     >
       {/* Hydrates user profile (name, email, isAdmin, avatar) once auth is ready */}
-      <UserProfileInitializer />
       <Flex
         style={{
           height: '100vh',

@@ -17,15 +17,9 @@ const YOUR_CHATS_SKELETON_COUNT = 3;
 
 /**
  * Chat sections — renders "Your Chats" with time-grouped conversations and an
- * overflow "More" button.
- *
  * Wrapped in React.memo to prevent parent-cascade re-renders.
  */
-export const ChatSections = React.memo(function ChatSections({
-  onOpenMoreChats,
-}: {
-  onOpenMoreChats: (sectionType: 'shared' | 'your') => void;
-}) {
+export const ChatSections = React.memo(function ChatSections() {
   const searchParams = useSearchParams();
   const currentConversationId = searchParams?.get('conversationId') ?? null;
   const conversations = useChatStore((s) => s.conversations);
@@ -123,8 +117,6 @@ export const ChatSections = React.memo(function ChatSections({
             onNewChat={handleNewChat}
             skeletonCount={YOUR_CHATS_SKELETON_COUNT}
             isScrollable
-            hasMore={false}
-            onMore={() => onOpenMoreChats('your')}
             pendingConversations={activePendingConversations}
           />
         </Flex>

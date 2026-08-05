@@ -6,7 +6,6 @@ import { MaterialIcon } from '@/app/components/ui/MaterialIcon';
 import { Flex, Box, Text, IconButton, Tooltip, Popover } from '@radix-ui/themes';
 import { ICON_SIZES } from '@/lib/constants/icon-sizes';
 import { MessageActionIndicator } from '@/chat/components/chat-panel/expansion-panels/message-actions';
-import { SelectedCollections } from '@/chat/components/selected-collections';
 import { resolveConnectorType } from '@/app/components/ui/ConnectorIcon';
 import { getQueryModeConfig } from '@/chat/constants';
 import { useChatStore, ctxKeyFromAgent } from '@/chat/store';
@@ -793,27 +792,6 @@ export function ChatInput({
         }),
       }}
     >
-      {/* Selected Collection Cards — shown above the main input, matching Figma spec */}
-      {showSelectedCollectionsRow && (
-        <Flex
-          align="center"
-          style={{
-            backgroundColor: 'var(--slate-1)',
-            borderTop: '1px solid var(--slate-5)',
-            borderLeft: '1px solid var(--slate-5)',
-            borderRight: '1px solid var(--slate-5)',
-            borderTopLeftRadius: 'var(--radius-1)',
-            borderTopRightRadius: 'var(--radius-1)',
-            padding: 'var(--space-2) var(--space-3)',
-          }}
-        >
-          <SelectedCollections
-            collections={selectedCollections}
-            removable={!isRegenerateMode}
-            onRemove={isRegenerateMode ? undefined : handleRemoveCollection}
-          />
-        </Flex>
-      )}
 
       {/* Action pill bar — sits above the main input container when edit or regenerate is active. */}
       {isActionMode && activeMessageAction && (

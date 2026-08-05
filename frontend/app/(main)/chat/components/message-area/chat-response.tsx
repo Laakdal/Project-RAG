@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Button, Heading, IconButton } from '@radix-ui/themes';
 import { Box, Flex, Text } from '@radix-ui/themes';
-import { AppliedFilters } from '../applied-filters';
 import { ConfidenceIndicator } from './confidence-indicator';
 import { AnswerContent } from './answer-content';
 import { StatusMessageComponent } from './status-message';
@@ -368,12 +367,6 @@ export const ChatResponse = React.memo(function ChatResponse({
       </Box>
       )}
 
-      {/* Applied filter chips — shown when connector/KB filters were scoped on this query */}
-      {appliedFilters && (appliedFilters.apps.length > 0 || appliedFilters.kb.length > 0) && (
-        <Box style={{ marginBottom: 'var(--space-3)' }}>
-          <AppliedFilters appliedFilters={appliedFilters} />
-        </Box>
-      )}
 
       {/* Attachment chips — uploaded files sent with this message */}
       {attachments && attachments.length > 0 && (
